@@ -59,7 +59,9 @@ RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login && 
     python3 -m compileall -q /usr/libexec/mutsu-os/src && \
     glib-compile-schemas /usr/share/glib-2.0/schemas && \
     bash /tmp/mutsu-configure-shortcut-defaults.sh && \
-    rm -f /tmp/mutsu-configure-shortcut-defaults.sh
+    rm -f /tmp/mutsu-configure-shortcut-defaults.sh && \
+    PYTHONPATH=/usr/libexec/mutsu-os/src /usr/bin/python3 -m aidesktop --help >/dev/null && \
+    PYTHONPATH=/usr/libexec/mutsu-os/src /usr/bin/python3 -m aidesktop --setup-status >/dev/null
 
 ### ADAPTIVE DESKTOP
 COPY extensions/mutsu-adaptive@mutsu-os /tmp/mutsu-adaptive-src
