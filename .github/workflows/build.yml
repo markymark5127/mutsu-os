@@ -41,6 +41,19 @@ jobs:
       - name: Install just
         uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 #v4.0.0
 
+      - name: Check pinned desktop and Mutsu integration before building
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash packaging/prepare-desktop.sh
+          python3 packaging/check-integration.py
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
+          PYTHONPATH=vendor/ai-desktop/src python3 -m unittest discover -s vendor/ai-desktop/tests -p 'test_*.py' -v
+          # Record exactly which reviewed desktop code this immutable image uses.
+          cat packaging/desktop-source.env
+          bash -n packaging/prepare-desktop.sh
+          bash -n packaging/install-adaptive-extension.sh
+
       - name: Check Just Syntax
         shell: bash
         run: |
