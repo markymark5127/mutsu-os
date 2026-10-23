@@ -1,0 +1,5 @@
+# Applies only as a default for users without an existing wallpaper choice.
+# This is not a lock and does not override existing user preferences.
+[org.gnome.desktop.background]
+picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+picture-uri-dark='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
