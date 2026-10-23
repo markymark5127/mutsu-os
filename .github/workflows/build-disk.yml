@@ -38,7 +38,11 @@ jobs:
   build:
     name: Build disk images
     # Pull requests have no workflow_dispatch inputs: default them to amd64.
-    runs-on: ${{ inputs.platform == 'arm64' && 'ubuntu-26.04-arm' || 'ubuntu-26.04' }}
+    # Keep the privileged OSBuild disk/ISO jobs on Ubuntu 24.04: on 26.04,
+    # osbuild fails with EPERM while mounting /run/osbuild/containers/storage
+    # (qcow2) or /run/osbuild/tree/dev (anaconda-iso). This is a temporary
+    # runner compatibility pin until the image builder is qualified on 26.04.
+    runs-on: ${{ inputs.platform == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
       matrix:
