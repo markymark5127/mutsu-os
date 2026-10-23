@@ -101,6 +101,7 @@ build $target_image=image_name $tag=default_tag:
     # Pin Mutsu Search to a known ai-desktop commit rather than using HEAD of
     # another repository during an immutable OS build.
     bash packaging/prepare-desktop.sh
+    python3 packaging/check-integration.py
     PYTHONPATH=vendor/ai-desktop/src python3 -m compileall -q vendor/ai-desktop/src
 
     BUILD_ARGS=()
