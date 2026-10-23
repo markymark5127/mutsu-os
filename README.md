@@ -26,13 +26,16 @@ rather than being updated silently every build.
 - A GNOME autostart entry launching the first-run setup wizard **once per
   user**, until setup is completed or skipped. It respects the
   `~/.config/ai-desktop/onboarding.json` setting.
+- A user-overridable **Super / Command + Space** GNOME shortcut default for
+  Mutsu Search; input-language switching is moved to Shift+Super+Space. No
+  shortcuts are locked by policy.
 - The Mutsu AI result displays your installed emblem if no separate AI SVG
   exists. The assistant is opt-in and off by default for model requests.
 - Optional Newelle user-service and key-configuration scripts are installed
   in `/usr/share/mutsu-os/scripts`.
 
 **Not included yet:** a bundled/configured Newelle model, system-wide
-Japandi/Cyberpunk GTK/GNOME Shell style, mandatory Spotlight keyboard binding,
+Japandi/Cyberpunk GTK/GNOME Shell style, full GNOME Shell-native Spotlight integration,
 custom app icon pack, touch-first Yoga tablet mode, native blur, a branded
 Plymouth animation, or a branded Anaconda installer. These are separate
 milestones. The first build should prove **branding and OS packaging**
@@ -46,6 +49,7 @@ cd mutsu-os
 
 # Automatically done by "just build"; can also be run explicitly:
 bash packaging/prepare-desktop.sh
+python3 packaging/check-integration.py
 
 # Builds an OCI container image; not an installed system or a disk image.
 just build
@@ -67,6 +71,8 @@ Image source:
 - `packaging/mutsu-first-login` — per-user first-run onboarding.
 - `packaging/90-mutsu-wallpaper.gschema.override` — initial GNOME background
   default, overridable by each user.
+- `packaging/20-mutsu-shortcut.dconf` — GNOME shortcut default for new
+  users, overridable in Settings.
 
 The GitHub Actions [image workflow](.github/workflows/build.yml) builds and
 publishes container images to GHCR after a merge to `main`. Verify repository
@@ -110,6 +116,10 @@ The interactive wizard can direct users through this. The original
 covers configuration and troubleshooting. Permission to send prompts or
 diagnostic data remains an unchecked-by-default, revocable choice in Mutsu
 settings; model-proposed system changes still require a separate approval.
+
+The optional ISO workflow also expects `disk_config/iso.toml`, now present
+with only Mutsu installer metadata. The installer itself still requires
+separate artwork and physical/VM installation testing.
 
 ## Remaining distribution tasks
 
