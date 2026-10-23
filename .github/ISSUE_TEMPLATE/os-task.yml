@@ -1,0 +1,69 @@
+name: "Mutsu OS development task"
+description: "Track OS integration, GNOME features, QA or release work with verifiable acceptance criteria."
+title: "[P1][Area] Short description"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Mutsu OS uses [the roadmap](../../blob/main/docs/ROADMAP.md) and checkable GitHub issues to track release-readiness. Choose the correct priority and milestone; file issues in this repository for image integration and release behavior, not mere UI text changes in ai-desktop.
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: "Release milestone"
+      options:
+        - "M0 — Verified bootable alpha"
+        - "M1 — GNOME desktop and tablet experience"
+        - "M2 — AI, connectivity and gaming"
+        - "M3 — Public beta and distribution"
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - "P0 — Release-blocking"
+        - "P1 — Core functionality"
+        - "P2 — Advanced/long-term"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem and desired outcome"
+      description: "What user-visible or image-level result should this work produce?"
+      placeholder: "Today ..., users cannot ...; after this change ..."
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: "Likely implementation location"
+      description: "List the owning repo, component(s), relevant files and expected approach."
+      placeholder: "mutsu-os: Containerfile, packaging/... or ai-desktop: src/aidesktop/..."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "Acceptance and verification checklist"
+      description: "Use Markdown checkboxes. Code existing is not enough: define how it will be tested."
+      value: |
+        - [ ] Implementation merged or explicitly version-pinned
+        - [ ] Tests and lint pass
+        - [ ] Verified in a booted GNOME VM or matching device
+        - [ ] Reversible/disable path confirmed
+        - [ ] Documentation and release notes updated
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: "Dependencies and related tasks"
+      description: "Reference parent issue, prerequisites and ai-desktop issue numbers."
+      placeholder: "Blocked by #8; related to markymark5127/ai-desktop#6"
+  - type: textarea
+    id: risks
+    attributes:
+      label: "Compatibility, privacy and rollback risks"
+      placeholder: "GNOME version, input gestures, Bazzite updates, secrets, accessibility..."
