@@ -1,0 +1,8 @@
+{
+  "uuid": "mutsu-adaptive@mutsu-os",
+  "name": "Mutsu Adaptive Desktop",
+  "description": "MacBook-like desktop when open; iPad-like app-grid Home when a 2-in-1 is folded into tablet posture. Detects SW_TABLET_MODE where available and provides a manual toggle.",
+  "shell-version": ["45", "46", "47", "48", "49", "50", "51"],
+  "url": "https://github.com/markymark5127/mutsu-os",
+  "settings-schema": "org.gnome.shell.extensions.mutsu-adaptive"
+}

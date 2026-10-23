@@ -60,6 +60,12 @@ RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login && 
     bash /tmp/mutsu-configure-shortcut-defaults.sh && \
     rm -f /tmp/mutsu-configure-shortcut-defaults.sh
 
+### ADAPTIVE DESKTOP
+COPY extensions/mutsu-adaptive@mutsu-os /tmp/mutsu-adaptive-src
+COPY packaging/install-adaptive-extension.sh /tmp/mutsu-install-adaptive.sh
+RUN bash /tmp/mutsu-install-adaptive.sh && \
+    rm -rf /tmp/mutsu-adaptive-src /tmp/mutsu-install-adaptive.sh
+
 ### LINTING
 ## Verify final image and contents are correct.
 RUN bootc container lint
