@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Mutsu OS Welcome
+Comment=Show initial Mutsu OS setup once per user
+Exec=/usr/libexec/mutsu-os/mutsu-first-login
+Icon=mutsu-os-logo
+Terminal=false
+OnlyShowIn=GNOME;
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
