@@ -43,6 +43,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 ### MUTSU OS DESKTOP
 # Pin and stage the ai-desktop source via packaging/prepare-desktop.sh first.
 # The source lives in the image itself; no per-user Git clone is required.
+COPY packaging/desktop-source.env /usr/share/mutsu-os/build-info/desktop-source.env
 COPY vendor/ai-desktop/src/ /usr/libexec/mutsu-os/src/
 COPY packaging/mutsu-search /usr/bin/mutsu-search
 COPY packaging/mutsu-first-login /usr/libexec/mutsu-os/mutsu-first-login
