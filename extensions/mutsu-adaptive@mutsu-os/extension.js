@@ -33,14 +33,25 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._indicator.menu.addAction('Automatic', () => this._setMode('automatic'));
         Main.panel.addToStatusArea(this.uuid, this._indicator);
 
-        // Quick Settings toggle (session-level override)
-        this._qsToggle = new QuickSettings.QuickToggle({
-            title: 'Tablet Mode',
-            iconName: 'view-app-grid-symbolic',
-            toggleMode: true,
-        });
-        this._qsToggle.connect('clicked', () => this._toggleManual());
-        Main.panel.statusArea.quickSettings.menu.addItem(this._qsToggle);
+        // Quick Settings internals change between GNOME Shell versions.
+        // The standard panel menu remains an escape hatch if they are absent.
+        this._qsToggle = null;
+        try {
+            const menu = Main.panel.statusArea.quickSettings?.menu;
+            if (menu) {
+                this._qsToggle = new QuickSettings.QuickToggle({
+                    title: 'Tablet Mode',
+                    iconName: 'view-app-grid-symbolic',
+                    toggleMode: true,
+                });
+                this._qsToggle.connect('clicked', () => this._toggleManual());
+                menu.addItem(this._qsToggle);
+            }
+        } catch (error) {
+            this._qsToggle?.destroy();
+            this._qsToggle = null;
+            log(`Mutsu Adaptive: Quick Settings unavailable (${error})`);
+        }
 
         this._settingsChangedId = this._settings.connect('changed::mode', () => this._applyFromSettings());
         this._applyFromSettings();
@@ -131,7 +142,11 @@ export default class MutsuAdaptiveExtension extends Extension {
         }
 
         this._installMaximizeOnLaunch();
-        this._installBottomGesture();
+        // A reactive bottom-edge actor can intercept GNOME's OSK, accessibility
+        // and touch input. Do not install it unless the user opted into
+        // experimental gestures (not enabled in the shipped image).
+        if (this._settings.get_boolean('enable-experimental-gestures'))
+            this._installBottomGesture();
         this._syncQsToggle();
         log('Mutsu Adaptive: entered tablet mode');
     }
@@ -154,7 +169,7 @@ export default class MutsuAdaptiveExtension extends Extension {
     }
 
     _startPostureWatcher() {
-        // Placeholder: on real hardware, poll or listen for SW_TABLET_MODE.
+        // Not implemented: do not claim Automatic can detect SW_TABLET_MODE.
         // Example future implementation:
         // - Spawn a small helper that watches libinput and emits a D-Bus signal
         // - Or connect to Mutter's tablet-mode property if exposed
