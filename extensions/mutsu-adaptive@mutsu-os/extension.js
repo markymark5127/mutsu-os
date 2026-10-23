@@ -8,6 +8,12 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Clutter from 'gi://Clutter';
 
+// EXPERIMENTAL — disabled by default in the Mutsu OS image.
+// Automatic tablet posture detection is not implemented.
+// Bottom-edge gestures are off unless the user explicitly enables the experimental setting.
+// Always test on a disposable VM before enabling on real hardware.
+// Recovery: gnome-extensions disable mutsu-adaptive@mutsu-os
+
 const BOTTOM_EDGE_HEIGHT = 24;
 const DEBOUNCE_MS = 400;
 
@@ -20,7 +26,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._debounceSource = 0;
         this._pendingTablet = null;
 
-        // Panel indicator
+        // Panel indicator (escape hatch always available)
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
         const icon = new St.Icon({
             icon_name: 'view-app-grid-symbolic',
@@ -63,6 +69,8 @@ export default class MutsuAdaptiveExtension extends Extension {
     }
 
     disable() {
+        // Fully disconnect signals, destroy actors, and leave tablet mode so the
+        // extension never captures input or holds resources when disabled.
         if (this._debounceSource) {
             GLib.source_remove(this._debounceSource);
             this._debounceSource = 0;
@@ -102,7 +110,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._requestTablet(true);
         else if (mode === 'always-desktop')
             this._requestTablet(false);
-        // automatic: posture watcher decides
+        // automatic: posture watcher decides (currently a no-op scaffold)
         this._syncQsToggle();
     }
 
