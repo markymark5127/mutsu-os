@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Mutsu OS Search: stable system entrypoint for the GNOME assistant.
+set -euo pipefail
+export PYTHONPATH="/usr/libexec/mutsu-os/src${PYTHONPATH:+:$PYTHONPATH}"
+exec /usr/bin/python3 -m aidesktop "$@"
