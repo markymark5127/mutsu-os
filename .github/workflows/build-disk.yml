@@ -2,6 +2,16 @@
 name: Build disk images
 
 on:
+  # Generate downloadable images on main when the disk builder or its
+  # configuration changes; keep workflow_dispatch for deliberate rebuilds.
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/build-disk.yml'
+      - 'disk_config/disk.toml'
+      - 'disk_config/iso.toml'
+      - 'tests/test_disk_image_workflow.py'
   workflow_dispatch:
     inputs:
       upload-to-s3:
