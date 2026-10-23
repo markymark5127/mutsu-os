@@ -1,0 +1,15 @@
+# Never send private signing keys, git internals or VM artifacts to Podman.
+.git
+**/.git
+cosign.key
+output
+_build_*
+*_chunkah_*
+*_rpm-ostree_*
+
+# Stage pinned source, but only copy runtime src and selected scripts.
+vendor/ai-desktop/tests
+vendor/ai-desktop/docs
+vendor/ai-desktop/assets
+vendor/ai-desktop/.github
+vendor/ai-desktop/README.md
