@@ -22,6 +22,30 @@ in container, please use "--rootfs" to set manually
 The workflow also defaults PR jobs to the x86_64 runner when no manual
 `inputs.platform` is supplied and uses distinct artifact names.
 
+## October 23, 2026: privileged OSBuild mount permission regression
+
+After fixing Btrfs and absolute Podman config paths, both jobs reached OSBuild
+but hit mount permission errors on the pinned Ubuntu 26.04 GitHub runner:
+
+```text
+qcow2:        mount: /run/osbuild/containers/storage: permission denied (32)
+anaconda-iso: mount: /run/osbuild/tree/dev: permission denied (32)
+```
+
+The image's OCI build succeeded independently; the errors occur inside the
+privileged OSBuild disk-image step. As a targeted compatibility workaround,
+the disk-image workflow now pins **Ubuntu 24.04** for both amd64 and arm64,
+rather than Ubuntu 26.04 or the moving `ubuntu-latest` label. GitHub documents
+pinning 24.04 when incompatible runner changes break existing builds:
+https://github.blog/changelog/2026-09-17-ubuntu-26-generally-available-and-latest-migration/
+
+**Verification needed:** a passing QCOW2 and ISO build on the pinned runners,
+then a disposable-VM boot check. The runner change is not proof of successful
+disk generation; if mount permission errors persist on 24.04, investigate
+the builder's mount namespace, AppArmor and privilege handling rather than
+adding extra root privileges blindly. Record a confirmed runner/OSBuild
+combination before removing this pin.
+
 ## Re-run the workflow after merge
 
 1. Merge the Btrfs workflow fix after its validation checks pass.
