@@ -4,10 +4,15 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# Pinned to an audited ai-desktop revision. Bump this SHA deliberately after
-# testing changes in the app repo; never pull an unreviewed moving branch.
-desktop_commit="9fe8d1c7b958fc96fa472313020cdd5c5729c97b"
-desktop_repo="https://github.com/markymark5127/ai-desktop.git"
+# Read the single reviewed revision manifest. CI and the installed image
+# record these exact references; never fetch an unreviewed moving branch.
+source "$repo_root/packaging/desktop-source.env"
+desktop_commit="$MUTSU_DESKTOP_COMMIT"
+desktop_repo="$MUTSU_DESKTOP_REPO"
+if [[ ! "$desktop_commit" =~ ^[0-9a-f]{40}$ ]]; then
+  printf >&2 'Invalid 40-character ai-desktop commit in manifest.\n'
+  exit 1
+fi
 destination="$repo_root/vendor/ai-desktop"
 
 if [[ -d "$destination/.git" ]]; then
