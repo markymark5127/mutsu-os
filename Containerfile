@@ -5,6 +5,10 @@ COPY system_files /system_files
 
 # Base Image
 FROM ghcr.io/ublue-os/bazzite-gnome:stable
+COPY branding/ /tmp/mutsu-brand-assets/
+COPY packaging/install-branding.sh /tmp/mutsu-install-branding.sh
+RUN bash /tmp/mutsu-install-branding.sh && \
+    rm -rf /tmp/mutsu-brand-assets /tmp/mutsu-install-branding.sh
 ## Other possible base images include:
 # FROM ghcr.io/ublue-os/bazzite:testing
 # FROM ghcr.io/ublue-os/aurora:stable
