@@ -4,3 +4,6 @@ output
 _build-*/**
 *_chunkah_*
 *_rpm-ostree_*
+
+# Temporary source checkout pinned by packaging/prepare-desktop.sh
+/vendor/ai-desktop/
