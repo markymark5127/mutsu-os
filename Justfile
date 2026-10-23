@@ -98,6 +98,11 @@ build $target_image=image_name $tag=default_tag:
 
     set -euox pipefail
 
+    # Pin Mutsu Search to a known ai-desktop commit rather than using HEAD of
+    # another repository during an immutable OS build.
+    bash packaging/prepare-desktop.sh
+    PYTHONPATH=vendor/ai-desktop/src python3 -m compileall -q vendor/ai-desktop/src
+
     BUILD_ARGS=()
     LABELS=()
     if [[ -z "$(git status -s)" ]]; then
