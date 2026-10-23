@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="mutsu-adaptive">
+  <schema id="org.gnome.shell.extensions.mutsu-adaptive" path="/org/gnome/shell/extensions/mutsu-adaptive/">
+    <key name="mode" type="s">
+      <choices>
+        <choice value="automatic"/>
+        <choice value="always-desktop"/>
+        <choice value="always-tablet"/>
+      </choices>
+      <default>'automatic'</default>
+      <summary>Adaptive Desktop mode</summary>
+      <description>automatic: follow hardware tablet switch when present; always-desktop / always-tablet: force the mode.</description>
+    </key>
+    <key name="open-home-on-tablet" type="b">
+      <default>true</default>
+      <summary>Open app grid on tablet transition</summary>
+      <description>When entering tablet mode, show the Show Applications grid as Home.</description>
+    </key>
+  </schema>
+</schemalist>
