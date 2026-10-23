@@ -40,6 +40,21 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build.sh
 
+### MUTSU OS DESKTOP
+# Pin and stage the ai-desktop source via packaging/prepare-desktop.sh first.
+# The source lives in the image itself; no per-user Git clone is required.
+COPY vendor/ai-desktop/src/ /usr/libexec/mutsu-os/src/
+COPY packaging/mutsu-search /usr/bin/mutsu-search
+COPY packaging/mutsu-first-login /usr/libexec/mutsu-os/mutsu-first-login
+COPY packaging/io.github.markymark5127.AIDesktop.desktop /usr/share/applications/io.github.markymark5127.AIDesktop.desktop
+COPY packaging/mutsu-first-login.desktop /etc/xdg/autostart/mutsu-first-login.desktop
+COPY packaging/90-mutsu-wallpaper.gschema.override /usr/share/glib-2.0/schemas/90-mutsu-wallpaper.gschema.override
+COPY vendor/ai-desktop/scripts/configure-newelle-key.sh /usr/share/mutsu-os/scripts/configure-newelle-key.sh
+COPY vendor/ai-desktop/scripts/install-newelle-service.sh /usr/share/mutsu-os/scripts/install-newelle-service.sh
+RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login && \
+    python3 -m compileall -q /usr/libexec/mutsu-os/src && \
+    glib-compile-schemas /usr/share/glib-2.0/schemas
+
 ### LINTING
 ## Verify final image and contents are correct.
 RUN bootc container lint
