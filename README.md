@@ -29,6 +29,9 @@ rather than being updated silently every build.
 - A user-overridable **Super / Command + Space** GNOME shortcut default for
   Mutsu Search; input-language switching is moved to Shift+Super+Space. No
   shortcuts are locked by policy.
+- **Mac-familiar interface defaults** for new users (fully overridable):
+  window buttons on the upper left, 12-hour clock, hot corners disabled.
+  See `packaging/30-mutsu-mac-defaults.dconf`.
 - The Mutsu AI result displays your installed emblem if no separate AI SVG
   exists. The assistant is opt-in and off by default for model requests.
 - Optional Newelle user-service and key-configuration scripts are installed
@@ -36,10 +39,17 @@ rather than being updated silently every build.
 
 **Not included yet:** a bundled/configured Newelle model, system-wide
 Japandi/Cyberpunk GTK/GNOME Shell style, full GNOME Shell-native Spotlight integration,
-custom app icon pack, touch-first Yoga tablet mode, native blur, a branded
+custom app icon pack, top-left Mutsu logo + global menu replacement for Activities,
+touch-first Adaptive Desktop (2-in-1 tablet mode), native blur, a branded
 Plymouth animation, or a branded Anaconda installer. These are separate
-milestones. The first build should prove **branding and OS packaging**
-before they are introduced.
+milestones.
+
+## Adaptive Desktop (planned)
+
+The convertible / 2-in-1 experience (MacBook-like when open, iPad-like app-grid
+Home when folded, with bottom-edge swipe gestures) is specified for the image
+in [docs/ADAPTIVE_DESKTOP_IMAGE.md](docs/ADAPTIVE_DESKTOP_IMAGE.md). It requires
+a GNOME Shell extension and is not yet implemented.
 
 ## Build from source (requires Git, Just, Podman)
 
@@ -73,6 +83,8 @@ Image source:
   default, overridable by each user.
 - `packaging/20-mutsu-shortcut.dconf` — GNOME shortcut default for new
   users, overridable in Settings.
+- `packaging/30-mutsu-mac-defaults.dconf` — left window buttons and other
+  Mac-familiar interface defaults.
 
 The GitHub Actions [image workflow](.github/workflows/build.yml) builds and
 publishes container images to GHCR after a merge to `main`. Verify repository
@@ -123,11 +135,13 @@ separate artwork and physical/VM installation testing.
 
 ## Remaining distribution tasks
 
-See the [ai-desktop roadmap](https://github.com/markymark5127/ai-desktop/blob/main/docs/ROADMAP.md).
+See the [ai-desktop roadmap](https://github.com/markymark5127/ai-desktop/blob/main/docs/ROADMAP.md)
+and [docs/ADAPTIVE_DESKTOP_IMAGE.md](docs/ADAPTIVE_DESKTOP_IMAGE.md).
 High priorities are a GNOME Shell extension for a real native Spotlight
-overlay/dock/theme; version-compatible extension packaging; genuine custom
-Plymouth/ISO boot images; default keyboard binding strategy; Newelle Flatpak
-first-boot provisioning; and Yoga tablet mode.
+overlay and top-left Mutsu logo; version-compatible extension packaging;
+Adaptive Desktop (tablet posture, app-grid Home, bottom-edge gestures);
+genuine custom Plymouth/ISO boot images; and Newelle Flatpak first-boot
+provisioning.
 
 Source projects remain attributed to Bazzite, Universal Blue and Fedora; the
 visible **Mutsu OS** name does not remove upstream dependencies, copyright

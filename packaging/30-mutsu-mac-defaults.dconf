@@ -1,0 +1,13 @@
+# Mac-familiar defaults for new Mutsu OS users.
+# These are system dconf defaults only — fully user-overridable, nothing is locked.
+# Existing user GSettings values take precedence.
+
+# Move window buttons to the upper left (Mac-style) for GNOME apps that respect
+# the org.gnome.desktop.wm.preferences button-layout key.
+[org/gnome/desktop/wm/preferences]
+button-layout='close,minimize,maximize:'
+
+# Slightly more Mac-like interface choices that stay reversible.
+[org/gnome/desktop/interface]
+clock-format='12h'
+enable-hot-corners=false

@@ -25,6 +25,8 @@ EXPECTED_FILES = [
     ROOT / "packaging/io.github.markymark5127.AIDesktop.desktop",
     ROOT / "packaging/90-mutsu-wallpaper.gschema.override",
     ROOT / "packaging/20-mutsu-shortcut.dconf",
+    ROOT / "packaging/30-mutsu-mac-defaults.dconf",
+    ROOT / "docs/ADAPTIVE_DESKTOP_IMAGE.md",
     ROOT / "disk_config/iso.toml",
 ]
 
