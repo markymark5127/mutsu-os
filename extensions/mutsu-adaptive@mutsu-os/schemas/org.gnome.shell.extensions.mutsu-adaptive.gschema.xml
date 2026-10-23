@@ -11,6 +11,11 @@
       <summary>Adaptive Desktop mode</summary>
       <description>automatic: follow hardware tablet switch when present; always-desktop / always-tablet: force the mode.</description>
     </key>
+    <key name="enable-experimental-gestures" type="b">
+      <default>false</default>
+      <summary>Enable experimental tablet edge gesture capture</summary>
+      <description>Off by default: the gesture actor can conflict with GNOME's on-screen keyboard and is not yet verified on physical touch hardware.</description>
+    </key>
     <key name="open-home-on-tablet" type="b">
       <default>true</default>
       <summary>Open app grid on tablet transition</summary>
