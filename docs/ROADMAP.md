@@ -76,10 +76,10 @@ This is the canonical **release roadmap**, with executable work tracked as GitHu
 
 - `mutsu-os` owns OCI builds, GNOME image defaults, system branding, extensions, disk installer and hardware validation.
 - `ai-desktop` owns Mutsu Search GTK app, AI client, onboarding preferences, safe tool broker, app-scoped styles and text/file search.
-- `packaging/prepare-desktop.sh` currently pins `ai-desktop` commit `9fe8d1c7b958fc96fa472313020cdd5c5729c97b`. Updates should be deliberate and tested. [#10](https://github.com/markymark5127/mutsu-os/issues/10)
-- `packaging/install-adaptive-extension.sh` currently sets `enabled-extensions=['mutsu-adaptive@mutsu-os']` as a system default. It can mask other Bazzite defaults; do not treat this as safe until [#14](https://github.com/markymark5127/mutsu-os/issues/14).
+- **Proposed cross-repo pin:** `packaging/desktop-source.env` records `ai-desktop` commit `9fe8d1c7b958fc96fa472313020cdd5c5729c97b`; the build now includes provenance in `/usr/share/mutsu-os/build-info/desktop-source.env`. CI runs both repos' headless tests before image build. A release bump is still deliberate and VM-tested. [#10](https://github.com/markymark5127/mutsu-os/issues/10)
+- **Proposed alpha safety patch:** `packaging/install-adaptive-extension.sh` now installs the experimental extension **disabled by default**, without overriding Bazzite's `enabled-extensions`; and requires strict GSettings schema compilation. The edge-gesture actor is off unless the user explicitly enables an experimental switch. Still requires live GNOME Shell compatibility testing before [#14](https://github.com/markymark5127/mutsu-os/issues/14) can close.
 - `extension.js` currently **does not implement automatic tablet posture**, despite a selectable Automatic mode.
-- `.github/workflows/build-disk.yml` references `anaconda-iso`, while `disk_config/iso.toml` is only minimal metadata. Validate against the actual image builder before treating it as usable. [#11](https://github.com/markymark5127/mutsu-os/issues/11)
+- `.github/workflows/build-disk.yml` still uses legacy `anaconda-iso`. The ISO blueprint's `name`, `version` and `description` **are supported** (not malformed), and explicit media branding fields have been added. Migration to a supported modern installer plus a real install/boot test is still open. [#11](https://github.com/markymark5127/mutsu-os/issues/11)
 - No verified successful current booted-image smoke test was available during this source review; **do not infer success from the presence of a CI workflow file**.
 
 ## Cross-repository feature specifications
