@@ -12,13 +12,16 @@ brand=/tmp/mutsu-brand-assets
 symbol="$brand/icons/mutsu-logo-symbol.svg"
 wordmark="$brand/icons/mutsu-logo-wordmark.svg"
 if [[ ! -s "$symbol" || ! -s "$wordmark" ]]; then
-  echo >&2 "Mutsu OS build needs mutsu-logo-symbol.svg and mutsu-logo-wordmark.svg in assets/icons/."
+  echo >&2 "Mutsu OS build needs mutsu-logo-symbol.svg and mutsu-logo-wordmark.svg in branding/icons/."
   exit 1
 fi
 
 # Install without deleting Fedora/Bazzite icons or renaming RPMs/services.
 install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/apps/mutsu-os-logo.svg
 install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/apps/io.github.markymark5127.AIDesktop.svg
+# Existing Mutsu AI search resolves this exact path as a fallback for its
+# assistant icon; the branding and application source remain separate repos.
+install -Dm0644 "$symbol" /usr/share/pixmaps/mutsu/mutsu-logo-symbol.svg
 install -Dm0644 "$wordmark" /usr/share/pixmaps/mutsu/mutsu-logo-wordmark.svg
 if [[ -s "$brand/icons/mutsu-logo-symbolic.svg" ]]; then
   install -Dm0644 "$brand/icons/mutsu-logo-symbolic.svg" \
