@@ -1,5 +1,8 @@
 # Mutsu OS
 
+> **Development tracker:** [Master issue #26](https://github.com/markymark5127/mutsu-os/issues/26) · [Roadmap and milestones](docs/ROADMAP.md) · [All open OS issues](https://github.com/markymark5127/mutsu-os/issues) · [Create a tracked task](https://github.com/markymark5127/mutsu-os/issues/new/choose)
+
+
 **Mutsu OS** is a Bazzite GNOME-derived, Mac-familiar Linux desktop with
 Steam/Proton gaming support, two visual styles (Calm Japandi and Cyberpunk),
 a compact Spotlight-style app/file launcher and optional Mutsu AI help.
