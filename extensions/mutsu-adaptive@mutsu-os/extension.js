@@ -1,13 +1,15 @@
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Clutter from 'gi://Clutter';
 
-const BOTTOM_EDGE_HEIGHT = 24; // px; keep small so OSK bottom gesture can still win
+const BOTTOM_EDGE_HEIGHT = 24;
+const DEBOUNCE_MS = 400;
 
 export default class MutsuAdaptiveExtension extends Extension {
     enable() {
@@ -15,8 +17,10 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._inTablet = false;
         this._maximizeHandlerId = 0;
         this._gestureActors = [];
+        this._debounceSource = 0;
+        this._pendingTablet = null;
 
-        // Panel indicator / quick toggle
+        // Panel indicator
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
         const icon = new St.Icon({
             icon_name: 'view-app-grid-symbolic',
@@ -29,19 +33,42 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._indicator.menu.addAction('Automatic', () => this._setMode('automatic'));
         Main.panel.addToStatusArea(this.uuid, this._indicator);
 
+        // Quick Settings toggle (session-level override)
+        this._qsToggle = new QuickSettings.QuickToggle({
+            title: 'Tablet Mode',
+            iconName: 'view-app-grid-symbolic',
+            toggleMode: true,
+        });
+        this._qsToggle.connect('clicked', () => this._toggleManual());
+        Main.panel.statusArea.quickSettings.menu.addItem(this._qsToggle);
+
         this._settingsChangedId = this._settings.connect('changed::mode', () => this._applyFromSettings());
         this._applyFromSettings();
+
+        // Scaffold for hardware tablet-mode signal.
+        // On real devices this should connect to Mutter's seat/tablet-mode
+        // or a small watcher that emits a D-Bus signal when SW_TABLET_MODE changes.
+        this._startPostureWatcher();
     }
 
     disable() {
+        if (this._debounceSource) {
+            GLib.source_remove(this._debounceSource);
+            this._debounceSource = 0;
+        }
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = 0;
+        }
+        if (this._qsToggle) {
+            this._qsToggle.destroy();
+            this._qsToggle = null;
         }
         if (this._indicator) {
             this._indicator.destroy();
             this._indicator = null;
         }
+        this._stopPostureWatcher();
         this._leaveTablet();
         this._settings = null;
     }
@@ -61,10 +88,33 @@ export default class MutsuAdaptiveExtension extends Extension {
     _applyFromSettings() {
         const mode = this._settings.get_string('mode');
         if (mode === 'always-tablet')
-            this._enterTablet();
+            this._requestTablet(true);
         else if (mode === 'always-desktop')
-            this._leaveTablet();
-        // automatic: hardware signal not yet wired; stay in current state
+            this._requestTablet(false);
+        // automatic: posture watcher decides
+        this._syncQsToggle();
+    }
+
+    _syncQsToggle() {
+        if (!this._qsToggle)
+            return;
+        const mode = this._settings.get_string('mode');
+        this._qsToggle.checked = mode === 'always-tablet' || (mode === 'automatic' && this._inTablet);
+    }
+
+    _requestTablet(wantTablet) {
+        if (this._debounceSource)
+            GLib.source_remove(this._debounceSource);
+        this._pendingTablet = wantTablet;
+        this._debounceSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DEBOUNCE_MS, () => {
+            this._debounceSource = 0;
+            if (this._pendingTablet === true)
+                this._enterTablet();
+            else if (this._pendingTablet === false)
+                this._leaveTablet();
+            this._pendingTablet = null;
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _enterTablet() {
@@ -82,6 +132,7 @@ export default class MutsuAdaptiveExtension extends Extension {
 
         this._installMaximizeOnLaunch();
         this._installBottomGesture();
+        this._syncQsToggle();
         log('Mutsu Adaptive: entered tablet mode');
     }
 
@@ -98,7 +149,21 @@ export default class MutsuAdaptiveExtension extends Extension {
         } catch (e) {
             // ignore
         }
+        this._syncQsToggle();
         log('Mutsu Adaptive: left tablet mode');
+    }
+
+    _startPostureWatcher() {
+        // Placeholder: on real hardware, poll or listen for SW_TABLET_MODE.
+        // Example future implementation:
+        // - Spawn a small helper that watches libinput and emits a D-Bus signal
+        // - Or connect to Mutter's tablet-mode property if exposed
+        // For now Automatic mode stays idle until a signal is wired.
+        log('Mutsu Adaptive: posture watcher scaffold active (hardware signal not yet connected)');
+    }
+
+    _stopPostureWatcher() {
+        // Clean up watcher when implemented
     }
 
     _installMaximizeOnLaunch() {
@@ -108,15 +173,12 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._maximizeHandlerId = global.display.connect('window-created', (_d, win) => {
                 if (!this._inTablet)
                     return;
-                // Maximize ordinary windows; skip dialogs / splash where possible
                 if (win.window_type === Meta.WindowType.NORMAL) {
                     GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
                         try {
                             if (!win.maximized_horizontally || !win.maximized_vertically)
                                 win.maximize(Meta.MaximizeFlags.BOTH);
-                        } catch (e) {
-                            // window may already be destroyed
-                        }
+                        } catch (e) {}
                         return GLib.SOURCE_REMOVE;
                     });
                 }
@@ -130,20 +192,14 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (this._maximizeHandlerId) {
             try {
                 global.display.disconnect(this._maximizeHandlerId);
-            } catch (e) {
-                // ignore
-            }
+            } catch (e) {}
             this._maximizeHandlerId = 0;
         }
     }
 
     _installBottomGesture() {
-        // Thin bottom-edge actor that recognizes a simple upward swipe.
-        // Intentionally small so GNOME's OSK bottom gesture can still activate.
-        // Swipe-up → Home; swipe-up-and-hold → Overview (basic threshold).
         if (this._gestureActors.length)
             return;
-
         try {
             const actor = new St.Widget({
                 reactive: true,
@@ -171,7 +227,6 @@ export default class MutsuAdaptiveExtension extends Extension {
                 const dy = startY - y;
                 if (dy > 40 && !holding) {
                     holding = true;
-                    // Treat a longer swipe as hold → Overview
                     if (dy > 80)
                         Main.overview.show();
                     else
@@ -193,9 +248,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         for (const actor of this._gestureActors) {
             try {
                 actor.destroy();
-            } catch (e) {
-                // ignore
-            }
+            } catch (e) {}
         }
         this._gestureActors = [];
     }
