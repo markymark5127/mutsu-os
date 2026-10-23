@@ -85,12 +85,14 @@ jobs:
       # Existing local 'Justfile' already passes --rootfs=btrfs. The action
       # must receive the same setting because this bootc source does not
       # advertise a default root filesystem to bootc-image-builder.
+      # Use absolute paths for config-file so Podman treats them as host
+      # binds rather than named volumes (relative paths were failing).
       - name: Build disk images
         id: build
         uses: osbuild/bootc-image-builder-action@8661cd3832544ad68c12dcde8681b13ab0f56a8d # main
         with:
           builder-image: ${{ env.BIB_IMAGE }}
-          config-file: ${{ matrix.disk-type == 'anaconda-iso' && 'disk_config/iso.toml' || 'disk_config/disk.toml' }}
+          config-file: ${{ matrix.disk-type == 'anaconda-iso' && format('{0}/disk_config/iso.toml', github.workspace) || format('{0}/disk_config/disk.toml', github.workspace) }}
           image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}
           chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
           types: ${{ matrix.disk-type }}
