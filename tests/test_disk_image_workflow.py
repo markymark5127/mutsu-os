@@ -44,7 +44,7 @@ class DiskImageWorkflowTests(unittest.TestCase):
         # workflow_dispatch has inputs.platform, pull_request does not.
         self.assertIn(
             "runs-on: ${{ inputs.platform == 'arm64' && "
-            "'ubuntu-26.04-arm' || 'ubuntu-26.04' }}",
+            "'ubuntu-24.04-arm' || 'ubuntu-24.04' }}",
             self.workflow,
         )
         for path in (
@@ -54,6 +54,19 @@ class DiskImageWorkflowTests(unittest.TestCase):
         ):
             self.assertIn(path, self.workflow)
         self.assertNotIn("'./disk_config", self.workflow)
+
+    def test_config_file_paths_are_absolute_workspace_binds(self):
+        # Relative 'disk_config/foo.toml' is parsed as a Podman named
+        # volume, not a host bind-mount path.
+        self.assertIn("format('{0}/disk_config/iso.toml', github.workspace)", self.workflow)
+        self.assertIn("format('{0}/disk_config/disk.toml', github.workspace)", self.workflow)
+        self.assertNotIn("config-file: ${{ matrix.disk-type == 'anaconda-iso' && './", self.workflow)
+
+    def test_disk_image_runner_stays_on_ubuntu_24(self):
+        # The privileged osbuild mount operation fails with EPERM on
+        # ubuntu-26.04 for both artifacts (2026-10-23 CI logs).
+        self.assertIn("'ubuntu-24.04-arm' || 'ubuntu-24.04'", self.workflow)
+        self.assertNotIn("'ubuntu-26.04-arm' || 'ubuntu-26.04'", self.workflow)
 
     def test_toml_blueprints_exist_and_parse(self):
         for name in ("disk", "iso"):
