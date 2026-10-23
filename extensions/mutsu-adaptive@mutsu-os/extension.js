@@ -5,12 +5,16 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
+import Clutter from 'gi://Clutter';
+
+const BOTTOM_EDGE_HEIGHT = 24; // px; keep small so OSK bottom gesture can still win
 
 export default class MutsuAdaptiveExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._inTablet = false;
-        this._saved = {};
+        this._maximizeHandlerId = 0;
+        this._gestureActors = [];
 
         // Panel indicator / quick toggle
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
@@ -24,17 +28,6 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._indicator.menu.addAction('Always Tablet', () => this._setMode('always-tablet'));
         this._indicator.menu.addAction('Automatic', () => this._setMode('automatic'));
         Main.panel.addToStatusArea(this.uuid, this._indicator);
-
-        // Try to listen for Mutter tablet-mode changes when available
-        this._onTabletChanged = this._onTabletChanged.bind(this);
-        try {
-            if (Main.layoutManager && Main.layoutManager._startingUp === false) {
-                // Some Mutter versions expose tablet mode via the seat or backend.
-                // We fall back to a settings-driven manual mode if the signal is absent.
-            }
-        } catch (e) {
-            log(`Mutsu Adaptive: tablet signal unavailable (${e})`);
-        }
 
         this._settingsChangedId = this._settings.connect('changed::mode', () => this._applyFromSettings());
         this._applyFromSettings();
@@ -71,17 +64,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._enterTablet();
         else if (mode === 'always-desktop')
             this._leaveTablet();
-        // automatic: wait for hardware signal (or stay in current state)
-    }
-
-    _onTabletChanged(active) {
-        const mode = this._settings.get_string('mode');
-        if (mode !== 'automatic')
-            return;
-        if (active)
-            this._enterTablet();
-        else
-            this._leaveTablet();
+        // automatic: hardware signal not yet wired; stay in current state
     }
 
     _enterTablet() {
@@ -89,7 +72,6 @@ export default class MutsuAdaptiveExtension extends Extension {
             return;
         this._inTablet = true;
 
-        // Open app grid as Home
         if (this._settings.get_boolean('open-home-on-tablet')) {
             try {
                 Main.overview.showApps();
@@ -98,8 +80,8 @@ export default class MutsuAdaptiveExtension extends Extension {
             }
         }
 
-        // Future: larger touch targets, maximize-on-launch, bottom gesture surface.
-        // These require additional Shell hooks and careful OSK coexistence testing.
+        this._installMaximizeOnLaunch();
+        this._installBottomGesture();
         log('Mutsu Adaptive: entered tablet mode');
     }
 
@@ -108,11 +90,113 @@ export default class MutsuAdaptiveExtension extends Extension {
             return;
         this._inTablet = false;
 
+        this._removeMaximizeOnLaunch();
+        this._removeBottomGesture();
+
         try {
             Main.overview.hide();
         } catch (e) {
             // ignore
         }
         log('Mutsu Adaptive: left tablet mode');
+    }
+
+    _installMaximizeOnLaunch() {
+        if (this._maximizeHandlerId)
+            return;
+        try {
+            this._maximizeHandlerId = global.display.connect('window-created', (_d, win) => {
+                if (!this._inTablet)
+                    return;
+                // Maximize ordinary windows; skip dialogs / splash where possible
+                if (win.window_type === Meta.WindowType.NORMAL) {
+                    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                        try {
+                            if (!win.maximized_horizontally || !win.maximized_vertically)
+                                win.maximize(Meta.MaximizeFlags.BOTH);
+                        } catch (e) {
+                            // window may already be destroyed
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
+                }
+            });
+        } catch (e) {
+            log(`Mutsu Adaptive: maximize-on-launch unavailable (${e})`);
+        }
+    }
+
+    _removeMaximizeOnLaunch() {
+        if (this._maximizeHandlerId) {
+            try {
+                global.display.disconnect(this._maximizeHandlerId);
+            } catch (e) {
+                // ignore
+            }
+            this._maximizeHandlerId = 0;
+        }
+    }
+
+    _installBottomGesture() {
+        // Thin bottom-edge actor that recognizes a simple upward swipe.
+        // Intentionally small so GNOME's OSK bottom gesture can still activate.
+        // Swipe-up → Home; swipe-up-and-hold → Overview (basic threshold).
+        if (this._gestureActors.length)
+            return;
+
+        try {
+            const actor = new St.Widget({
+                reactive: true,
+                can_focus: false,
+                track_hover: false,
+                style: 'background-color: transparent;',
+            });
+            actor.set_size(global.stage.width, BOTTOM_EDGE_HEIGHT);
+            actor.set_position(0, global.stage.height - BOTTOM_EDGE_HEIGHT);
+            Main.layoutManager.uiGroup.add_child(actor);
+            this._gestureActors.push(actor);
+
+            let startY = 0;
+            let holding = false;
+            actor.connect('button-press-event', (_a, event) => {
+                const [, y] = event.get_coords();
+                startY = y;
+                holding = false;
+                return Clutter.EVENT_PROPAGATE;
+            });
+            actor.connect('motion-event', (_a, event) => {
+                if (!startY)
+                    return Clutter.EVENT_PROPAGATE;
+                const [, y] = event.get_coords();
+                const dy = startY - y;
+                if (dy > 40 && !holding) {
+                    holding = true;
+                    // Treat a longer swipe as hold → Overview
+                    if (dy > 80)
+                        Main.overview.show();
+                    else
+                        Main.overview.showApps();
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+            actor.connect('button-release-event', () => {
+                startY = 0;
+                holding = false;
+                return Clutter.EVENT_PROPAGATE;
+            });
+        } catch (e) {
+            log(`Mutsu Adaptive: bottom gesture unavailable (${e})`);
+        }
+    }
+
+    _removeBottomGesture() {
+        for (const actor of this._gestureActors) {
+            try {
+                actor.destroy();
+            } catch (e) {
+                // ignore
+            }
+        }
+        this._gestureActors = [];
     }
 }
