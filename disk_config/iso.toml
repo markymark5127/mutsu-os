@@ -1,6 +1,15 @@
-# Mutsu OS installer metadata. This file is referenced by
-# .github/workflows/build-disk.yml. It does not embed user passwords,
-# prepartition drives or silently install an OS.
+# bootc-image-builder blueprint for the legacy anaconda-iso output.
+# These public metadata fields are supported by the image builder; an ISO
+# being generated does NOT imply the installer has been boot/installation
+# tested. Do not include automated disk wipes or user passwords here.
+#
+# The anaconda-iso output is deprecated; see GitHub issue #11 for migration
+# to the supported interactive bootc installer workflow before release.
 name = "Mutsu OS"
 version = "0.1"
 description = "Mutsu OS installer image (Bazzite GNOME derivative)"
+
+[customizations.iso]
+volume_id = "MUTSU_OS"
+application_id = "Mutsu OS Installer"
+publisher = "Mutsu OS"
