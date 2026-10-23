@@ -13,7 +13,9 @@ cp -avf "/ctx/system_files"/. /
 # https://mirrors.rpmfusion.org/mirrorlist?path=free/fedora/updates/43/x86_64/repoview/index.html&protocol=https&redirect=1
 
 # this installs a package from fedora repos
-dnf5 install -y tmux
+# Preserve the template's tmux example while ensuring the Mutsu GTK4/
+# libadwaita Python launcher works on every image boot, not just developer VMs.
+dnf5 install -y tmux python3-gobject gtk4 libadwaita
 
 # Use a COPR Example:
 #

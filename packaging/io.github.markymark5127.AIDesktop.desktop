@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Mutsu OS Search
+GenericName=Application, File and AI Search
+Comment=Search apps, files and get help with Mutsu AI
+Exec=/usr/bin/mutsu-search
+Icon=mutsu-os-logo
+Terminal=false
+Categories=Utility;System;
+Keywords=Mutsu;Search;Spotlight;Files;AI;
+StartupNotify=true

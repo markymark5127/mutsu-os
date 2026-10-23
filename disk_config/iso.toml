@@ -1,0 +1,6 @@
+# Mutsu OS installer metadata. This file is referenced by
+# .github/workflows/build-disk.yml. It does not embed user passwords,
+# prepartition drives or silently install an OS.
+name = "Mutsu OS"
+version = "0.1"
+description = "Mutsu OS installer image (Bazzite GNOME derivative)"

@@ -1,0 +1,16 @@
+# New Mutsu OS GNOME users get Spotlight on Super/Command+Space.
+# dconf system defaults are USER-OVERRIDABLE; nothing is locked.
+# Users who already have GSettings values retain their preferences.
+[org/gnome/settings-daemon/plugins/media-keys]
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/mutsu-search/']
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/mutsu-search]
+name='Mutsu OS Search'
+command='/usr/bin/mutsu-search'
+binding='<Super>space'
+
+# Reserve Super+Space for Mutsu Search. Shift+Super+Space remains available
+# for cycling GNOME input languages in the other direction.
+[org/gnome/desktop/wm/keybindings]
+switch-input-source=['<Shift><Super>space']
+switch-input-source-backward=@as []
