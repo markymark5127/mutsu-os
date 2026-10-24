@@ -21,5 +21,25 @@
       <summary>Open app grid on tablet transition</summary>
       <description>When entering tablet mode, show the Show Applications grid as Home.</description>
     </key>
+    <key name="touch-text-scale" type="d">
+      <default>1.15</default>
+      <summary>Temporary text scale factor while in tablet mode</summary>
+      <description>Applied only while tablet mode is active and only if the user has not set a custom text scaling. Restored on exit. Respects accessibility overrides.</description>
+    </key>
+    <key name="collapse-dock-in-tablet" type="b">
+      <default>true</default>
+      <summary>Collapse or hide the dock in tablet mode</summary>
+      <description>Attempts to collapse the dock (Dash to Dock or similar) while in tablet mode and restore the previous state on exit.</description>
+    </key>
+    <key name="rotation-lock" type="b">
+      <default>false</default>
+      <summary>Lock screen rotation while in tablet mode</summary>
+      <description>When true, disables auto-rotation for the duration of tablet mode.</description>
+    </key>
+    <key name="gesture-exceptions" type="as">
+      <default>[]</default>
+      <summary>Window classes that suppress edge gestures</summary>
+      <description>List of WM_CLASS or app IDs (e.g. steam, org.gnome.Calculator) for which bottom-edge gestures are temporarily disabled. Useful for fullscreen games.</description>
+    </key>
   </schema>
 </schemalist>
