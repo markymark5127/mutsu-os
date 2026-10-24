@@ -25,8 +25,8 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._gestureActors = [];
         this._debounceSource = 0;
         this._pendingTablet = null;
+        this._saved = {};
 
-        // Panel indicator (escape hatch always available)
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
         const icon = new St.Icon({
             icon_name: 'view-app-grid-symbolic',
@@ -39,8 +39,6 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._indicator.menu.addAction('Automatic', () => this._setMode('automatic'));
         Main.panel.addToStatusArea(this.uuid, this._indicator);
 
-        // Quick Settings internals change between GNOME Shell versions.
-        // The standard panel menu remains an escape hatch if they are absent.
         this._qsToggle = null;
         try {
             const menu = Main.panel.statusArea.quickSettings?.menu;
@@ -61,16 +59,10 @@ export default class MutsuAdaptiveExtension extends Extension {
 
         this._settingsChangedId = this._settings.connect('changed::mode', () => this._applyFromSettings());
         this._applyFromSettings();
-
-        // Scaffold for hardware tablet-mode signal.
-        // On real devices this should connect to Mutter's seat/tablet-mode
-        // or a small watcher that emits a D-Bus signal when SW_TABLET_MODE changes.
         this._startPostureWatcher();
     }
 
     disable() {
-        // Fully disconnect signals, destroy actors, and leave tablet mode so the
-        // extension never captures input or holds resources when disabled.
         if (this._debounceSource) {
             GLib.source_remove(this._debounceSource);
             this._debounceSource = 0;
@@ -110,7 +102,6 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._requestTablet(true);
         else if (mode === 'always-desktop')
             this._requestTablet(false);
-        // automatic: posture watcher decides (currently a no-op scaffold)
         this._syncQsToggle();
     }
 
@@ -140,6 +131,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (this._inTablet)
             return;
         this._inTablet = true;
+        this._saveReversibleState();
 
         if (this._settings.get_boolean('open-home-on-tablet')) {
             try {
@@ -149,10 +141,8 @@ export default class MutsuAdaptiveExtension extends Extension {
             }
         }
 
+        this._applyTouchVisuals();
         this._installMaximizeOnLaunch();
-        // A reactive bottom-edge actor can intercept GNOME's OSK, accessibility
-        // and touch input. Do not install it unless the user opted into
-        // experimental gestures (not enabled in the shipped image).
         if (this._settings.get_boolean('enable-experimental-gestures'))
             this._installBottomGesture();
         this._syncQsToggle();
@@ -166,28 +156,83 @@ export default class MutsuAdaptiveExtension extends Extension {
 
         this._removeMaximizeOnLaunch();
         this._removeBottomGesture();
+        this._restoreReversibleState();
 
         try {
             Main.overview.hide();
-        } catch (e) {
-            // ignore
-        }
+        } catch (e) {}
         this._syncQsToggle();
         log('Mutsu Adaptive: left tablet mode');
     }
 
+    _saveReversibleState() {
+        // Save only values we are about to change. Do not overwrite a11y or user choices.
+        try {
+            const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+            this._saved.textScaling = iface.get_double('text-scaling-factor');
+            this._saved.hadCustomScale = Math.abs(this._saved.textScaling - 1.0) > 0.01;
+        } catch (e) {
+            this._saved.textScaling = null;
+        }
+        // Dock state is best-effort; Dash to Dock uses its own schema when present.
+        this._saved.dockCollapsed = false;
+    }
+
+    _applyTouchVisuals() {
+        // Phase 3: temporary larger text while in tablet mode, only if user has not customized it.
+        if (!this._saved.hadCustomScale && this._saved.textScaling !== null) {
+            try {
+                const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+                const scale = this._settings.get_double('touch-text-scale');
+                iface.set_double('text-scaling-factor', scale);
+            } catch (e) {
+                log(`Mutsu Adaptive: text scale failed (${e})`);
+            }
+        }
+
+        // Rotation lock (best-effort)
+        if (this._settings.get_boolean('rotation-lock')) {
+            try {
+                const iface = new Gio.Settings({ schema_id: 'org.gnome.settings-daemon.peripherals.touchscreen' });
+                // Some versions use orientation-lock; ignore if schema differs.
+                if (iface.settings_schema.has_key('orientation-lock'))
+                    iface.set_boolean('orientation-lock', true);
+            } catch (e) {}
+        }
+
+        // Dock collapse (best-effort for Dash to Dock)
+        if (this._settings.get_boolean('collapse-dock-in-tablet')) {
+            try {
+                const dock = new Gio.Settings({ schema_id: 'org.gnome.shell.extensions.dash-to-dock' });
+                this._saved.dockAutohide = dock.get_boolean('autohide');
+                dock.set_boolean('autohide', true);
+            } catch (e) {
+                // Dash to Dock not present; ignore
+            }
+        }
+    }
+
+    _restoreReversibleState() {
+        if (this._saved.textScaling !== null && !this._saved.hadCustomScale) {
+            try {
+                const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+                iface.set_double('text-scaling-factor', this._saved.textScaling);
+            } catch (e) {}
+        }
+        if (this._saved.dockAutohide !== undefined) {
+            try {
+                const dock = new Gio.Settings({ schema_id: 'org.gnome.shell.extensions.dash-to-dock' });
+                dock.set_boolean('autohide', this._saved.dockAutohide);
+            } catch (e) {}
+        }
+        this._saved = {};
+    }
+
     _startPostureWatcher() {
-        // Not implemented: do not claim Automatic can detect SW_TABLET_MODE.
-        // Example future implementation:
-        // - Spawn a small helper that watches libinput and emits a D-Bus signal
-        // - Or connect to Mutter's tablet-mode property if exposed
-        // For now Automatic mode stays idle until a signal is wired.
         log('Mutsu Adaptive: posture watcher scaffold active (hardware signal not yet connected)');
     }
 
-    _stopPostureWatcher() {
-        // Clean up watcher when implemented
-    }
+    _stopPostureWatcher() {}
 
     _installMaximizeOnLaunch() {
         if (this._maximizeHandlerId)
@@ -238,13 +283,15 @@ export default class MutsuAdaptiveExtension extends Extension {
             let startY = 0;
             let holding = false;
             actor.connect('button-press-event', (_a, event) => {
+                if (this._gestureSuppressed())
+                    return Clutter.EVENT_PROPAGATE;
                 const [, y] = event.get_coords();
                 startY = y;
                 holding = false;
                 return Clutter.EVENT_PROPAGATE;
             });
             actor.connect('motion-event', (_a, event) => {
-                if (!startY)
+                if (!startY || this._gestureSuppressed())
                     return Clutter.EVENT_PROPAGATE;
                 const [, y] = event.get_coords();
                 const dy = startY - y;
@@ -264,6 +311,26 @@ export default class MutsuAdaptiveExtension extends Extension {
             });
         } catch (e) {
             log(`Mutsu Adaptive: bottom gesture unavailable (${e})`);
+        }
+    }
+
+    _gestureSuppressed() {
+        // Phase 4: suppress gestures for listed fullscreen/game windows
+        try {
+            const exceptions = this._settings.get_strv('gesture-exceptions');
+            if (!exceptions.length)
+                return false;
+            const win = global.display.focus_window;
+            if (!win)
+                return false;
+            const wmClass = (win.get_wm_class() || '').toLowerCase();
+            const appId = (win.get_gtk_application_id() || '').toLowerCase();
+            return exceptions.some(ex => {
+                const e = ex.toLowerCase();
+                return wmClass.includes(e) || appId.includes(e);
+            });
+        } catch (e) {
+            return false;
         }
     }
 
