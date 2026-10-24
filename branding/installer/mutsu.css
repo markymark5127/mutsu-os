@@ -1,0 +1,34 @@
+/* Mutsu OS Anaconda installer branding — Japandi sage */
+@define-color mutsu #788773;
+@define-color mutsu-dark #5f6d5b;
+
+.logo-sidebar {
+    background-image: url('/usr/share/anaconda/pixmaps/sidebar-bg.png');
+    background-color: @mutsu;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.logo {
+    background-image: url('/usr/share/anaconda/pixmaps/sidebar-logo.png');
+    background-position: 50% 32px;
+    background-repeat: no-repeat;
+    background-color: transparent;
+}
+
+.product-logo {
+    background-image: none;
+    background-color: transparent;
+}
+
+AnacondaSpokeWindow #nav-box {
+    background-color: @mutsu;
+    background-image: url('/usr/share/anaconda/pixmaps/topbar-bg.png');
+    background-repeat: repeat-x;
+    color: white;
+}
+
+/* Soften buttons in the nav area */
+AnacondaSpokeWindow #nav-box GtkButton {
+    box-shadow: none;
+}
