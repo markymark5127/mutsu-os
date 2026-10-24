@@ -36,6 +36,27 @@ for name in mutsu-japandi-4k.png mutsu-cyberpunk-4k.png; do
   install -Dm0644 "$brand/wallpapers/$name" "/usr/share/backgrounds/mutsu/$name"
 done
 
+# Anaconda live installer sidebar branding (Japandi sage).
+# These override the default Fedora/Bazzite blue banner when the ISO is built
+# from this image. Missing files are a warning, not a hard failure.
+installer="$brand/installer"
+if [[ -d "$installer" ]]; then
+  install -d -m 0755 /usr/share/anaconda/pixmaps
+  for f in sidebar-bg.png sidebar-logo.png topbar-bg.png mutsu.css; do
+    if [[ -s "$installer/$f" ]]; then
+      install -Dm0644 "$installer/$f" "/usr/share/anaconda/pixmaps/$f"
+    else
+      echo >&2 "WARNING: missing installer branding file $f (ISO sidebar will use upstream)"
+    fi
+  done
+  # Best-effort: drop a product CSS name Anaconda often picks up.
+  if [[ -s /usr/share/anaconda/pixmaps/mutsu.css ]]; then
+    ln -sf mutsu.css /usr/share/anaconda/pixmaps/mutsu-product.css || true
+  fi
+else
+  echo >&2 "WARNING: branding/installer/ not present; Anaconda will keep upstream sidebar."
+fi
+
 # GNOME About and similar clients read the cosmetic name and logo from
 # os-release. Keep ID, ID_LIKE, VERSION_ID and related Bazzite compatibility
 # metadata intact; these identifiers are used by packaging/updating.
@@ -82,4 +103,4 @@ fi
 # System boot splash, installer/ISO artwork, and Shell panel icons require
 # separate upstream-version-checked integration. Do not overwrite random
 # upstream Bazzite files or regenerate initramfs inside an unknown image.
-printf 'Mutsu OS image branding installed: GNOME logo, OS display name, login logo and wallpapers.\n'
+printf 'Mutsu OS image branding installed: GNOME logo, OS display name, login logo, wallpapers, and Anaconda sidebar.\n'
