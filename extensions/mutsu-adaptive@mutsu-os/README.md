@@ -2,33 +2,44 @@
 
 GNOME Shell extension that turns Mutsu OS into a MacBook-like desktop when open and an iPad-like tablet when a 2-in-1 is folded.
 
-## Current status (Phase 1)
+## Current status (Phases 1–4)
 
-- Panel menu + **Quick Settings toggle** for Automatic / Always Desktop / Always Tablet.
+### Phase 1 (done)
+- Panel menu + Quick Settings toggle for Automatic / Always Desktop / Always Tablet.
 - Debounced, idempotent enter/leave transitions.
 - On tablet mode: opens the Show Applications grid as Home.
 - Maximize-on-launch for ordinary windows while in tablet mode.
-- Basic bottom-edge swipe recognizer (short → Home, longer → Overview).
-- Posture watcher scaffold (ready for real `SW_TABLET_MODE` / Mutter signal).
-- Settings schema and system-wide install for new users.
+- Posture watcher scaffold (hardware signal not yet connected).
 
-## Still needed for full Phase 1
+### Phase 2 (gestures)
+- Experimental bottom-edge swipe (short → Home, longer → Overview), gated behind `enable-experimental-gestures` (default off).
+- Gesture suppression for listed fullscreen/game windows (`gesture-exceptions`).
+- Intentionally thin actor so it can coexist with the OSK bottom-edge gesture.
 
-- Connect the posture watcher to the actual hardware signal (Mutter tablet-mode property or a small libinput/evdev watcher that signals the extension).
-- Save/restore only the settings the extension changes (dock visibility, temporary scale, etc.).
-- Hardware QA on a real Yoga-class device.
+### Phase 3 (touch-first visuals)
+- Temporary text scaling while in tablet mode (only if the user has not already customized text scaling; restored on exit).
+- Best-effort dock autohide in tablet mode (Dash to Dock) and restore on exit.
+- Optional rotation lock while in tablet mode.
 
-## Not yet implemented (later phases)
+### Phase 4 (polish)
+- Reversible save/restore of the settings the extension changes.
+- Gesture exception list for games/fullscreen apps.
+- Clear recovery path: `gnome-extensions disable mutsu-adaptive@mutsu-os`.
+- Extension remains disabled by default in the image until hardware QA is complete.
 
-- Proper multi-touch edge gestures that coexist cleanly with the OSK.
-- Larger touch targets, dock collapse, and reversible appearance restore.
-- First-run wizard explanation and test.
+## Still needed (hardware)
+
+- Wire Automatic mode to the real `SW_TABLET_MODE` / Mutter tablet-mode signal.
+- Verify gestures do not fight the OSK, notification shade, or lock screen on real hardware.
+- Confirm text scaling and dock changes are fully reversible and do not clobber accessibility settings.
+- Real Yoga-class + second 2-in-1 QA (see product definition of done).
 
 ## Testing
 
-1. Enable the extension.
-2. Use the Quick Settings toggle or panel menu to switch Always Tablet / Always Desktop.
-3. Confirm app grid opens, new windows maximize, and transitions are debounced.
-4. On real convertible hardware, wire the posture watcher and verify automatic switching.
+1. Enable the extension in a disposable VM.
+2. Switch to Always Tablet via Quick Settings or the panel menu.
+3. Confirm app grid opens, new windows maximize, and (if enabled) bottom swipes work.
+4. Switch back to Always Desktop and confirm text scaling / dock state are restored.
+5. Add a game WM_CLASS to `gesture-exceptions` and confirm gestures are suppressed for that window.
 
 See the ai-desktop `docs/ADAPTIVE_DESKTOP.md` for the full product specification.
