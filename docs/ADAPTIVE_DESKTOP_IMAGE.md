@@ -2,7 +2,14 @@
 
 This document tracks how Mutsu OS (the bootc image) will deliver the convertible / 2-in-1 experience described in the ai-desktop product docs.
 
-**Status (October 2026):** Experimental GNOME Shell extension prototype is installed but **disabled by default**. Manual Always Desktop / Always Tablet modes exist. Automatic posture detection is a scaffold only. Bottom-edge gestures are off unless an experimental setting is enabled. Live GNOME Shell and hardware testing is still required (see #14, #15, #16).
+**Status (October 2026):** Experimental GNOME Shell extension is installed but **disabled by default**. Phases 1–4 are implemented in code:
+
+- Phase 1: Manual modes, debounced transitions, app-grid Home, maximize-on-launch, Quick Settings toggle.
+- Phase 2: Experimental bottom-edge gestures (gated off) + fullscreen/game exception list.
+- Phase 3: Temporary touch text scaling (reversible, respects user/a11y), best-effort dock autohide, optional rotation lock.
+- Phase 4: Reversible state save/restore, gesture exceptions, clear recovery path.
+
+Automatic posture detection remains a scaffold. Live GNOME Shell and hardware testing is still required.
 
 ## Goal (from product vision)
 
@@ -29,16 +36,16 @@ On supported 2-in-1 hardware (Lenovo Yoga-class and similar):
 - Extension UUID: `mutsu-adaptive@mutsu-os`
 - Source: `extensions/mutsu-adaptive@mutsu-os/`
 - Install script: `packaging/install-adaptive-extension.sh` (explicitly does not enable)
-- `shell-version` is conservatively listed until real testing confirms broader support.
+- Settings added in Phases 2–4: `touch-text-scale`, `collapse-dock-in-tablet`, `rotation-lock`, `gesture-exceptions`.
 - Automatic mode does not yet listen for `SW_TABLET_MODE`.
 - Experimental bottom-edge actor is gated behind a setting that defaults off.
 
-## Next concrete steps
+## Remaining for production
 
-- Test the extension on the actual GNOME Shell version shipped by the Bazzite GNOME base in a disposable VM.
 - Wire a real posture watcher (libinput / Mutter signal) for Automatic mode.
-- Validate that disable() fully cleans up and that the extension can be turned off from Settings or a TTY.
-- Document hardware QA requirements (real Yoga-class device + VM fallback) and attach evidence to issues #14–#16.
+- Hardware QA on a real Yoga-class device + a second 2-in-1 (boot in tablet, rapid fold/unfold, suspend/resume, external keyboard, a11y, games).
+- Confirm gestures coexist with OSK, notification shade, and lock screen.
+- First-run wizard page that explains the mode (lives in the ai-desktop app).
 
 ## Relationship to the ai-desktop app
 
