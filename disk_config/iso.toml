@@ -5,6 +5,11 @@
 #
 # The anaconda-iso output is deprecated; see GitHub issue #11 for migration
 # to the supported interactive bootc installer workflow before release.
+#
+# Interactive mode: an empty custom kickstart causes Anaconda to prompt the
+# user for language, keyboard, disk selection, user creation, etc., similar
+# to a traditional Fedora/Ubuntu installer. bootc-image-builder still injects
+# the ostreecontainer line that deploys this Mutsu OS image.
 name = "Mutsu OS"
 version = "0.1"
 description = "Mutsu OS installer image (Bazzite GNOME derivative)"
@@ -13,3 +18,6 @@ description = "Mutsu OS installer image (Bazzite GNOME derivative)"
 volume_id = "MUTSU_OS"
 application_id = "Mutsu OS Installer"
 publisher = "Mutsu OS"
+
+[customizations.installer.kickstart]
+contents = ""

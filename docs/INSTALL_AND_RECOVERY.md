@@ -27,6 +27,9 @@ Until a verified installer is available:
 2. Use the generated qcow2 or ISO only after confirming the workflow produced a bootable artifact.
 3. Do **not** rebase a daily-driver machine until M0 gates (especially #8, #11, #13) have attached evidence.
 
+**Interactive installer (anaconda-iso):**
+The `disk_config/iso.toml` blueprint supplies an empty custom Kickstart. This causes Anaconda to run in interactive mode (language, keyboard, disk selection, user account, etc.), similar to a traditional Fedora or Ubuntu installer. `bootc-image-builder` still injects the command that deploys the Mutsu OS container image. Always test on a blank virtual disk only — the installer can still be destructive if pointed at a real drive.
+
 Upstream Bazzite / Universal Blue / Fedora credits and technical IDs are preserved so updates remain compatible.
 
 ## Updates and rollback
