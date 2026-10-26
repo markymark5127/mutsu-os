@@ -7,3 +7,9 @@ _build-*/**
 
 # Temporary source checkout pinned by packaging/prepare-desktop.sh
 /vendor/ai-desktop/
+
+# Python test runs must never pollute git status / release tag generation.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
