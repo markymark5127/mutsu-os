@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Apply first-user Mutsu branding and optional Mac-like dock safely.
+"""Apply first-user Mutsu branding, Adaptive Desktop, and optional dock.
 
-Extension activation must be additive, wallpaper/lockscreen preferences are
-user-overridable image defaults, and failures never get marked as complete.
+Extension activation is additive. Failures never get marked as complete.
 """
 from __future__ import annotations
 
@@ -13,8 +12,10 @@ import sys
 
 MARKER = Path.home() / ".config" / "mutsu-os" / "first-boot-done"
 BRANDING = "mutsu-branding@mutsu-os"
+ADAPTIVE = "mutsu-adaptive@mutsu-os"
 DOCK = "dash-to-dock@micxgx.gmail.com"
 BRANDING_SCHEMA = "org.gnome.shell.extensions.mutsu-branding"
+ADAPTIVE_SCHEMA = "org.gnome.shell.extensions.mutsu-adaptive"
 DOCK_SCHEMA = "org.gnome.shell.extensions.dash-to-dock"
 
 
@@ -50,9 +51,29 @@ def activate_branding() -> None:
         raise RuntimeError("Could not select Japandi branding: " + result.stderr.strip())
 
 
+def configure_adaptive() -> None:
+    probe = run("gnome-extensions", "info", ADAPTIVE)
+    if probe.returncode != 0:
+        print("Mutsu Adaptive Desktop not installed", file=sys.stderr)
+        return
+    enabled = run("gnome-extensions", "enable", ADAPTIVE)
+    if enabled.returncode != 0:
+        print("Mutsu Adaptive Desktop could not be enabled", file=sys.stderr)
+        return
+    env = settings_env(ADAPTIVE)
+    settings = {
+        "mode": "automatic",
+        "enable-experimental-gestures": "true",
+        "open-home-on-tablet": "true",
+        "collapse-dock-in-tablet": "true",
+    }
+    for key, value in settings.items():
+        changed = run("gsettings", "set", ADAPTIVE_SCHEMA, key, value, env=env)
+        if changed.returncode != 0:
+            print(f"Mutsu Adaptive setting unavailable: {key}", file=sys.stderr)
+
+
 def configure_optional_dock() -> None:
-    # Keep compatibility with the new Mac-style setup from PR #39.
-    # Do not write a replacement GNOME enabled-extensions array.
     probe = run("gnome-extensions", "info", DOCK)
     if probe.returncode != 0:
         return
@@ -81,7 +102,7 @@ def main() -> int:
     except (OSError, RuntimeError) as exc:
         print(f"Mutsu first boot not finished; will retry on next login: {exc}", file=sys.stderr)
         return 1
-    # Dock is optional; a broken/absent dock must not stop the desktop startup.
+    configure_adaptive()
     configure_optional_dock()
     MARKER.parent.mkdir(parents=True, exist_ok=True)
     MARKER.write_text("done\n", encoding="utf-8")

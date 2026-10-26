@@ -12,9 +12,9 @@
       <description>automatic: follow hardware tablet switch when present; always-desktop / always-tablet: force the mode.</description>
     </key>
     <key name="enable-experimental-gestures" type="b">
-      <default>false</default>
-      <summary>Enable experimental tablet edge gesture capture</summary>
-      <description>Off by default: the gesture actor can conflict with GNOME's on-screen keyboard and is not yet verified on physical touch hardware.</description>
+      <default>true</default>
+      <summary>Enable tablet edge gestures</summary>
+      <description>Swipe up from the bottom edge for Home; hold for the window overview. Can be turned off in Adaptive Desktop settings.</description>
     </key>
     <key name="open-home-on-tablet" type="b">
       <default>true</default>
@@ -24,12 +24,12 @@
     <key name="touch-text-scale" type="d">
       <default>1.15</default>
       <summary>Temporary text scale factor while in tablet mode</summary>
-      <description>Applied only while tablet mode is active and only if the user has not set a custom text scaling. Restored on exit. Respects accessibility overrides.</description>
+      <description>Applied only while tablet mode is active and only if the user has not set a custom text scaling. Restored on exit.</description>
     </key>
     <key name="collapse-dock-in-tablet" type="b">
       <default>true</default>
-      <summary>Collapse or hide the dock in tablet mode</summary>
-      <description>Attempts to collapse the dock (Dash to Dock or similar) while in tablet mode and restore the previous state on exit.</description>
+      <summary>Hide the dock in tablet mode</summary>
+      <description>Autohides the dock while in tablet mode and restores it on exit.</description>
     </key>
     <key name="rotation-lock" type="b">
       <default>false</default>
@@ -39,7 +39,7 @@
     <key name="gesture-exceptions" type="as">
       <default>[]</default>
       <summary>Window classes that suppress edge gestures</summary>
-      <description>List of WM_CLASS or app IDs (e.g. steam, org.gnome.Calculator) for which bottom-edge gestures are temporarily disabled. Useful for fullscreen games.</description>
+      <description>List of WM_CLASS or app IDs for which bottom-edge gestures are temporarily disabled.</description>
     </key>
   </schema>
 </schemalist>
