@@ -93,16 +93,35 @@ class CleanInstallTests(TestCase):
             module.MARKER = Path(directory) / "first-boot-done"
             ok = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
             unavailable = subprocess.CompletedProcess(
-                args=[], returncode=1, stdout="", stderr="Dock not installed"
+                args=[], returncode=1, stdout="", stderr="Extension not installed"
             )
-            with mock.patch.object(module, "run", side_effect=[ok, ok, unavailable]) as runner:
+
+            def mock_command(*args, **_kwargs):
+                # Optional adaptive / dock components must not make first
+                # login fail when absent.
+                if args[:2] == ("gnome-extensions", "info"):
+                    return unavailable
+                return ok
+
+            with mock.patch.object(module, "run", side_effect=mock_command) as runner:
                 self.assertEqual(module.main(), 0)
                 self.assertTrue(module.MARKER.exists())
                 self.assertEqual(module.main(), 0)
-                self.assertEqual(runner.call_count, 3)
-                names = [call.args[0] for call in runner.call_args_list]
-                self.assertEqual(names, ["gnome-extensions", "gsettings", "gnome-extensions"])
+                self.assertEqual(runner.call_count, 4)
+                names = [call.args[:2] for call in runner.call_args_list]
+                self.assertEqual(names, [
+                    ("gnome-extensions", "enable"),
+                    ("gsettings", "set"),
+                    ("gnome-extensions", "info"),
+                    ("gnome-extensions", "info"),
+                ])
                 self.assertEqual(runner.call_args_list[1].args[3], "appearance")
                 self.assertEqual(module.MARKER.stat().st_mode & 0o777, 0o600)
-        self.assertNotIn('"enabled-extensions",', read("packaging/mutsu-first-boot"))
-        self.assertNotIn('"picture-uri"', read("packaging/mutsu-first-boot"))
+
+        # No replacements of user's extension list, wallpaper, or forced
+        # experimental gesture interceptor on first login.
+        first_login = read("packaging/mutsu-first-boot")
+        self.assertNotIn('"enabled-extensions",', first_login)
+        self.assertNotIn('"picture-uri"', first_login)
+        self.assertNotIn('"enable-experimental-gestures": "true"', first_login)
+

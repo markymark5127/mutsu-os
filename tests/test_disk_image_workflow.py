@@ -80,6 +80,33 @@ class DiskImageWorkflowTests(unittest.TestCase):
             disk["customizations"]["filesystem"][0]["mountpoint"], "/"
         )
 
+    def test_automatic_disk_builds_only_follow_published_main_images(self):
+        self.assertIn('workflows: ["Build container image"]', self.workflow)
+        self.assertIn("types: [completed]", self.workflow)
+        self.assertRegex(self.workflow, r"(?s)workflow_run:\n.*?branches: \[main\]")
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", self.workflow)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'", self.workflow)
+        self.assertIn("github.event.workflow_run.event == 'push'", self.workflow)
+        self.assertIn("github.event.workflow_run.event == 'workflow_dispatch'", self.workflow)
+        self.assertIn("github.event_name == 'workflow_dispatch'", self.workflow)
+
+    def test_other_workflow_runs_cannot_cancel_live_disk_builds(self):
+        # workflow_run uses main as github.ref even for completed PR builds.
+        self.assertNotIn("cancel-in-progress: true", self.workflow)
+        self.assertNotIn("group: ", self.workflow)
+
+    def test_only_real_images_are_uploaded_with_provenance(self):
+        self.assertIn("Verify fresh ISO / QCOW2", self.workflow)
+        self.assertIn("-type f -name '*.iso'", self.workflow)
+        self.assertIn("-type f -name '*.qcow2'", self.workflow)
+        self.assertIn("MUTSU-SHA256SUMS.txt", self.workflow)
+        self.assertIn("MUTSU-BUILD-INFO.txt", self.workflow)
+        self.assertIn("MUTSU_SOURCE_SHA=", self.workflow)
+        self.assertIn("MUTSU_CONTAINER_IMAGE=", self.workflow)
+        self.assertIn("/images/product.img", self.workflow)
+        self.assertIn("-report_el_torito plain", self.workflow)
+        self.assertIn("if-no-files-found: error", self.workflow)
+
     def test_action_still_uses_read_only_builder_config(self):
         self.assertIn("uses: osbuild/bootc-image-builder-action@", self.workflow)
         self.assertIn("config-file: ${{ matrix.disk-type", self.workflow)

@@ -7,6 +7,9 @@ on:
   workflow_run:
     workflows: ["Build container image"]
     types: [completed]
+    # Only watch releases built from main. PR container successes merely ran
+    # validation and never pushed a GHCR image.
+    branches: [main]
   workflow_dispatch:
     inputs:
       upload-to-s3:
@@ -36,13 +39,22 @@ env:
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
   BIB_IMAGE: "quay.io/centos-bootc/bootc-image-builder:latest"
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
-  cancel-in-progress: true
+# Do NOT cancel an image-build run because an unrelated container workflow
+# finished (including cancelled, manual or PR runs). A previous version grouped
+# all workflow_run events under refs/heads/main and killed real disk builds.
+# Every independent request now completes or fails on its own.
 
 jobs:
   validate:
     name: Validate disk workflow
+    # Reject unsuccessful upstream runs BEFORE spending time on a runner.
+    # Manual dispatch always validates, and PRs validate without building.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       (github.event.workflow_run.event == 'push' ||
+        github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -154,6 +166,47 @@ jobs:
         run: |
           chmod +x packaging/inject-iso-branding.sh
           packaging/inject-iso-branding.sh "${{ steps.build.outputs.output-directory }}"
+
+      - name: Verify fresh ISO / QCOW2 and record exact container digest
+        shell: bash
+        env:
+          OUTPUT_DIRECTORY: ${{ steps.build.outputs.output-directory }}
+          DISK_TYPE: ${{ matrix.disk-type }}
+        run: |
+          set -euo pipefail
+          test -d "${OUTPUT_DIRECTORY}" || {
+            echo "::error::Disk builder returned no output directory"
+            exit 1
+          }
+          if [[ "${DISK_TYPE}" == "anaconda-iso" ]]; then
+            artifact="$(find "${OUTPUT_DIRECTORY}" -type f -name '*.iso' -print -quit)"
+          else
+            artifact="$(find "${OUTPUT_DIRECTORY}" -type f -name '*.qcow2' -print -quit)"
+          fi
+          [[ -n "${artifact}" && -s "${artifact}" ]] || {
+            echo "::error::No real ${DISK_TYPE} image produced"
+            exit 1
+          }
+          if [[ "${DISK_TYPE}" == "anaconda-iso" ]]; then
+            # Require the Anaconda product overlay and a real EFI boot entry.
+            xorriso -indev "${artifact}" -ls /images/product.img >/dev/null
+            xorriso -indev "${artifact}" -report_el_torito plain \
+              | grep -Eiq '(UEFI|EFI)' || {
+              echo "::error::ISO has no UEFI boot entry"
+              exit 1
+            }
+          fi
+          checksum_file="${OUTPUT_DIRECTORY}/MUTSU-SHA256SUMS.txt"
+          sha256sum "${artifact}" > "${checksum_file}"
+          {
+            echo "MUTSU_SOURCE_SHA=${SOURCE_SHA}"
+            echo "MUTSU_CONTAINER_IMAGE=${PINNED_IMAGE}"
+            echo "MUTSU_DISK_TYPE=${DISK_TYPE}"
+            echo "MUTSU_ARTIFACT=${artifact##*/}"
+          } > "${OUTPUT_DIRECTORY}/MUTSU-BUILD-INFO.txt"
+          echo "Created and validated: ${artifact}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Built from ${PINNED_IMAGE}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Checksum: $(cat "${checksum_file}")" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload disk images and Checksum to Job Artifacts
         if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'

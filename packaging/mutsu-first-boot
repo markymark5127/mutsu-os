@@ -63,7 +63,7 @@ def configure_adaptive() -> None:
     env = settings_env(ADAPTIVE)
     settings = {
         "mode": "automatic",
-        "enable-experimental-gestures": "true",
+        # Bottom-edge gesture interception is opt-in; preserve the safe default.
         "open-home-on-tablet": "true",
         "collapse-dock-in-tablet": "true",
     }
