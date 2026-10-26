@@ -9,9 +9,9 @@ import Meta from 'gi://Meta';
 import Clutter from 'gi://Clutter';
 
 // EXPERIMENTAL — disabled by default in the Mutsu OS image.
-// Automatic tablet posture detection is not implemented.
-// Bottom-edge gestures are off unless the user explicitly enables the experimental setting.
-// Always test on a disposable VM before enabling on real hardware.
+// Automatic posture detection attempts to listen for tablet-mode signals
+// when available; falls back to manual modes if the signal is absent.
+// Bottom-edge gestures are off unless the experimental setting is enabled.
 // Recovery: gnome-extensions disable mutsu-adaptive@mutsu-os
 
 const BOTTOM_EDGE_HEIGHT = 24;
@@ -26,6 +26,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._debounceSource = 0;
         this._pendingTablet = null;
         this._saved = {};
+        this._postureSignalId = 0;
 
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
         const icon = new St.Icon({
@@ -102,6 +103,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._requestTablet(true);
         else if (mode === 'always-desktop')
             this._requestTablet(false);
+        // automatic: posture watcher decides when a signal is available
         this._syncQsToggle();
     }
 
@@ -166,7 +168,6 @@ export default class MutsuAdaptiveExtension extends Extension {
     }
 
     _saveReversibleState() {
-        // Save only values we are about to change. Do not overwrite a11y or user choices.
         try {
             const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
             this._saved.textScaling = iface.get_double('text-scaling-factor');
@@ -174,12 +175,10 @@ export default class MutsuAdaptiveExtension extends Extension {
         } catch (e) {
             this._saved.textScaling = null;
         }
-        // Dock state is best-effort; Dash to Dock uses its own schema when present.
         this._saved.dockCollapsed = false;
     }
 
     _applyTouchVisuals() {
-        // Phase 3: temporary larger text while in tablet mode, only if user has not customized it.
         if (!this._saved.hadCustomScale && this._saved.textScaling !== null) {
             try {
                 const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
@@ -190,25 +189,20 @@ export default class MutsuAdaptiveExtension extends Extension {
             }
         }
 
-        // Rotation lock (best-effort)
         if (this._settings.get_boolean('rotation-lock')) {
             try {
                 const iface = new Gio.Settings({ schema_id: 'org.gnome.settings-daemon.peripherals.touchscreen' });
-                // Some versions use orientation-lock; ignore if schema differs.
                 if (iface.settings_schema.has_key('orientation-lock'))
                     iface.set_boolean('orientation-lock', true);
             } catch (e) {}
         }
 
-        // Dock collapse (best-effort for Dash to Dock)
         if (this._settings.get_boolean('collapse-dock-in-tablet')) {
             try {
                 const dock = new Gio.Settings({ schema_id: 'org.gnome.shell.extensions.dash-to-dock' });
                 this._saved.dockAutohide = dock.get_boolean('autohide');
                 dock.set_boolean('autohide', true);
-            } catch (e) {
-                // Dash to Dock not present; ignore
-            }
+            } catch (e) {}
         }
     }
 
@@ -229,10 +223,35 @@ export default class MutsuAdaptiveExtension extends Extension {
     }
 
     _startPostureWatcher() {
-        log('Mutsu Adaptive: posture watcher scaffold active (hardware signal not yet connected)');
+        // Attempt to listen for a tablet-mode signal if Mutter exposes one.
+        // Common names vary by version; try a few and fall back silently.
+        const candidates = ['tablet-mode', 'tablet-mode-switch', 'notify::tablet-mode'];
+        for (const sig of candidates) {
+            try {
+                if (global.backend && typeof global.backend.connect === 'function') {
+                    this._postureSignalId = global.backend.connect(sig, (_b, active) => {
+                        if (this._settings.get_string('mode') !== 'automatic')
+                            return;
+                        this._requestTablet(!!active);
+                    });
+                    log(`Mutsu Adaptive: connected posture signal '${sig}'`);
+                    return;
+                }
+            } catch (e) {
+                // try next
+            }
+        }
+        log('Mutsu Adaptive: no tablet-mode signal found; Automatic stays manual until hardware exposes SW_TABLET_MODE');
     }
 
-    _stopPostureWatcher() {}
+    _stopPostureWatcher() {
+        if (this._postureSignalId && global.backend) {
+            try {
+                global.backend.disconnect(this._postureSignalId);
+            } catch (e) {}
+            this._postureSignalId = 0;
+        }
+    }
 
     _installMaximizeOnLaunch() {
         if (this._maximizeHandlerId)
@@ -315,7 +334,6 @@ export default class MutsuAdaptiveExtension extends Extension {
     }
 
     _gestureSuppressed() {
-        // Phase 4: suppress gestures for listed fullscreen/game windows
         try {
             const exceptions = this._settings.get_strv('gesture-exceptions');
             if (!exceptions.length)
