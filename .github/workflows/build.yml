@@ -118,9 +118,21 @@ jobs:
                         ${IMAGE_NAME} \
                         ${DEFAULT_TAG})"
 
+          # GitHub Actions tests/staging can leave untracked build outputs.
+          # Justfile intentionally omits SHA aliases when `git status` is dirty;
+          # the disk workflow, however, REQUIRES a tag for its exact source SHA.
+          # Assign that tag explicitly on trusted main builds, independent of
+          # workstation cleanliness, so no future ISO depends on stale latest.
+          if [[ "${GITHUB_REF}" == "refs/heads/main" && "${GITHUB_EVENT_NAME}" != "pull_request" ]]; then
+            source_tag="${DEFAULT_TAG}-${GITHUB_SHA:0:7}"
+            if [[ " ${alias_tags} " != *" ${source_tag} "* ]]; then
+              alias_tags+=" ${source_tag}"
+            fi
+          fi
+
           echo "Tags for this Action..."
           echo "${alias_tags}"
-          echo "alias_tags=${alias_tags}" >> $GITHUB_OUTPUT
+          echo "alias_tags=${alias_tags}" >> "$GITHUB_OUTPUT"
 
       - name: Tag Image
         id: tag-images
