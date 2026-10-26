@@ -63,6 +63,10 @@ RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login && 
     PYTHONPATH=/usr/libexec/mutsu-os/src /usr/bin/python3 -m aidesktop --help >/dev/null && \
     PYTHONPATH=/usr/libexec/mutsu-os/src /usr/bin/python3 -m aidesktop --setup-status >/dev/null
 
+### NEWELLE (preinstalled, no API key)
+COPY packaging/install-newelle.sh /tmp/mutsu-install-newelle.sh
+RUN bash /tmp/mutsu-install-newelle.sh && rm -f /tmp/mutsu-install-newelle.sh
+
 ### ADAPTIVE DESKTOP
 COPY extensions/mutsu-adaptive@mutsu-os /tmp/mutsu-adaptive-src
 COPY packaging/install-adaptive-extension.sh /tmp/mutsu-install-adaptive.sh
