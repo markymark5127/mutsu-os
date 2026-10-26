@@ -83,6 +83,10 @@ RUN bash /tmp/mutsu-install-shell-branding.sh && \
     rm -rf /tmp/mutsu-branding-extension-src /tmp/mutsu-install-shell-branding.sh \
            /tmp/mutsu-first-boot /tmp/mutsu-first-boot.desktop
 
+### Mutsu Plymouth initramfs
+COPY packaging/rebuild-plymouth-initramfs.sh /tmp/mutsu-rebuild-initramfs.sh
+RUN bash /tmp/mutsu-rebuild-initramfs.sh && rm /tmp/mutsu-rebuild-initramfs.sh
+
 ### LINTING
 ## Verify final image and contents are correct.
 RUN bootc container lint
