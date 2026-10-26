@@ -11,6 +11,8 @@ on:
       - '.github/workflows/build-disk.yml'
       - 'disk_config/disk.toml'
       - 'disk_config/iso.toml'
+      - 'branding/installer/**'
+      - 'packaging/inject-iso-branding.sh'
       - 'tests/test_disk_image_workflow.py'
   workflow_dispatch:
     inputs:
@@ -32,6 +34,8 @@ on:
       - 'disk_config/disk.toml'
       - 'disk_config/iso.toml'
       - '.github/workflows/build-disk.yml'
+      - 'branding/installer/**'
+      - 'packaging/inject-iso-branding.sh'
       - 'tests/test_disk_image_workflow.py'
 
 env:
@@ -77,12 +81,10 @@ jobs:
           echo "USER_GID=${USER_GID}" >> ${GITHUB_ENV}
 
       - name: Install dependencies
-        if: inputs.platform == 'arm64'
         run: |
           set -x
           sudo apt update -y
-          sudo apt install -y \
-            podman
+          sudo apt install -y podman xorriso cpio gzip
 
       - name: Maximize build space
         if: inputs.platform != 'arm64'
@@ -112,6 +114,14 @@ jobs:
           types: ${{ matrix.disk-type }}
           rootfs: btrfs
           additional-args: --use-librepo=True
+
+      # Anaconda only loads branding from images/product.img on the ISO.
+      # Files inside the Mutsu image do not affect the live installer.
+      - name: Inject Mutsu installer branding
+        if: matrix.disk-type == 'anaconda-iso'
+        run: |
+          chmod +x packaging/inject-iso-branding.sh
+          packaging/inject-iso-branding.sh "${{ steps.build.outputs.output-directory }}"
 
       - name: Upload disk images and Checksum to Job Artifacts
         if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'
