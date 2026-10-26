@@ -31,7 +31,7 @@ class CleanInstallTests(TestCase):
         self.assertIn("image: ${{ env.PINNED_IMAGE }}", flow)
         self.assertNotIn("image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest", flow)
         self.assertIn("github.event_name == 'workflow_dispatch'", flow)
-        self.assertIn("github.event_name != 'pull_request'", flow)
+        self.assertIn("# PRs only validate.", flow)
 
     def test_script_plugin_available_before_branding(self):
         container = read("Containerfile")
