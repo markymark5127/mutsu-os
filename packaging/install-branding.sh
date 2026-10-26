@@ -41,6 +41,7 @@ done
 # DO NOT automatically apply global Shell CSS or alter GNOME enabled extensions.
 for asset in "$brand"/icons/mutsu-logo-*.svg \
              "$brand"/icons/mutsu-wordmark-*.svg \
+             "$brand"/icons/mutsu-lockup-*.svg \
              "$brand"/icons/mutsu-ai.svg \
              "$brand"/icons/mutsu-app-grid.svg; do
   [[ -s "$asset" ]] || continue
