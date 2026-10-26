@@ -23,6 +23,10 @@ SYMBOLS = [
     "mutsu-logo-symbolic-white.svg",
     "mutsu-ai.svg",
     "mutsu-app-grid.svg",
+    "mutsu-lockup-original.svg",
+    "mutsu-lockup-japandi.svg",
+    "mutsu-lockup-cyberpunk.svg",
+    "mutsu-lockup-symbolic-white.svg",
 ]
 ERRORS: list[str] = []
 
