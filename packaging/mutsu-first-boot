@@ -1,93 +1,93 @@
 #!/usr/bin/env python3
-"""First-login setup for Mutsu OS visual identity.
+"""Apply first-user Mutsu branding and optional Mac-like dock safely.
 
-Runs once per user. Enables branding, Japandi wallpaper and lock screen,
-and Dash to Dock if it is installed. Does not remove other extensions.
+Extension activation must be additive, wallpaper/lockscreen preferences are
+user-overridable image defaults, and failures never get marked as complete.
 """
 from __future__ import annotations
 
-import json
 import os
-import subprocess
 from pathlib import Path
+import subprocess
+import sys
 
 MARKER = Path.home() / ".config" / "mutsu-os" / "first-boot-done"
 BRANDING = "mutsu-branding@mutsu-os"
 DOCK = "dash-to-dock@micxgx.gmail.com"
-WALLPAPER = "file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png"
+BRANDING_SCHEMA = "org.gnome.shell.extensions.mutsu-branding"
+DOCK_SCHEMA = "org.gnome.shell.extensions.dash-to-dock"
 
 
-def gsettings(*args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["gsettings", *args],
-        capture_output=True,
-        text=True,
+def run(*cmd: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, text=True, capture_output=True, check=False, env=env)
+
+
+def settings_env(uuid: str) -> dict[str, str]:
+    env = os.environ.copy()
+    for base in (
+        Path.home() / ".local/share/gnome-shell/extensions",
+        Path("/usr/share/gnome-shell/extensions"),
+    ):
+        schema_dir = base / uuid / "schemas"
+        if (schema_dir / "gschemas.compiled").is_file():
+            env["GSETTINGS_SCHEMA_DIR"] = str(schema_dir)
+            break
+    return env
+
+
+def activate_branding() -> None:
+    result = run("gnome-extensions", "enable", BRANDING)
+    if result.returncode != 0:
+        raise RuntimeError(
+            "Mutsu branding extension couldn't be enabled: "
+            + (result.stderr.strip() or result.stdout.strip())
+        )
+    result = run(
+        "gsettings", "set", BRANDING_SCHEMA, "appearance", "japandi",
+        env=settings_env(BRANDING),
     )
+    if result.returncode != 0:
+        raise RuntimeError("Could not select Japandi branding: " + result.stderr.strip())
 
 
-def enabled_extensions() -> list[str]:
-    result = gsettings("get", "org.gnome.shell", "enabled-extensions")
-    if result.returncode != 0 or not result.stdout.strip():
-        return []
-    raw = result.stdout.strip()
-    if raw.startswith("@as"):
-        raw = raw[3:].strip()
-    try:
-        return json.loads(raw.replace("'", '"'))
-    except json.JSONDecodeError:
-        return []
-
-
-def enable(uuid: str, current: list[str]) -> list[str]:
-    if uuid not in current:
-        current.append(uuid)
-    return current
-
-
-def set_wallpaper() -> None:
-    for key in ("picture-uri", "picture-uri-dark"):
-        gsettings("set", "org.gnome.desktop.background", key, WALLPAPER)
-    # Lock screen / screensaver uses a separate key.
-    gsettings("set", "org.gnome.desktop.screensaver", "picture-uri", WALLPAPER)
-    gsettings("set", "org.gnome.desktop.screensaver", "primary-color", "#f3efe7")
-    gsettings("set", "org.gnome.desktop.screensaver", "secondary-color", "#516b5c")
-
-
-def configure_dock() -> None:
-    # Only touch Dash to Dock if the schema exists.
-    probe = gsettings("list-keys", "org.gnome.shell.extensions.dash-to-dock")
+def configure_optional_dock() -> None:
+    # Keep compatibility with the new Mac-style setup from PR #39.
+    # Do not write a replacement GNOME enabled-extensions array.
+    probe = run("gnome-extensions", "info", DOCK)
     if probe.returncode != 0:
         return
-    gsettings("set", "org.gnome.shell.extensions.dash-to-dock", "dock-position", "BOTTOM")
-    gsettings("set", "org.gnome.shell.extensions.dash-to-dock", "dock-fixed", "true")
-    gsettings("set", "org.gnome.shell.extensions.dash-to-dock", "show-apps-at-top", "false")
-    gsettings("set", "org.gnome.shell.extensions.dash-to-dock", "show-show-apps-button", "true")
-
-
-def main() -> None:
-    if MARKER.exists():
+    enabled = run("gnome-extensions", "enable", DOCK)
+    if enabled.returncode != 0:
+        print("Mutsu dock unavailable; normal GNOME remains usable", file=sys.stderr)
         return
-    MARKER.parent.mkdir(parents=True, exist_ok=True)
+    env = settings_env(DOCK)
+    settings = {
+        "dock-position": "BOTTOM",
+        "dock-fixed": "true",
+        "show-apps-at-top": "false",
+        "show-show-apps-button": "true",
+    }
+    for key, value in settings.items():
+        changed = run("gsettings", "set", DOCK_SCHEMA, key, value, env=env)
+        if changed.returncode != 0:
+            print(f"Mutsu dock setting unavailable: {key}", file=sys.stderr)
+
+
+def main() -> int:
+    if MARKER.exists():
+        return 0
     try:
-        current = enabled_extensions()
-        current = enable(BRANDING, current)
-        # Enable the dock only if it is already installed on the system.
-        listed = gsettings("list-schemas")
-        if listed.returncode == 0 and "org.gnome.shell.extensions.dash-to-dock" in listed.stdout:
-            current = enable(DOCK, current)
-            configure_dock()
-        gsettings("set", "org.gnome.shell", "enabled-extensions", json.dumps(current))
-        gsettings(
-            "set",
-            "org.gnome.shell.extensions.mutsu-branding",
-            "appearance",
-            "japandi",
-        )
-        set_wallpaper()
-    finally:
-        MARKER.write_text("done\n", encoding="utf-8")
-        os.chmod(MARKER, 0o600)
+        activate_branding()
+    except (OSError, RuntimeError) as exc:
+        print(f"Mutsu first boot not finished; will retry on next login: {exc}", file=sys.stderr)
+        return 1
+    # Dock is optional; a broken/absent dock must not stop the desktop startup.
+    configure_optional_dock()
+    MARKER.parent.mkdir(parents=True, exist_ok=True)
+    MARKER.write_text("done\n", encoding="utf-8")
+    os.chmod(MARKER, 0o600)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

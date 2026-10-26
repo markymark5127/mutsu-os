@@ -56,6 +56,9 @@ jobs:
           bash -n packaging/install-adaptive-extension.sh
           bash -n packaging/install-shell-branding.sh
           bash -n packaging/render-plymouth-theme.sh
+          bash -n packaging/rebuild-plymouth-initramfs.sh
+          bash -n packaging/install-newelle.sh
+          python3 -m py_compile packaging/mutsu-first-boot
 
       - name: Check Just Syntax
         shell: bash

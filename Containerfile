@@ -5,6 +5,7 @@ COPY system_files /system_files
 
 # Base Image
 FROM ghcr.io/ublue-os/bazzite-gnome:stable
+RUN dnf5 install -y plymouth-plugin-script librsvg2-tools && test -f /usr/lib64/plymouth/script.so
 COPY branding/ /tmp/mutsu-brand-assets/
 COPY packaging/install-branding.sh /tmp/mutsu-install-branding.sh
 RUN bash /tmp/mutsu-install-branding.sh && \
@@ -81,6 +82,10 @@ COPY packaging/mutsu-first-boot.desktop /tmp/mutsu-first-boot.desktop
 RUN bash /tmp/mutsu-install-shell-branding.sh && \
     rm -rf /tmp/mutsu-branding-extension-src /tmp/mutsu-install-shell-branding.sh \
            /tmp/mutsu-first-boot /tmp/mutsu-first-boot.desktop
+
+### Mutsu Plymouth initramfs
+COPY packaging/rebuild-plymouth-initramfs.sh /tmp/mutsu-rebuild-initramfs.sh
+RUN bash /tmp/mutsu-rebuild-initramfs.sh && rm /tmp/mutsu-rebuild-initramfs.sh
 
 ### LINTING
 ## Verify final image and contents are correct.

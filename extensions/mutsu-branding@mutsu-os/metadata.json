@@ -5,7 +5,8 @@
   "shell-version": [
     "46",
     "47",
-    "48"
+    "48",
+    "49"
   ],
   "settings-schema": "org.gnome.shell.extensions.mutsu-branding",
   "url": "https://github.com/markymark5127/mutsu-os"

@@ -1,15 +1,51 @@
-# Mutsu OS — experimental Plymouth script theme.
-# Keep the background quiet and center the existing two-wave logo.
-# Do NOT activate until boot, password prompt and fallback behavior are tested.
+# Mutsu OS — centered approved two-wave emblem and accessible text prompts.
+# Script splash requires the plymouth-plugin-script RPM in the image.
 Window.SetBackgroundTopColor(0.031, 0.043, 0.075);
 Window.SetBackgroundBottomColor(0.031, 0.043, 0.075);
 
-mutsu_logo = Image("mutsu-boot-logo.png");
-mutsu_sprite = Sprite(mutsu_logo);
-mutsu_sprite.SetZ(10);
+logo_image = Image("mutsu-boot-logo.png");
+logo_sprite = Sprite(logo_image);
+logo_sprite.SetZ(10);
 
-fun mutsu_refresh() {
-    mutsu_sprite.SetX((Window.GetWidth() - mutsu_logo.GetWidth()) / 2);
-    mutsu_sprite.SetY((Window.GetHeight() - mutsu_logo.GetHeight()) / 2);
+# Explicit password and question callbacks matter for encrypted disks.
+# Never print the actual password; only show bullet counts.
+input_image = Image.Text(" ", 1, 1, 1);
+input_sprite = Sprite(input_image);
+input_sprite.SetZ(20);
+input_sprite.SetOpacity(0);
+
+fun center_sprites() {
+    logo_sprite.SetX((Window.GetWidth() - logo_image.GetWidth()) / 2);
+    logo_sprite.SetY((Window.GetHeight() - logo_image.GetHeight()) / 2);
+    input_sprite.SetX((Window.GetWidth() - input_image.GetWidth()) / 2);
+    input_sprite.SetY(Window.GetHeight() * 0.76);
 }
-Plymouth.SetRefreshFunction(mutsu_refresh);
+
+fun display_password(prompt, bullet_count) {
+    masked = "";
+    for (i = 0; i < bullet_count; i++) masked = masked + "*";
+    input_image = Image.Text("Enter passphrase: " + masked, 1, 1, 1);
+    input_sprite.SetImage(input_image);
+    input_sprite.SetOpacity(1);
+    center_sprites();
+}
+
+fun display_question(prompt, entry) {
+    input_image = Image.Text(prompt + "  " + entry, 1, 1, 1);
+    input_sprite.SetImage(input_image);
+    input_sprite.SetOpacity(1);
+    center_sprites();
+}
+
+fun display_normal() {
+    input_sprite.SetOpacity(0);
+}
+
+fun refresh() {
+    center_sprites();
+}
+
+Plymouth.SetRefreshFunction(refresh);
+Plymouth.SetDisplayPasswordFunction(display_password);
+Plymouth.SetDisplayQuestionFunction(display_question);
+Plymouth.SetDisplayNormalFunction(display_normal);
