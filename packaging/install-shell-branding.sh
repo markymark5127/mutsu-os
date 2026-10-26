@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Install the Mutsu appearance GNOME Shell extension.
-# First-boot enablement is handled by packaging/mutsu-first-boot so we do not
-# overwrite Bazzite's enabled-extensions list during the image build.
+# No dconf enabled-extensions list is written here. First-boot enablement is
+# handled later by packaging/mutsu-first-boot so we do not overwrite Bazzite's
+# enabled-extensions list during the image build.
 # Run ONLY inside the Mutsu OS image build container.
 set -euo pipefail
 src=/tmp/mutsu-branding-extension-src
