@@ -1,0 +1,21 @@
+{
+  "id": "japandi",
+  "name": "Calm Japandi",
+  "mode": "light",
+  "colors": {
+    "background": "#F3EFE7",
+    "surface": "#FFFCF6",
+    "foreground": "#232823",
+    "muted": "#5F6D5B",
+    "accent": "#788773",
+    "border": "#D6DCCF",
+    "selection": "#DBE7D7"
+  },
+  "assets": {
+    "logo": "branding/icons/mutsu-logo-japandi.svg",
+    "wordmark": "branding/icons/mutsu-wordmark-japandi.svg",
+    "wallpaper": "branding/wallpapers/mutsu-japandi-4k.png",
+    "shell": "branding/shell/japandi.css"
+  },
+  "notes": "Design tokens only. Applying a GNOME Shell theme requires a tested, user-controlled extension."
+}
