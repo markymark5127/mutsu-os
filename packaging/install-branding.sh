@@ -46,6 +46,14 @@ for asset in "$brand"/icons/mutsu-logo-*.svg \
   [[ -s "$asset" ]] || continue
   install -Dm0644 "$asset" "/usr/share/mutsu-os/branding/icons/${asset##*/}"
 done
+# Plymouth sources are shipped for evaluation, but neither a PNG splash
+# nor an initramfs change is attempted during this immutable image build.
+# Activation must be a separate boot-tested change.
+for asset in "$brand"/plymouth/mutsu.plymouth \
+             "$brand"/plymouth/mutsu.script \
+             "$brand"/plymouth/mutsu-boot-logo.svg; do
+  install -Dm0644 "$asset" "/usr/share/mutsu-os/branding/plymouth/${asset##*/}"
+done
 for theme in japandi cyberpunk; do
   install -Dm0644 "$brand/themes/$theme.json" \
     "/usr/share/mutsu-os/branding/themes/$theme.json"
