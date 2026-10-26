@@ -80,6 +80,19 @@ class DiskImageWorkflowTests(unittest.TestCase):
             disk["customizations"]["filesystem"][0]["mountpoint"], "/"
         )
 
+    def test_ci_always_publishes_commit_specific_tag(self):
+        build = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
+        self.assertIn('source_tag="${DEFAULT_TAG}-${GITHUB_SHA:0:7}"', build)
+        self.assertIn('alias_tags+=" ${source_tag}"', build)
+        self.assertIn('"${GITHUB_REF}" == "refs/heads/main"', build)
+        # Image selection must remain immutable and commit-specific.
+        self.assertIn('ref="${IMAGE_REGISTRY}/${IMAGE_NAME}:latest-${short_sha}"',
+                      self.workflow)
+        self.assertIn('pinned="${IMAGE_REGISTRY}/${IMAGE_NAME}@${digest}"',
+                      self.workflow)
+        ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("__pycache__/", ignore)
+
     def test_automatic_disk_builds_only_follow_published_main_images(self):
         self.assertIn('workflows: ["Build container image"]', self.workflow)
         self.assertIn("types: [completed]", self.workflow)
