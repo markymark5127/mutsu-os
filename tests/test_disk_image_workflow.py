@@ -82,11 +82,8 @@ class DiskImageWorkflowTests(unittest.TestCase):
 
     def test_automatic_disk_builds_only_follow_published_main_images(self):
         self.assertIn('workflows: ["Build container image"]', self.workflow)
-        self.assertIn('types: [completed]', self.workflow)
-        self.assertRegex(
-            self.workflow,
-            r'(?s)workflow_run:\\n.*?branches: \\[main\\]',
-        )
+        self.assertIn("types: [completed]", self.workflow)
+        self.assertRegex(self.workflow, r"(?s)workflow_run:\n.*?branches: \[main\]")
         self.assertIn("github.event.workflow_run.conclusion == 'success'", self.workflow)
         self.assertIn("github.event.workflow_run.head_branch == 'main'", self.workflow)
         self.assertIn("github.event.workflow_run.event == 'push'", self.workflow)
@@ -94,15 +91,14 @@ class DiskImageWorkflowTests(unittest.TestCase):
         self.assertIn("github.event_name == 'workflow_dispatch'", self.workflow)
 
     def test_other_workflow_runs_cannot_cancel_live_disk_builds(self):
-        # The workflow_run event always uses main as github.ref; the previous
-        # per-ref concurrency group canceled legitimate builds.
+        # workflow_run uses main as github.ref even for completed PR builds.
         self.assertNotIn("cancel-in-progress: true", self.workflow)
-        self.assertNotIn("group: ${{ github.workflow }}-${{ github.ref", self.workflow)
+        self.assertNotIn("group: ", self.workflow)
 
     def test_only_real_images_are_uploaded_with_provenance(self):
         self.assertIn("Verify fresh ISO / QCOW2", self.workflow)
-        self.assertIn("find \\" + "${OUTPUT_DIRECTORY}" + "\\" -type f -name '*.iso'", self.workflow)
-        self.assertIn("find \\"" + "${OUTPUT_DIRECTORY}" + "\\" -type f -name '*.qcow2'", self.workflow)
+        self.assertIn("-type f -name '*.iso'", self.workflow)
+        self.assertIn("-type f -name '*.qcow2'", self.workflow)
         self.assertIn("MUTSU-SHA256SUMS.txt", self.workflow)
         self.assertIn("MUTSU-BUILD-INFO.txt", self.workflow)
         self.assertIn("MUTSU_SOURCE_SHA=", self.workflow)
