@@ -1,72 +1,59 @@
 #!/usr/bin/env python3
-"""First-login setup for Mutsu OS visual identity.
+"""Activate Mutsu's reversible GNOME branding once for a new user.
 
-Runs once per user. Enables the branding extension, applies Japandi,
-and sets the Mutsu wallpaper without removing other GNOME extensions.
+Do not replace GNOME's entire enabled-extensions list, overwrite a user-picked
+wallpaper, or record success on a failed activation. Failed first login is
+retried on a future login; a working desktop is preferable to forced branding.
 """
 from __future__ import annotations
 
-import json
 import os
-import subprocess
 from pathlib import Path
+import subprocess
+import sys
 
 MARKER = Path.home() / ".config" / "mutsu-os" / "first-boot-done"
 BRANDING = "mutsu-branding@mutsu-os"
-WALLPAPER = "file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png"
+SCHEMA = "org.gnome.shell.extensions.mutsu-branding"
+EXTENSION_SCHEMAS = f"/usr/share/gnome-shell/extensions/{BRANDING}/schemas"
 
 
-def gsettings(*args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["gsettings", *args],
-        capture_output=True,
-        text=True,
-    )
+def run(*cmd: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, text=True, capture_output=True, check=False, env=env)
 
 
-def enable_branding() -> None:
-    result = gsettings("get", "org.gnome.shell", "enabled-extensions")
-    current: list[str] = []
-    if result.returncode == 0 and result.stdout.strip():
-        raw = result.stdout.strip()
-        if raw.startswith("@as"):
-            raw = raw[3:].strip()
-        try:
-            current = json.loads(raw.replace("'", '"'))
-        except json.JSONDecodeError:
-            current = []
-    if BRANDING not in current:
-        current.append(BRANDING)
-        gsettings(
-            "set",
-            "org.gnome.shell",
-            "enabled-extensions",
-            json.dumps(current),
+def activate() -> None:
+    result = run("gnome-extensions", "enable", BRANDING)
+    if result.returncode != 0:
+        raise RuntimeError(
+            "GNOME rejected Mutsu branding (version or session not ready): "
+            + (result.stderr.strip() or result.stdout.strip())
         )
-    gsettings(
-        "set",
-        "org.gnome.shell.extensions.mutsu-branding",
-        "appearance",
-        "japandi",
-    )
+    # GNOME extensions ship schema overrides within their own schemas dir;
+    # plain gsettings does not see those schemas in the global search path.
+    env = os.environ.copy()
+    env["GSETTINGS_SCHEMA_DIR"] = EXTENSION_SCHEMAS
+    pref = run("gsettings", "set", SCHEMA, "appearance", "japandi", env=env)
+    if pref.returncode != 0:
+        raise RuntimeError("Could not set Mutsu Japandi theme: " + pref.stderr.strip())
+
+    # Defaults already set the Japandi wallpaper via the image's GSettings
+    # override. Never clobber an intentional wallpaper change on login.
 
 
-def set_wallpaper() -> None:
-    for key in ("picture-uri", "picture-uri-dark"):
-        gsettings("set", "org.gnome.desktop.background", key, WALLPAPER)
-
-
-def main() -> None:
+def main() -> int:
     if MARKER.exists():
-        return
-    MARKER.parent.mkdir(parents=True, exist_ok=True)
+        return 0
     try:
-        enable_branding()
-        set_wallpaper()
-    finally:
-        MARKER.write_text("done\n", encoding="utf-8")
-        os.chmod(MARKER, 0o600)
+        activate()
+    except (OSError, RuntimeError) as exc:
+        print(f"Mutsu first-boot branding not applied; will retry: {exc}", file=sys.stderr)
+        return 1
+    MARKER.parent.mkdir(parents=True, exist_ok=True)
+    MARKER.write_text("done\n", encoding="utf-8")
+    os.chmod(MARKER, 0o600)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
