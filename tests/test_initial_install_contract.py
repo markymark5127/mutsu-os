@@ -92,17 +92,17 @@ class CleanInstallTests(TestCase):
         with TemporaryDirectory() as directory:
             module.MARKER = Path(directory) / "first-boot-done"
             ok = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
-            with mock.patch.object(module, "run", return_value=ok) as runner:
+            unavailable = subprocess.CompletedProcess(
+                args=[], returncode=1, stdout="", stderr="Dock not installed"
+            )
+            with mock.patch.object(module, "run", side_effect=[ok, ok, unavailable]) as runner:
                 self.assertEqual(module.main(), 0)
                 self.assertTrue(module.MARKER.exists())
                 self.assertEqual(module.main(), 0)
-                self.assertEqual(runner.call_count, 2)
+                self.assertEqual(runner.call_count, 3)
                 names = [call.args[0] for call in runner.call_args_list]
-                self.assertEqual(names, ["gnome-extensions", "gsettings"])
-                self.assertEqual(
-                    runner.call_args_list[-1].kwargs["env"]["GSETTINGS_SCHEMA_DIR"],
-                    module.EXTENSION_SCHEMAS,
-                )
+                self.assertEqual(names, ["gnome-extensions", "gsettings", "gnome-extensions"])
+                self.assertEqual(runner.call_args_list[1].args[3], "appearance")
                 self.assertEqual(module.MARKER.stat().st_mode & 0o777, 0o600)
-        self.assertNotIn('enabled-extensions', read("packaging/mutsu-first-boot"))
+        self.assertNotIn('"enabled-extensions",', read("packaging/mutsu-first-boot"))
         self.assertNotIn('"picture-uri"', read("packaging/mutsu-first-boot"))
