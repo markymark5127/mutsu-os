@@ -1,0 +1,22 @@
+{
+  "id": "cyberpunk",
+  "name": "Cyberpunk",
+  "mode": "dark",
+  "colors": {
+    "background": "#080C16",
+    "surface": "#0A1428",
+    "foreground": "#E9F7FF",
+    "muted": "#91A6BA",
+    "accent": "#00E5FF",
+    "accentSecondary": "#FF2D9B",
+    "border": "#34506B",
+    "selection": "#1D3553"
+  },
+  "assets": {
+    "logo": "branding/icons/mutsu-logo-cyberpunk.svg",
+    "wordmark": "branding/icons/mutsu-wordmark-cyberpunk.svg",
+    "wallpaper": "branding/wallpapers/mutsu-cyberpunk-4k.png",
+    "shell": "branding/shell/cyberpunk.css"
+  },
+  "notes": "Design tokens only. Applying a GNOME Shell theme requires a tested, user-controlled extension."
+}

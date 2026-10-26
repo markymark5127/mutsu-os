@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Mutsu OS
+Description=Minimal centered Mutsu two-wave boot emblem (experimental)
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/mutsu
+ScriptFile=/usr/share/plymouth/themes/mutsu/mutsu.script

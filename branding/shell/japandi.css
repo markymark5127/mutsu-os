@@ -1,0 +1,38 @@
+/*
+ * Mutsu OS — Calm Japandi GNOME Shell prototype.
+ * NOT automatically loaded. Must be loaded by a verified Shell extension.
+ * This targets only Shell chrome. It does not theme ordinary GTK4/libadwaita apps.
+ * Appearance is intentionally readable with no dependencies on custom fonts.
+ */
+#panel {
+  background-color: rgba(243, 239, 231, 0.94);
+  color: #232823;
+  border-bottom: 1px solid rgba(81, 107, 92, 0.18);
+  box-shadow: 0 2px 10px rgba(35, 40, 35, 0.08);
+}
+#panel .panel-button {
+  color: #384B3C;
+  border-radius: 10px;
+}
+#panel .panel-button:hover,
+#panel .panel-button:focus {
+  background-color: rgba(120, 135, 115, 0.16);
+  color: #232823;
+}
+#panel .panel-button:active,
+#panel .panel-button:checked {
+  background-color: rgba(120, 135, 115, 0.25);
+}
+.popup-menu-content {
+  color: #232823;
+  background-color: #FFFCF6;
+  border: 1px solid #D6DCCF;
+  border-radius: 13px;
+  box-shadow: 0 8px 24px rgba(35, 40, 35, 0.14);
+}
+.popup-menu-item:focus,
+.popup-menu-item:hover {
+  background-color: #DBE7D7;
+  color: #232823;
+  border-radius: 7px;
+}

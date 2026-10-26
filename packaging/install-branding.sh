@@ -36,6 +36,32 @@ for name in mutsu-japandi-4k.png mutsu-cyberpunk-4k.png; do
   install -Dm0644 "$brand/wallpapers/$name" "/usr/share/backgrounds/mutsu/$name"
 done
 
+# Stage additional approved Mutsu artwork and palette sources for future
+# user-controlled Shell/theme integration. These are data assets ONLY:
+# DO NOT automatically apply global Shell CSS or alter GNOME enabled extensions.
+for asset in "$brand"/icons/mutsu-logo-*.svg \
+             "$brand"/icons/mutsu-wordmark-*.svg \
+             "$brand"/icons/mutsu-lockup-*.svg \
+             "$brand"/icons/mutsu-ai.svg \
+             "$brand"/icons/mutsu-app-grid.svg; do
+  [[ -s "$asset" ]] || continue
+  install -Dm0644 "$asset" "/usr/share/mutsu-os/branding/icons/${asset##*/}"
+done
+# Plymouth sources are shipped for evaluation, but neither a PNG splash
+# nor an initramfs change is attempted during this immutable image build.
+# Activation must be a separate boot-tested change.
+for asset in "$brand"/plymouth/mutsu.plymouth \
+             "$brand"/plymouth/mutsu.script \
+             "$brand"/plymouth/mutsu-boot-logo.svg; do
+  install -Dm0644 "$asset" "/usr/share/mutsu-os/branding/plymouth/${asset##*/}"
+done
+for theme in japandi cyberpunk; do
+  install -Dm0644 "$brand/themes/$theme.json" \
+    "/usr/share/mutsu-os/branding/themes/$theme.json"
+  install -Dm0644 "$brand/shell/$theme.css" \
+    "/usr/share/mutsu-os/branding/shell/$theme.css"
+done
+
 # Anaconda live installer sidebar branding (Japandi sage).
 # These override the default Fedora/Bazzite blue banner when the ISO is built
 # from this image. Missing files are a warning, not a hard failure.

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.mutsu-branding" path="/org/gnome/shell/extensions/mutsu-branding/">
+    <key name="appearance" type="s">
+      <choices>
+        <choice value="system"/>
+        <choice value="japandi"/>
+        <choice value="cyberpunk"/>
+      </choices>
+      <default>'system'</default>
+      <summary>Opt-in GNOME Shell styling</summary>
+      <description>Controls which Mutsu Shell palette is loaded by this extension.</description>
+    </key>
+  </schema>
+</schemalist>

@@ -47,12 +47,15 @@ jobs:
           set -euo pipefail
           bash packaging/prepare-desktop.sh
           python3 packaging/check-integration.py
+          python3 packaging/check-branding-assets.py
           python3 -m unittest discover -s tests -p 'test_*.py' -v
           PYTHONPATH=vendor/ai-desktop/src python3 -m unittest discover -s vendor/ai-desktop/tests -p 'test_*.py' -v
           # Record exactly which reviewed desktop code this immutable image uses.
           cat packaging/desktop-source.env
           bash -n packaging/prepare-desktop.sh
           bash -n packaging/install-adaptive-extension.sh
+          bash -n packaging/install-shell-branding.sh
+          bash -n packaging/render-plymouth-theme.sh
 
       - name: Check Just Syntax
         shell: bash
