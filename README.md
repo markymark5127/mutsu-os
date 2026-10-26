@@ -22,7 +22,7 @@ This repository is the **bootc image build**. The related [ai-desktop](https://g
 - The Mutsu AI result displays the installed emblem if no separate AI SVG exists. The assistant is opt-in and off by default for model requests.
 - Optional Newelle user-service and key-configuration scripts are installed in `/usr/share/mutsu-os/scripts`.
 
-**Not included yet:** a bundled/configured Newelle model, system-wide Japandi/Cyberpunk GTK/GNOME Shell style, full GNOME Shell-native Spotlight integration, custom app icon pack, top-left Mutsu logo + global menu replacement for Activities, touch-first Adaptive Desktop (2-in-1 tablet mode), native blur, a branded Plymouth animation, or a branded Anaconda installer. These are separate milestones.
+**Alpha status:** Mutsu logo, wallpaper, top-bar extension source, branded Anaconda ISO and Plymouth script theme are packaged. The image configures the script plugin and initramfs during its build. Newelle is requested through a network-dependent Flatpak **first-boot preinstall** (the AI model, account and credentials are intentionally not bundled). System-wide GTK/Qt appearance, native GNOME Spotlight, a custom icon pack, dock/overview polish and automatic tablet posture are not finished. **Bootable-media and fresh-install tests remain outstanding**; see [clean-install QA](docs/INITIAL_INSTALL_QA.md). These are separate milestones.
 
 ## Adaptive Desktop (planned)
 
