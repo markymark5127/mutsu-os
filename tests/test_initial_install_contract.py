@@ -33,6 +33,15 @@ class CleanInstallTests(TestCase):
         self.assertIn("github.event_name == 'workflow_dispatch'", flow)
         self.assertIn("# PRs only validate.", flow)
 
+    def test_installer_branding_preserves_original_hybrid_boot(self):
+        injector = read("packaging/inject-iso-branding.sh")
+        self.assertIn("-boot_image any replay", injector)
+        self.assertIn("-report_el_torito plain", injector)
+        self.assertIn("/images/product.img", injector)
+        self.assertIn('sha256sum "$iso"', injector)
+        self.assertNotIn("xorriso -as mkisofs", injector)
+        self.assertNotIn("xorriso -osirrox", injector)
+
     def test_script_plugin_available_before_branding(self):
         container = read("Containerfile")
         self.assertIn("dnf5 install -y plymouth-plugin-script librsvg2-tools", container)
