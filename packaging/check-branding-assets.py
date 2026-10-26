@@ -84,6 +84,22 @@ if need(theme_path) and need(script_path):
         ERRORS.append("Plymouth script is not using the staged logo PNG")
     # The PNG is an intentional generated output of render-plymouth-theme.sh.
 
+# A GNOME Shell extension is installed but must remain opt-in.
+ext = ROOT / "extensions" / "mutsu-branding@mutsu-os"
+meta = ext / "metadata.json"
+schema = ext / "schemas" / "org.gnome.shell.extensions.mutsu-branding.gschema.xml"
+if need(meta) and need(schema) and need(ext / "extension.js"):
+    try:
+        m = json.loads(meta.read_text(encoding="utf-8"))
+        if m.get("uuid") != "mutsu-branding@mutsu-os":
+            ERRORS.append("Unexpected Mutsu branding Shell extension UUID")
+        ET.parse(schema)
+        script = (ROOT / "packaging/install-shell-branding.sh").read_text(encoding="utf-8")
+        if "enabled-extensions" in script and "No dconf enabled-extensions" not in script:
+            ERRORS.append("Shell branding installer may modify enabled-extensions")
+    except (OSError, ValueError, ET.ParseError) as exc:
+        ERRORS.append(f"Invalid optional branding extension metadata: {exc}")
+
 if ERRORS:
     for error in ERRORS:
         print(f"ERROR: {error}", file=sys.stderr)
