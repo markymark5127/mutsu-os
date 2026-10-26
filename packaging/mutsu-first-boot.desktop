@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Mutsu OS First Boot
+Comment=Apply Japandi theme, Mutsu logo, and wallpaper on first login
+Exec=/usr/libexec/mutsu-os/mutsu-first-boot
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Phase=Applications
+NoDisplay=true
