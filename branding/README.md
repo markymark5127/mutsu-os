@@ -3,7 +3,7 @@
 The approved two-wave Mutsu mark is reused unchanged from
 [ai-desktop/assets/icons](https://github.com/markymark5127/ai-desktop/tree/main/assets/icons).
 The OS-owned copies live here so `mutsu-os` can package them without fetching
-loose design files. No logo was redesigned or replaced.
+loose design files. No logo was redesigned or replaced. This also includes\nthe four complete symbol-and-wordmark lockups (neutral, sage, neon, white).
 
 ## Status
 
