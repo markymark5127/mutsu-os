@@ -1,0 +1,15 @@
+# Mutsu OS — experimental Plymouth script theme.
+# Keep the background quiet and center the existing two-wave logo.
+# Do NOT activate until boot, password prompt and fallback behavior are tested.
+Window.SetBackgroundTopColor(0.031, 0.043, 0.075);
+Window.SetBackgroundBottomColor(0.031, 0.043, 0.075);
+
+mutsu_logo = Image("mutsu-boot-logo.png");
+mutsu_sprite = Sprite(mutsu_logo);
+mutsu_sprite.SetZ(10);
+
+fun mutsu_refresh() {
+    mutsu_sprite.SetX((Window.GetWidth() - mutsu_logo.GetWidth()) / 2);
+    mutsu_sprite.SetY((Window.GetHeight() - mutsu_logo.GetHeight()) / 2);
+}
+Plymouth.SetRefreshFunction(mutsu_refresh);
