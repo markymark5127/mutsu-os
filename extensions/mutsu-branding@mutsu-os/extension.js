@@ -2,6 +2,10 @@
  * Opt-in Mutsu OS GNOME Shell branding.
  * Places a Mutsu logo button at the top-left and hides the stock Activities
  * button while enabled. Fully restored on disable.
+ *
+ * The Spotlight launcher and first-run setup wizard come from the pinned
+ * ai-desktop source (see packaging/desktop-source.env). This menu launches
+ * them via the system mutsu-search wrapper.
  */
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -18,7 +22,6 @@ export default class MutsuBrandingExtension extends Extension {
         this._settings = this.getSettings();
         this._activitiesWasVisible = null;
 
-        // Hide stock Activities button (restored on disable).
         try {
             const activities = Main.panel.statusArea.activities;
             if (activities) {
@@ -29,7 +32,6 @@ export default class MutsuBrandingExtension extends Extension {
             log(`Mutsu branding: could not hide Activities (${e})`);
         }
 
-        // Top-left Mutsu logo button.
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu OS', false);
         const file = Gio.File.new_for_path(SYMBOL);
         this._indicator.add_child(new St.Icon({
@@ -37,21 +39,26 @@ export default class MutsuBrandingExtension extends Extension {
             style_class: 'system-status-icon',
             icon_size: 22,
         }));
-        this._indicator.menu.addAction('Mutsu OS Search', () => {
-            try {
-                Gio.Subprocess.new(['/usr/bin/mutsu-search'], Gio.SubprocessFlags.NONE);
-            } catch (e) {
-                console.warn('Mutsu branding: Search unavailable', e);
-            }
-        });
+
+        // Spotlight and setup walkthrough live in the pinned ai-desktop app.
+        this._indicator.menu.addAction('Mutsu Search', () => this._launch(['/usr/bin/mutsu-search']));
+        this._indicator.menu.addAction('Setup Wizard', () => this._launch(['/usr/bin/mutsu-search', '--setup']));
         this._indicator.menu.addAction('Calm Japandi', () => this._settings.set_string('appearance', 'japandi'));
         this._indicator.menu.addAction('Cyberpunk', () => this._settings.set_string('appearance', 'cyberpunk'));
         this._indicator.menu.addAction('Follow System', () => this._settings.set_string('appearance', 'system'));
-        // Index 0, left box — top-left position.
+
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'left');
 
         this._changedId = this._settings.connect('changed::appearance', () => this._applyAppearance());
         this._applyAppearance();
+    }
+
+    _launch(argv) {
+        try {
+            Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE);
+        } catch (e) {
+            console.warn('Mutsu branding: launch failed', argv, e);
+        }
     }
 
     _applyAppearance() {
@@ -92,7 +99,6 @@ export default class MutsuBrandingExtension extends Extension {
         this._indicator?.destroy();
         this._indicator = null;
 
-        // Restore Activities.
         try {
             const activities = Main.panel.statusArea.activities;
             if (activities && this._activitiesWasVisible !== false)
