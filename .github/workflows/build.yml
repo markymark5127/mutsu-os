@@ -54,6 +54,8 @@ jobs:
           cat packaging/desktop-source.env
           bash -n packaging/prepare-desktop.sh
           bash -n packaging/install-adaptive-extension.sh
+          bash -n packaging/install-shell-branding.sh
+          bash -n packaging/render-plymouth-theme.sh
 
       - name: Check Just Syntax
         shell: bash
