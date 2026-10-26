@@ -69,13 +69,14 @@ COPY packaging/install-adaptive-extension.sh /tmp/mutsu-install-adaptive.sh
 RUN bash /tmp/mutsu-install-adaptive.sh && \
     rm -rf /tmp/mutsu-adaptive-src /tmp/mutsu-install-adaptive.sh
 
-### OPTIONAL GNOME SHELL BRANDING
-# Install the Mutsu top-bar/appearance extension without enabling it.
-# It remains opt-in until we verify GNOME Shell compatibility in a booted VM.
+### GNOME SHELL BRANDING (enabled on first login)
 COPY extensions/mutsu-branding@mutsu-os /tmp/mutsu-branding-extension-src
 COPY packaging/install-shell-branding.sh /tmp/mutsu-install-shell-branding.sh
+COPY packaging/mutsu-first-boot /tmp/mutsu-first-boot
+COPY packaging/mutsu-first-boot.desktop /tmp/mutsu-first-boot.desktop
 RUN bash /tmp/mutsu-install-shell-branding.sh && \
-    rm -rf /tmp/mutsu-branding-extension-src /tmp/mutsu-install-shell-branding.sh
+    rm -rf /tmp/mutsu-branding-extension-src /tmp/mutsu-install-shell-branding.sh \
+           /tmp/mutsu-first-boot /tmp/mutsu-first-boot.desktop
 
 ### LINTING
 ## Verify final image and contents are correct.
