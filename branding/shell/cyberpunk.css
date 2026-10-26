@@ -1,0 +1,38 @@
+/*
+ * Mutsu OS — Cyberpunk GNOME Shell prototype.
+ * NOT automatically loaded. Must be loaded by a verified Shell extension.
+ * Restrained neon accents preserve legibility and GNOME input affordances.
+ */
+#panel {
+  background-color: rgba(8, 12, 22, 0.94);
+  color: #E9F7FF;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.35);
+  box-shadow: 0 2px 15px rgba(0, 229, 255, 0.1);
+}
+#panel .panel-button {
+  color: #D7F8FF;
+  border-radius: 3px;
+}
+#panel .panel-button:hover,
+#panel .panel-button:focus {
+  background-color: rgba(0, 229, 255, 0.14);
+  color: #00E5FF;
+}
+#panel .panel-button:active,
+#panel .panel-button:checked {
+  background-color: rgba(255, 45, 155, 0.20);
+  color: #FF86CB;
+}
+.popup-menu-content {
+  color: #E9F7FF;
+  background-color: #0A1428;
+  border: 1px solid #34506B;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 229, 255, 0.13);
+}
+.popup-menu-item:focus,
+.popup-menu-item:hover {
+  background-color: #1D3553;
+  color: #00E5FF;
+  border-radius: 2px;
+}
