@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Activate Mutsu's reversible GNOME branding once for a new user.
+"""Apply first-user Mutsu branding and optional Mac-like dock safely.
 
-Do not replace GNOME's entire enabled-extensions list, overwrite a user-picked
-wallpaper, or record success on a failed activation. Failed first login is
-retried on a future login; a working desktop is preferable to forced branding.
+Extension activation must be additive, wallpaper/lockscreen preferences are
+user-overridable image defaults, and failures never get marked as complete.
 """
 from __future__ import annotations
 
@@ -14,41 +13,76 @@ import sys
 
 MARKER = Path.home() / ".config" / "mutsu-os" / "first-boot-done"
 BRANDING = "mutsu-branding@mutsu-os"
-SCHEMA = "org.gnome.shell.extensions.mutsu-branding"
-EXTENSION_SCHEMAS = f"/usr/share/gnome-shell/extensions/{BRANDING}/schemas"
+DOCK = "dash-to-dock@micxgx.gmail.com"
+BRANDING_SCHEMA = "org.gnome.shell.extensions.mutsu-branding"
+DOCK_SCHEMA = "org.gnome.shell.extensions.dash-to-dock"
 
 
 def run(*cmd: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, text=True, capture_output=True, check=False, env=env)
 
 
-def activate() -> None:
+def settings_env(uuid: str) -> dict[str, str]:
+    env = os.environ.copy()
+    for base in (
+        Path.home() / ".local/share/gnome-shell/extensions",
+        Path("/usr/share/gnome-shell/extensions"),
+    ):
+        schema_dir = base / uuid / "schemas"
+        if (schema_dir / "gschemas.compiled").is_file():
+            env["GSETTINGS_SCHEMA_DIR"] = str(schema_dir)
+            break
+    return env
+
+
+def activate_branding() -> None:
     result = run("gnome-extensions", "enable", BRANDING)
     if result.returncode != 0:
         raise RuntimeError(
-            "GNOME rejected Mutsu branding (version or session not ready): "
+            "Mutsu branding extension couldn't be enabled: "
             + (result.stderr.strip() or result.stdout.strip())
         )
-    # GNOME extensions ship schema overrides within their own schemas dir;
-    # plain gsettings does not see those schemas in the global search path.
-    env = os.environ.copy()
-    env["GSETTINGS_SCHEMA_DIR"] = EXTENSION_SCHEMAS
-    pref = run("gsettings", "set", SCHEMA, "appearance", "japandi", env=env)
-    if pref.returncode != 0:
-        raise RuntimeError("Could not set Mutsu Japandi theme: " + pref.stderr.strip())
+    result = run(
+        "gsettings", "set", BRANDING_SCHEMA, "appearance", "japandi",
+        env=settings_env(BRANDING),
+    )
+    if result.returncode != 0:
+        raise RuntimeError("Could not select Japandi branding: " + result.stderr.strip())
 
-    # Defaults already set the Japandi wallpaper via the image's GSettings
-    # override. Never clobber an intentional wallpaper change on login.
+
+def configure_optional_dock() -> None:
+    # Keep compatibility with the new Mac-style setup from PR #39.
+    # Do not write a replacement GNOME enabled-extensions array.
+    probe = run("gnome-extensions", "info", DOCK)
+    if probe.returncode != 0:
+        return
+    enabled = run("gnome-extensions", "enable", DOCK)
+    if enabled.returncode != 0:
+        print("Mutsu dock unavailable; normal GNOME remains usable", file=sys.stderr)
+        return
+    env = settings_env(DOCK)
+    settings = {
+        "dock-position": "BOTTOM",
+        "dock-fixed": "true",
+        "show-apps-at-top": "false",
+        "show-show-apps-button": "true",
+    }
+    for key, value in settings.items():
+        changed = run("gsettings", "set", DOCK_SCHEMA, key, value, env=env)
+        if changed.returncode != 0:
+            print(f"Mutsu dock setting unavailable: {key}", file=sys.stderr)
 
 
 def main() -> int:
     if MARKER.exists():
         return 0
     try:
-        activate()
+        activate_branding()
     except (OSError, RuntimeError) as exc:
-        print(f"Mutsu first-boot branding not applied; will retry: {exc}", file=sys.stderr)
+        print(f"Mutsu first boot not finished; will retry on next login: {exc}", file=sys.stderr)
         return 1
+    # Dock is optional; a broken/absent dock must not stop the desktop startup.
+    configure_optional_dock()
     MARKER.parent.mkdir(parents=True, exist_ok=True)
     MARKER.write_text("done\n", encoding="utf-8")
     os.chmod(MARKER, 0o600)
