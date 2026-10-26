@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+"""First-login setup for Mutsu OS visual identity.
+
+Runs once per user. Enables the branding extension, applies Japandi,
+and sets the Mutsu wallpaper without removing other GNOME extensions.
+"""
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+from pathlib import Path
+
+MARKER = Path.home() / ".config" / "mutsu-os" / "first-boot-done"
+BRANDING = "mutsu-branding@mutsu-os"
+WALLPAPER = "file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png"
+
+
+def gsettings(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["gsettings", *args],
+        capture_output=True,
+        text=True,
+    )
+
+
+def enable_branding() -> None:
+    result = gsettings("get", "org.gnome.shell", "enabled-extensions")
+    current: list[str] = []
+    if result.returncode == 0 and result.stdout.strip():
+        raw = result.stdout.strip()
+        if raw.startswith("@as"):
+            raw = raw[3:].strip()
+        try:
+            current = json.loads(raw.replace("'", '"'))
+        except json.JSONDecodeError:
+            current = []
+    if BRANDING not in current:
+        current.append(BRANDING)
+        gsettings(
+            "set",
+            "org.gnome.shell",
+            "enabled-extensions",
+            json.dumps(current),
+        )
+    gsettings(
+        "set",
+        "org.gnome.shell.extensions.mutsu-branding",
+        "appearance",
+        "japandi",
+    )
+
+
+def set_wallpaper() -> None:
+    for key in ("picture-uri", "picture-uri-dark"):
+        gsettings("set", "org.gnome.desktop.background", key, WALLPAPER)
+
+
+def main() -> None:
+    if MARKER.exists():
+        return
+    MARKER.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        enable_branding()
+        set_wallpaper()
+    finally:
+        MARKER.write_text("done\n", encoding="utf-8")
+        os.chmod(MARKER, 0o600)
+
+
+if __name__ == "__main__":
+    main()
