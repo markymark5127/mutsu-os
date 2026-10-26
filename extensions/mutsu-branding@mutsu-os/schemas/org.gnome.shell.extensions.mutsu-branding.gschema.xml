@@ -7,9 +7,9 @@
         <choice value="japandi"/>
         <choice value="cyberpunk"/>
       </choices>
-      <default>'system'</default>
-      <summary>Opt-in GNOME Shell styling</summary>
-      <description>Controls which Mutsu Shell palette is loaded by this extension.</description>
+      <default>'japandi'</default>
+      <summary>GNOME Shell styling</summary>
+      <description>Controls which Mutsu Shell palette is loaded by this extension. Japandi is the first-boot default.</description>
     </key>
   </schema>
 </schemalist>
