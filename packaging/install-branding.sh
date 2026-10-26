@@ -63,30 +63,22 @@ if [[ -d "$plymouth_src" ]]; then
   install -Dm0644 "$plymouth_src/mutsu.script" "$plymouth_dest/mutsu.script"
   install -Dm0644 "$plymouth_src/mutsu-boot-logo.svg" "$plymouth_dest/mutsu-boot-logo.svg"
 
-  # Render the white symbol SVG to the PNG Plymouth expects.
+  # Fail the image build if the renderer or plugin is missing, rather than
+  # quietly publish a generic upstream boot splash.
+  command -v rsvg-convert >/dev/null || {
+    echo >&2 "Missing librsvg2-tools in the Mutsu image"
+    exit 1
+  }
+  [[ -f /usr/lib64/plymouth/script.so ]] || {
+    echo >&2 "Missing plymouth-plugin-script in the Mutsu image"
+    exit 1
+  }
   logo_png="$plymouth_dest/mutsu-boot-logo.png"
-  if command -v rsvg-convert >/dev/null 2>&1; then
-    rsvg-convert --width=512 --height=512 \
-      --output="$logo_png" \
-      "$plymouth_src/mutsu-boot-logo.svg"
-  elif command -v convert >/dev/null 2>&1; then
-    convert -background none -density 300 \
-      "$plymouth_src/mutsu-boot-logo.svg" \
-      -resize 512x512 "$logo_png"
-  else
-    echo >&2 "WARNING: neither rsvg-convert nor convert found; Plymouth logo PNG not rendered"
-  fi
-
-  if [[ -s "$logo_png" ]]; then
-    # Point Plymouth at the Mutsu theme. The -R regenerates the initramfs
-    # so the theme is present at boot. Safe inside an image build.
-    if command -v plymouth-set-default-theme >/dev/null 2>&1; then
-      plymouth-set-default-theme -R mutsu || \
-        echo >&2 "WARNING: plymouth-set-default-theme failed (theme installed but not activated)"
-    else
-      echo >&2 "WARNING: plymouth-set-default-theme not found; theme files installed only"
-    fi
-  fi
+  rsvg-convert --width=512 --height=512 \
+    --output="$logo_png" "$plymouth_src/mutsu-boot-logo.svg"
+  test -s "$logo_png"
+  # Do not call -R here (CI host kernel != image kernel). The final
+  # Containerfile stage chooses the default and rebuilds the image initramfs.
 else
   echo >&2 "WARNING: branding/plymouth/ not present; boot splash stays upstream"
 fi
