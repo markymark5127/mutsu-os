@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """First-login setup for Mutsu OS visual identity.
 
-Runs once per user. Enables the branding extension, applies Japandi,
-and sets the Mutsu wallpaper without removing other GNOME extensions.
+Runs once per user. Enables branding, Japandi wallpaper and lock screen,
+and Dash to Dock if it is installed. Does not remove other extensions.
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from pathlib import Path
 
 MARKER = Path.home() / ".config" / "mutsu-os" / "first-boot-done"
 BRANDING = "mutsu-branding@mutsu-os"
+DOCK = "dash-to-dock@micxgx.gmail.com"
 WALLPAPER = "file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png"
 
 
@@ -24,36 +25,43 @@ def gsettings(*args: str) -> subprocess.CompletedProcess:
     )
 
 
-def enable_branding() -> None:
+def enabled_extensions() -> list[str]:
     result = gsettings("get", "org.gnome.shell", "enabled-extensions")
-    current: list[str] = []
-    if result.returncode == 0 and result.stdout.strip():
-        raw = result.stdout.strip()
-        if raw.startswith("@as"):
-            raw = raw[3:].strip()
-        try:
-            current = json.loads(raw.replace("'", '"'))
-        except json.JSONDecodeError:
-            current = []
-    if BRANDING not in current:
-        current.append(BRANDING)
-        gsettings(
-            "set",
-            "org.gnome.shell",
-            "enabled-extensions",
-            json.dumps(current),
-        )
-    gsettings(
-        "set",
-        "org.gnome.shell.extensions.mutsu-branding",
-        "appearance",
-        "japandi",
-    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return []
+    raw = result.stdout.strip()
+    if raw.startswith("@as"):
+        raw = raw[3:].strip()
+    try:
+        return json.loads(raw.replace("'", '"'))
+    except json.JSONDecodeError:
+        return []
+
+
+def enable(uuid: str, current: list[str]) -> list[str]:
+    if uuid not in current:
+        current.append(uuid)
+    return current
 
 
 def set_wallpaper() -> None:
     for key in ("picture-uri", "picture-uri-dark"):
         gsettings("set", "org.gnome.desktop.background", key, WALLPAPER)
+    # Lock screen / screensaver uses a separate key.
+    gsettings("set", "org.gnome.desktop.screensaver", "picture-uri", WALLPAPER)
+    gsettings("set", "org.gnome.desktop.screensaver", "primary-color", "#f3efe7")
+    gsettings("set", "org.gnome.desktop.screensaver", "secondary-color", "#516b5c")
+
+
+def configure_dock() -> None:
+    # Only touch Dash to Dock if the schema exists.
+    probe = gsettings("list-keys", "org.gnome.shell.extensions.dash-to-dock")
+    if probe.returncode != 0:
+        return
+    gsettings("set", "org.gnome.shell.extensions.dash-to-dock", "dock-position", "BOTTOM")
+    gsettings("set", "org.gnome.shell.extensions.dash-to-dock", "dock-fixed", "true")
+    gsettings("set", "org.gnome.shell.extensions.dash-to-dock", "show-apps-at-top", "false")
+    gsettings("set", "org.gnome.shell.extensions.dash-to-dock", "show-show-apps-button", "true")
 
 
 def main() -> None:
@@ -61,7 +69,20 @@ def main() -> None:
         return
     MARKER.parent.mkdir(parents=True, exist_ok=True)
     try:
-        enable_branding()
+        current = enabled_extensions()
+        current = enable(BRANDING, current)
+        # Enable the dock only if it is already installed on the system.
+        listed = gsettings("list-schemas")
+        if listed.returncode == 0 and "org.gnome.shell.extensions.dash-to-dock" in listed.stdout:
+            current = enable(DOCK, current)
+            configure_dock()
+        gsettings("set", "org.gnome.shell", "enabled-extensions", json.dumps(current))
+        gsettings(
+            "set",
+            "org.gnome.shell.extensions.mutsu-branding",
+            "appearance",
+            "japandi",
+        )
         set_wallpaper()
     finally:
         MARKER.write_text("done\n", encoding="utf-8")

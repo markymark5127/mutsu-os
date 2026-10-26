@@ -1,11 +1,6 @@
 /*
- * Opt-in Mutsu OS GNOME Shell branding.
- * Places a Mutsu logo button at the top-left and hides the stock Activities
- * button while enabled. Fully restored on disable.
- *
- * The Spotlight launcher and first-run setup wizard come from the pinned
- * ai-desktop source (see packaging/desktop-source.env). This menu launches
- * them via the system mutsu-search wrapper.
+ * Mutsu OS GNOME Shell branding.
+ * Top-left Mutsu logo with a Mac-style menu. Hides Activities while enabled.
  */
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -40,12 +35,20 @@ export default class MutsuBrandingExtension extends Extension {
             icon_size: 22,
         }));
 
-        // Spotlight and setup walkthrough live in the pinned ai-desktop app.
-        this._indicator.menu.addAction('Mutsu Search', () => this._launch(['/usr/bin/mutsu-search']));
-        this._indicator.menu.addAction('Setup Wizard', () => this._launch(['/usr/bin/mutsu-search', '--setup']));
-        this._indicator.menu.addAction('Calm Japandi', () => this._settings.set_string('appearance', 'japandi'));
-        this._indicator.menu.addAction('Cyberpunk', () => this._settings.set_string('appearance', 'cyberpunk'));
-        this._indicator.menu.addAction('Follow System', () => this._settings.set_string('appearance', 'system'));
+        const menu = this._indicator.menu;
+        menu.addAction('About Mutsu OS', () => this._launch(['gnome-control-center', 'info-overview']));
+        menu.addAction('Mutsu Search', () => this._launch(['/usr/bin/mutsu-search']));
+        menu.addAction('Setup Wizard…', () => this._launch(['/usr/bin/mutsu-search', '--setup']));
+        menu.addAction('System Settings…', () => this._launch(['gnome-control-center']));
+        menu.addAction('Files', () => this._launch(['nautilus']));
+        menu.addAction('Show Applications', () => {
+            try {
+                Main.overview.showApps();
+            } catch (e) {}
+        });
+        menu.addAction('Calm Japandi', () => this._settings.set_string('appearance', 'japandi'));
+        menu.addAction('Cyberpunk', () => this._settings.set_string('appearance', 'cyberpunk'));
+        menu.addAction('Follow System', () => this._settings.set_string('appearance', 'system'));
 
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'left');
 
