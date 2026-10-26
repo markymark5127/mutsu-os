@@ -11,7 +11,7 @@ loose design files. No logo was redesigned or replaced.
 | --- | --- | --- |
 | GNOME About, Search icon, GDM | `icons/mutsu-logo-symbol.svg`, `icons/mutsu-logo-wordmark.svg`, `install-branding.sh` | Existing OS build integration; needs GUI verification |
 | Desktop wallpapers | `wallpapers/mutsu-{japandi,cyberpunk}-4k.png` | Existing OS build integration; needs GUI verification |
-| Theme palettes | `themes/*.json`, `shell/*.css` | Assets staged for future GNOME-version-tested loader; not active yet |
+| Theme palettes | `themes/*.json`, `shell/*.css` | Assets shipped in the image; opt-in Shell extension installed but disabled |
 | App glyphs | `icons/mutsu-ai.svg`, `icons/mutsu-app-grid.svg` | Asset source only; app integration pending |
 | Boot splash | `plymouth/mutsu.plymouth`, `mutsu.script`, `mutsu-boot-logo.svg` | Source files; NOT installed/activated on the OS image |
 | Installer | `installer/*.png`, `installer/mutsu.css` | Existing best-effort integration; unverified in a fresh ISO |
@@ -35,6 +35,21 @@ prompts, failure fallback, and rollback in a disposable VM. Do not run
 `plymouth-set-default-theme -R` on a daily-driver Bazzite system as a shortcut.
 
 ## Theme loading
+
+The `mutsu-branding@mutsu-os` GNOME Shell extension is installed in
+the image, but **disabled by default**. Its compatibility metadata currently
+covers GNOME Shell 46–48; test against the actual installed version before
+changing or enabling it. It does **not** replace GNOME's Activities button.
+
+When Shell reports a compatible version, on a disposable test VM:
+
+```sh
+gnome-extensions enable mutsu-branding@mutsu-os
+gsettings set org.gnome.shell.extensions.mutsu-branding appearance 'japandi'
+# Try 'cyberpunk' or 'system'; 'system' unloads the custom CSS.
+gsettings set org.gnome.shell.extensions.mutsu-branding appearance 'system'
+gnome-extensions disable mutsu-branding@mutsu-os
+```
 
 The Shell CSS is **not** ordinary GTK4 CSS. It must be loaded by a verified
 GNOME Shell extension (and unloaded/restored on disable), rather than dropped
