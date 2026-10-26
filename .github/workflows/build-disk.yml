@@ -2,18 +2,11 @@
 name: Build disk images
 
 on:
-  # Generate downloadable images on main when the disk builder or its
-  # configuration changes; keep workflow_dispatch for deliberate rebuilds.
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/build-disk.yml'
-      - 'disk_config/disk.toml'
-      - 'disk_config/iso.toml'
-      - 'branding/installer/**'
-      - 'packaging/inject-iso-branding.sh'
-      - 'tests/test_disk_image_workflow.py'
+  # Build ISO only AFTER the matching main image was published and signed.
+  # Never race the separate container build on the same push.
+  workflow_run:
+    workflows: ["Build container image"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       upload-to-s3:
@@ -41,7 +34,6 @@ on:
 env:
   IMAGE_NAME: ${{ github.event.repository.name }} # output of build.yml, keep in sync
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
-  DEFAULT_TAG: "latest"
   BIB_IMAGE: "quay.io/centos-bootc/bootc-image-builder:latest"
 
 concurrency:
@@ -49,8 +41,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate:
+    name: Validate disk workflow
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # workflow_run's github.sha points to current main, NOT the source
+          # that produced the completed image.
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      - name: Validate disk-image contract
+        run: python3 -m unittest discover -s tests -p 'test_disk_image_workflow.py' -v
+
   build:
     name: Build disk images
+    needs: validate
+    # PRs only validate. No PR should silently pull/publish an unrelated image.
+    # Skip daily scheduled builds and any unsuccessful or non-main container run.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       (github.event.workflow_run.event == 'push' ||
+        github.event.workflow_run.event == 'workflow_dispatch'))
+    env:
+      SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     # Pull requests have no workflow_dispatch inputs: default them to amd64.
     # Keep the privileged OSBuild disk/ISO jobs on Ubuntu 24.04: on 26.04,
     # osbuild fails with EPERM while mounting /run/osbuild/containers/storage
@@ -82,9 +98,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          set -x
+          set -euxo pipefail
           sudo apt update -y
-          sudo apt install -y podman xorriso cpio gzip
+          sudo apt install -y podman skopeo xorriso cpio gzip
 
       - name: Maximize build space
         if: inputs.platform != 'arm64'
@@ -92,11 +108,27 @@ jobs:
         with:
           remove-codeql: true
 
-      - name: Checkout
+      - name: Checkout matching Mutsu sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
 
-      - name: Validate builder settings
-        run: python3 -m unittest discover -s tests -p 'test_disk_image_workflow.py' -v
+      - name: Resolve immutable container image
+        shell: bash
+        run: |
+          set -euo pipefail
+          short_sha="${SOURCE_SHA:0:7}"
+          ref="${IMAGE_REGISTRY}/${IMAGE_NAME}:latest-${short_sha}"
+          echo "Resolving Mutsu source ${SOURCE_SHA}: ${ref}"
+          # Fails closed when this commit has no successfully published image.
+          digest="$(skopeo inspect --format '{{.Digest}}' "docker://${ref}")"
+          [[ "${digest}" =~ ^sha256:[a-f0-9]{64}$ ]] || {
+            echo "::error::Could not resolve an OCI digest for the exact Mutsu source commit"
+            exit 1
+          }
+          pinned="${IMAGE_REGISTRY}/${IMAGE_NAME}@${digest}"
+          echo "PINNED_IMAGE=${pinned}" >> "${GITHUB_ENV}"
+          echo "Building disk artifacts from ${pinned} (source commit ${SOURCE_SHA})" >> "${GITHUB_STEP_SUMMARY}"
 
       # Existing local 'Justfile' already passes --rootfs=btrfs. The action
       # must receive the same setting because this bootc source does not
@@ -109,7 +141,7 @@ jobs:
         with:
           builder-image: ${{ env.BIB_IMAGE }}
           config-file: ${{ matrix.disk-type == 'anaconda-iso' && format('{0}/disk_config/iso.toml', github.workspace) || format('{0}/disk_config/disk.toml', github.workspace) }}
-          image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}
+          image: ${{ env.PINNED_IMAGE }}
           chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
           types: ${{ matrix.disk-type }}
           rootfs: btrfs
