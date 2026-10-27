@@ -100,12 +100,11 @@ container image and ISO build alone are not proof of a verified installed OS.
 - `.github/workflows/build.yml` -> publish signed OCI
 - `.github/workflows/build-disk.yml` -> verified digest -> image builder
 - `packaging/inject-iso-branding.sh` -> preservative ISO edit plus SHA256
-- `packaging/verify-upstream-initramfs.sh` -> preserve original generic
-  Bazzite bootc initramfs; avoids build-container host-only dracut failures.
-  The container build checks with `lsinitrd` for OSTree's
-  `ostree-prepare-root` boot hook, preventing ISO publication if the
-  chosen initramfs cannot pivot a physical Btrfs root into a deployment.
-  The Mutsu Plymouth artwork is staged but its new splash is **not**
-  guaranteed to display until a verified generic initramfs integration exists.
+- `packaging/verify-upstream-initramfs.sh` -> validate original vendor
+  OSTree initramfs before making changes.
+- `packaging/rebuild-mutsu-initramfs.sh` -> compose generic initramfs
+  candidate explicitly including `ostree` and Plymouth (and available bootc
+  module), verify `ostree-prepare-root` and Mutsu theme assets, then replace.
+  **Fresh UEFI VM first boot, encryption unlock, and rollback are still unverified.**
 - `packaging/install-newelle.sh` -> one-time Flatpak first-boot service
 - `packaging/configure-native-desktop.py` -> image-build-time GNOME extension defaults; no user login hook
