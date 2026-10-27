@@ -52,6 +52,10 @@ On a NEW 60+ GB virtual disk (never use a daily-driver disk):
       `systemctl cat mutsu-newelle-preinstall.service`.
       Respect explicit uninstall/opt-out.
 - [ ] Reboot and confirm the welcome wizard does not return after completion.
+- [ ] Confirm that the container-image build kept Bazzite's original
+      OSTree-capable initramfs and that the image build logs report the
+      ostree-prepare-root check succeeded. PR #52's custom Dracut splash
+      stage previously failed because its rebuilt image omitted that hook.
 - [ ] Confirm the **installed OS boots** using the unmodified generic
       Bazzite initramfs. Do not treat the absence of the new Mutsu logo
       at boot as a failure during this boot-safety test.
