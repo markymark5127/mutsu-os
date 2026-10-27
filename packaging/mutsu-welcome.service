@@ -1,0 +1,14 @@
+[Unit]
+Description=Mutsu OS welcome wizard
+Documentation=https://github.com/markymark5127/mutsu-os
+After=graphical-session.target
+# onboarding.json is written only when the user finishes or skips the wizard.
+ConditionPathExists=!%h/.config/ai-desktop/onboarding.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/mutsu-os/mutsu-first-login
+TimeoutStartSec=10min
+
+[Install]
+WantedBy=default.target

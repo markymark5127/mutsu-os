@@ -54,8 +54,9 @@ COPY vendor/ai-desktop/src/ /usr/libexec/mutsu-os/src/
 COPY packaging/mutsu-search /usr/bin/mutsu-search
 COPY packaging/mutsu-first-login /usr/libexec/mutsu-os/mutsu-first-login
 COPY packaging/setup-newelle-user.sh /usr/libexec/mutsu-os/setup-newelle-user.sh
+COPY packaging/mutsu-welcome.service /usr/lib/systemd/user/mutsu-welcome.service
+COPY packaging/mutsu-newelle-link.service /usr/lib/systemd/user/mutsu-newelle-link.service
 COPY packaging/io.github.markymark5127.AIDesktop.desktop /usr/share/applications/io.github.markymark5127.AIDesktop.desktop
-COPY packaging/mutsu-first-login.desktop /etc/xdg/autostart/mutsu-first-login.desktop
 COPY packaging/90-mutsu-wallpaper.gschema.override /usr/share/glib-2.0/schemas/90-mutsu-wallpaper.gschema.override
 COPY packaging/20-mutsu-shortcut.dconf /etc/dconf/db/mutsu.d/20-mutsu-shortcut
 COPY packaging/30-mutsu-mac-defaults.dconf /etc/dconf/db/mutsu.d/30-mutsu-mac-defaults
@@ -64,6 +65,10 @@ COPY packaging/configure-shortcut-defaults.sh /tmp/mutsu-configure-shortcut-defa
 COPY vendor/ai-desktop/scripts/configure-newelle-key.sh /usr/share/mutsu-os/scripts/configure-newelle-key.sh
 COPY vendor/ai-desktop/scripts/install-newelle-service.sh /usr/share/mutsu-os/scripts/install-newelle-service.sh
 RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login /usr/libexec/mutsu-os/setup-newelle-user.sh && \
+    install -d /etc/systemd/user/default.target.wants && \
+    ln -sfn /usr/lib/systemd/user/mutsu-welcome.service /etc/systemd/user/default.target.wants/mutsu-welcome.service && \
+    ln -sfn /usr/lib/systemd/user/mutsu-newelle-link.service /etc/systemd/user/default.target.wants/mutsu-newelle-link.service && \
+    rm -f /etc/xdg/autostart/mutsu-first-login.desktop && \
     python3 -m compileall -q /usr/libexec/mutsu-os/src && \
     glib-compile-schemas /usr/share/glib-2.0/schemas && \
     bash /tmp/mutsu-configure-shortcut-defaults.sh && \
@@ -80,7 +85,7 @@ RUN bash /tmp/mutsu-install-mac-shortcuts.sh && \
 
 ### NEWELLE (preinstalled, no API key)
 # The Flatpak is installed once after first boot has network. The matching
-# GUI API token is generated per user at first login, not baked into the image.
+# GUI API token is generated per user by mutsu-newelle-link.service.
 COPY packaging/install-newelle.sh /tmp/mutsu-install-newelle.sh
 RUN bash /tmp/mutsu-install-newelle.sh && rm -f /tmp/mutsu-install-newelle.sh
 
@@ -104,7 +109,7 @@ RUN bash /tmp/mutsu-install-shell-branding.sh && \
 
 ### MUTSU WELCOME ONLY
 # Bazzite Portal (yafti) autostarts on first login. Hide it so Mutsu's
-# welcome wizard is the only setup the user sees.
+# welcome unit is the only setup the user sees.
 COPY packaging/disable-bazzite-portal.sh /tmp/mutsu-disable-bazzite-portal.sh
 RUN bash /tmp/mutsu-disable-bazzite-portal.sh && rm /tmp/mutsu-disable-bazzite-portal.sh
 
