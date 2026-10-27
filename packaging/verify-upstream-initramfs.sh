@@ -43,7 +43,7 @@ for kernel in "${kernels[@]}"; do
     echo >&2 "lsinitrd missing; cannot validate OSTree boot support in $img"
     exit 1
   }
-  if ! lsinitrd "$img" | grep -Eq 'ostree-prepare-root'; then
+  if ! lsinitrd "$img" | grep -E 'ostree-prepare-root' >/dev/null; then
     echo >&2 "FATAL: $img is missing ostree-prepare-root; refusing nonbootable OS"
     exit 1
   fi
