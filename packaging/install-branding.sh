@@ -93,6 +93,14 @@ for theme in japandi cyberpunk; do
   install -Dm0644 "$brand/shell/$theme.css" \
     "/usr/share/mutsu-os/branding/shell/$theme.css"
 done
+# GTK CSS for rounded (Japandi) vs squared (Cyberpunk) plus Mac stoplights
+if [[ -d "$brand/gtk" ]]; then
+  install -d -m 0755 /usr/share/mutsu-os/branding/gtk
+  for f in "$brand"/gtk/*.css; do
+    [[ -s "$f" ]] || continue
+    install -Dm0644 "$f" "/usr/share/mutsu-os/branding/gtk/${f##*/}"
+  done
+fi
 
 # ---------------------------------------------------------------------------
 # Plymouth boot splash

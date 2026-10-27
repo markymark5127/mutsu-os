@@ -1,0 +1,19 @@
+/* Mutsu Japandi — soft, rounded, calm */
+window, .background, dialog, .dialog {
+  border-radius: 16px;
+}
+headerbar, .titlebar, windowhandle {
+  border-radius: 16px 16px 0 0;
+}
+button, .button, entry, .entry, spinbutton, combobox {
+  border-radius: 10px;
+}
+list row, listview row, .sidebar, .navigation-sidebar {
+  border-radius: 10px;
+}
+popover, .popover, menu, .menu {
+  border-radius: 13px;
+}
+.card, .view, scrolledwindow {
+  border-radius: 12px;
+}

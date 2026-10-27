@@ -1,0 +1,19 @@
+/* Mutsu Cyberpunk — harsh, squared, high-contrast */
+window, .background, dialog, .dialog {
+  border-radius: 2px;
+}
+headerbar, .titlebar, windowhandle {
+  border-radius: 2px 2px 0 0;
+}
+button, .button, entry, .entry, spinbutton, combobox {
+  border-radius: 2px;
+}
+list row, listview row, .sidebar, .navigation-sidebar {
+  border-radius: 2px;
+}
+popover, .popover, menu, .menu {
+  border-radius: 3px;
+}
+.card, .view, scrolledwindow {
+  border-radius: 2px;
+}
