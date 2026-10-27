@@ -136,6 +136,7 @@ COPY branding/portal/ /tmp/mutsu-portal-assets/
 COPY packaging/mutsu-portal /tmp/mutsu-portal
 COPY packaging/mutsu-portal.desktop /tmp/mutsu-portal.desktop
 COPY packaging/mutsu-updater.desktop /tmp/mutsu-updater.desktop
+COPY packaging/mutsu-documentation.desktop /tmp/mutsu-documentation.desktop
 COPY packaging/install-mutsu-portal.sh /tmp/mutsu-install-portal.sh
 RUN bash /tmp/mutsu-install-portal.sh && \
     rm -rf /tmp/mutsu-portal-assets /tmp/mutsu-portal \

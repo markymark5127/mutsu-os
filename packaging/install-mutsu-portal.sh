@@ -26,5 +26,9 @@ if [[ -s /tmp/mutsu-updater.desktop ]]; then
   install -Dm0644 /tmp/mutsu-updater.desktop \
     /usr/share/applications/mutsu-updater.desktop
 fi
+if [[ -s /tmp/mutsu-documentation.desktop ]]; then
+  install -Dm0644 /tmp/mutsu-documentation.desktop \
+    /usr/share/applications/mutsu-documentation.desktop
+fi
 
 printf 'Mutsu Portal installed. It does not open on login.\n'

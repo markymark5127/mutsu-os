@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Mutsu Documentation
+GenericName=Help
+Comment=View Mutsu OS documentation
+Exec=xdg-open https://github.com/markymark5127/mutsu-os/tree/main/docs
+Icon=mutsu-docs
+Terminal=false
+Categories=Documentation;System;
+Keywords=mutsu;docs;manual;guide;help;
+StartupNotify=true

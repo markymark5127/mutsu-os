@@ -36,6 +36,10 @@ if [[ -s "$brand/icon-theme/MutsuCyberpunk/index.theme" ]]; then
     install -Dm0644 "$brand/icons/mutsu-updater-cyberpunk.svg" \
       /usr/share/icons/MutsuCyberpunk/scalable/apps/mutsu-updater.svg
   fi
+  if [[ -s "$brand/icons/mutsu-docs-cyberpunk.svg" ]]; then
+    install -Dm0644 "$brand/icons/mutsu-docs-cyberpunk.svg" \
+      /usr/share/icons/MutsuCyberpunk/scalable/apps/mutsu-docs.svg
+  fi
 fi
 install -Dm0644 "$brand/icons/mutsu-logo-japandi.svg" \
   /usr/share/icons/MutsuJapandi/scalable/apps/mutsu-os-logo.svg
@@ -60,7 +64,7 @@ install -Dm0644 "$brand/icons/folder-downloads.svg" \
 install -Dm0644 "$brand/icons/folder-downloads.svg" \
   /usr/share/icons/MutsuJapandi/scalable/places/folder-downloads.svg
 
-for icon in mutsu-portal mutsu-settings mutsu-updater; do
+for icon in mutsu-portal mutsu-settings mutsu-updater mutsu-docs; do
   if [[ -s "$brand/icons/$icon.svg" ]]; then
     install -Dm0644 "$brand/icons/$icon.svg" \
       "/usr/share/icons/MutsuJapandi/scalable/apps/$icon.svg"

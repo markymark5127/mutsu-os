@@ -64,7 +64,9 @@ for f in \
   /usr/share/applications/*bazzite* \
   /usr/share/applications/*yafti* \
   /usr/share/applications/system-update.desktop \
-  /usr/share/applications/*updater*.desktop
+  /usr/share/applications/*updater*.desktop \
+  /usr/share/applications/Documentation.desktop \
+  /usr/share/applications/*landing*.desktop
 do
   case "$f" in
     *mutsu*) continue ;;
