@@ -2,14 +2,14 @@
 
 This document tracks how Mutsu OS (the bootc image) will deliver the convertible / 2-in-1 experience described in the ai-desktop product docs.
 
-**Status (October 2026):** Experimental GNOME Shell extension is installed but **disabled by default**. Phases 1–4 are implemented in code:
+**Status (October 2026):** The adaptive extension is installed and enabled for new users. Phases 1–4 are implemented in code:
 
 - Phase 1: Manual modes, debounced transitions, app-grid Home, maximize-on-launch, Quick Settings toggle.
 - Phase 2: Experimental bottom-edge gestures (gated off) + fullscreen/game exception list.
 - Phase 3: Temporary touch text scaling (reversible, respects user/a11y), best-effort dock autohide, optional rotation lock.
 - Phase 4: Reversible state save/restore, gesture exceptions, clear recovery path.
 
-Automatic posture detection remains a scaffold. Live GNOME Shell and hardware testing is still required.
+Automatic posture uses the GNOME backend signal when present, plus a sysfs poll of common convertible tablet-mode paths. Live hardware testing is still required.
 
 ## Goal (from product vision)
 

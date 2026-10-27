@@ -1,6 +1,6 @@
 # Mutsu OS disk-image builds
 
-The Mutsu bootc container is derived from Bazzite GNOME and currently does
+The Mutsu OS bootc container is built from the Bazzite GNOME base and currently does
 **not** advertise a default root filesystem to bootc-image-builder.
 
 ## Why the ISO/VM job failed

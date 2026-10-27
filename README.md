@@ -2,7 +2,7 @@
 
 > **Development tracker:** [Master issue #26](https://github.com/markymark5127/mutsu-os/issues/26) · [Roadmap and milestones](docs/ROADMAP.md) · [Install & recovery](docs/INSTALL_AND_RECOVERY.md) · [All open OS issues](https://github.com/markymark5127/mutsu-os/issues) · [Create a tracked task](https://github.com/markymark5127/mutsu-os/issues/new/choose)
 
-**Mutsu OS** is a Bazzite GNOME-derived, Mac-familiar Linux desktop with Steam/Proton gaming support, two visual styles (Calm Japandi and Cyberpunk), a compact Spotlight-style app/file launcher, and optional Mutsu AI help.
+**Mutsu OS** is a Mac-familiar Linux desktop with Steam/Proton gaming support, two visual styles (Calm Japandi and Cyberpunk), a compact Spotlight-style app/file launcher, and optional Mutsu AI help. It is built on the Bazzite GNOME base so hardware and gaming support stay intact.
 
 This repository is the **bootc image build**. The related [ai-desktop](https://github.com/markymark5127/ai-desktop) repository contains the Python GTK4 launcher, initial setup wizard, search, AI tool broker, and user-session preferences. The latter is pinned here to one reviewed commit rather than being updated silently every build.
 
@@ -10,7 +10,7 @@ This repository is the **bootc image build**. The related [ai-desktop](https://g
 
 ## What this image currently includes
 
-- Based on `ghcr.io/ublue-os/bazzite-gnome:stable` with Bazzite/Steam hardware support intact; upstream technical distro IDs are preserved.
+- Built from `ghcr.io/ublue-os/bazzite-gnome:stable`. Visible branding is Mutsu; upstream technical IDs stay so updates remain compatible.
 - Mutsu OS identity in `os-release`, GNOME About icon, GDM greeter wordmark.
 - Original Mutsu two-wave SVGs and **both 3840×2160 wallpapers**, installed in standard shared paths.
 - First-stage **MutsuJapandi icon theme** with Adwaita/hicolor fallback, Mutsu-owned app/action icons, and a system green accent; see [Japandi icon guide](docs/JAPANDI_ICONS.md). The full GNOME app icon set is not yet redesigned.
@@ -46,7 +46,7 @@ just build
 `packaging/desktop-source.env` pins one reviewed revision of `markymark5127/ai-desktop`; `packaging/prepare-desktop.sh` stages it at `vendor/ai-desktop/`. This directory is ignored by Git. The build copies only its `src/` code and two optional setup scripts into the OS image. **No personal Newelle token or `~/.config` content is included.** Update the pinned SHA intentionally after validating the app. Local builds require network access for first staging; GitHub Actions also stages the exact pinned revision before compiling the image.
 
 Image source:
-- `Containerfile` — bootc/Bazzite base and bundled Mutsu runtime.
+- `Containerfile` — Mutsu image build and bundled runtime.
 - `branding/` and `packaging/install-branding.sh` — wallpapers, icons, `os-release` and greeter cosmetics.
 - `build_files/build.sh` — system packages (GTK4, PyGObject, libadwaita).
 - `packaging/mutsu-first-login` — per-user first-run onboarding.
@@ -93,4 +93,4 @@ The optional ISO workflow references `disk_config/iso.toml`, containing supporte
 
 See the [ai-desktop roadmap](https://github.com/markymark5127/ai-desktop/blob/main/docs/ROADMAP.md) and [docs/ADAPTIVE_DESKTOP_IMAGE.md](docs/ADAPTIVE_DESKTOP_IMAGE.md). High priorities are a GNOME Shell extension for a real native Spotlight overlay and top-left Mutsu logo; version-compatible extension packaging; Adaptive Desktop (tablet posture, app-grid Home, bottom-edge gestures); fresh-VM verification of the proposed custom Plymouth image and ISO branding; and Newelle Flatpak first-boot provisioning.
 
-Source projects remain attributed to Bazzite, Universal Blue and Fedora; the visible **Mutsu OS** name does not remove upstream dependencies, copyright, or licensing obligations.
+Mutsu OS is the visible product. Upstream Bazzite, Universal Blue, and Fedora remain attributed in source and licensing; technical IDs are preserved for updates.

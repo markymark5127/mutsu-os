@@ -44,4 +44,4 @@ What is still required for a complete lock screen:
 
 Yes, it can be preinstalled. UUID is `dash-to-dock@micxgx.gmail.com`.
 
-First boot enables it and sets bottom / always visible / Show Applications **if the extension is already on the system**. Shipping the extension itself is a separate step (clone a GNOME-version-matched release into `/usr/share/gnome-shell/extensions/` during the image build). Bazzite may already include a dock; if so, first boot only needs to enable and configure it.
+First boot enables it and sets bottom / always visible / Show Applications **if the extension is already on the system**. Shipping the extension itself is a separate step (clone a GNOME-version-matched release into `/usr/share/gnome-shell/extensions/` during the image build). The image ships Dash to Dock; first boot only needs to enable and configure it.

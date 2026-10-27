@@ -45,7 +45,7 @@ Until a verified installer is available:
 **Interactive installer (anaconda-iso):**
 The `disk_config/iso.toml` blueprint supplies an empty custom Kickstart. This causes Anaconda to run in interactive mode (language, keyboard, disk selection, user account, etc.), similar to a traditional Fedora or Ubuntu installer. `bootc-image-builder` still injects the command that deploys the Mutsu OS container image. Always test on a blank virtual disk only — the installer can still be destructive if pointed at a real drive.
 
-Upstream Bazzite / Universal Blue / Fedora credits and technical IDs are preserved so updates remain compatible.
+Mutsu OS is the product name. Upstream Bazzite / Universal Blue / Fedora credits and technical IDs are preserved so updates remain compatible.
 
 ## Updates and rollback
 
@@ -98,6 +98,6 @@ every dracut emergency mode is caused by the overwritten initramfs.
 2. Attach CI logs, boot screenshots, and rollback evidence to the relevant issues.
 3. Require manual approval before publishing any public beta artifacts.
 4. Publish SHA256 checksums and clear hardware compatibility notes with any download.
-5. Keep Bazzite, Universal Blue, and Fedora attribution visible.
+5. Keep upstream attribution in source and licensing; user-facing surfaces show Mutsu OS.
 
 See issue #24 for the full acceptance checklist. This document will be updated when verified artifacts exist.

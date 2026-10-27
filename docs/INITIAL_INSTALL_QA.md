@@ -26,7 +26,7 @@ On a NEW 60+ GB virtual disk (never use a daily-driver disk):
       if branding fails.
 - [ ] First GNOME login shows the **Japandi wallpaper, light GNOME
       appearance, sage-accented floating bottom dock, and Mutsu top-bar icon**,
-      not the stock Bazzite desktop. The packaged GNOME 50 extension and
+      not a stock desktop. The packaged GNOME 50 extension and
       Fedora Dash-to-Dock must actually enable in the session.
 - [ ] Confirm Mutsu appears **at the initial GNOME session**, without
       `~/.config/mutsu-os/first-boot-japandi-v2` or a login-time
@@ -58,13 +58,13 @@ On a NEW 60+ GB virtual disk (never use a daily-driver disk):
       `systemctl cat mutsu-newelle-preinstall.service`.
       Respect explicit uninstall/opt-out.
 - [ ] Reboot and confirm the welcome wizard does not return after completion.
-- [ ] Verify the image-build log first checks the original Bazzite/OSTree
+- [ ] Verify the image-build log first checks the upstream OSTree
       initramfs, then regenerates a **generic** candidate with explicit
       ostree and Plymouth modules (plus bootc when available). Check that
       ostree-prepare-root and Mutsu Plymouth script/logo were present before
       the candidate replaced the original initramfs.
 - [ ] Fresh UEFI VM: verify the **installed OS boots** with the new Mutsu
-      Plymouth screen (not Bazzite) and continues into Mutsu GNOME. Confirm
+      Mutsu Plymouth screen and continues into Mutsu GNOME. Confirm
       cold boot, reboot, splash fallback and rollback.
 - [ ] **Test disk-encryption unlock** in an encrypted disposable VM; the
       script splash has masked-password and question callbacks but their
