@@ -88,7 +88,7 @@ if need(theme_path) and need(script_path):
         ERRORS.append("Plymouth script is not using the staged logo PNG")
     # The PNG is an intentional generated output of render-plymouth-theme.sh.
 
-# A GNOME Shell extension is installed but must remain opt-in.
+# The system GNOME Shell extension is built into the image and enabled by default for fresh users.
 ext = ROOT / "extensions" / "mutsu-branding@mutsu-os"
 meta = ext / "metadata.json"
 schema = ext / "schemas" / "org.gnome.shell.extensions.mutsu-branding.gschema.xml"
