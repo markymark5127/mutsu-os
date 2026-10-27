@@ -2,7 +2,8 @@
 Name=Mutsu Japandi
 Comment=Mutsu's calm sage/cream desktop icon theme; fall back to GNOME icons
 Inherits=Adwaita,hicolor
-Directories=scalable/apps,scalable/actions
+Directories=scalable/apps,scalable/actions,scalable/places
+
 
 [scalable/apps]
 Size=64
