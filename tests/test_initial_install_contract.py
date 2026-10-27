@@ -119,7 +119,7 @@ class CleanInstallTests(TestCase):
             vendor = Path(directory) / "vendor.d"
             vendor.mkdir()
             (vendor / "00-test").write_text(
-                "[org/gnome/shell]\\nenabled-extensions=['keep@vendor']\\n",
+                "[org/gnome/shell]\nenabled-extensions=['keep@vendor']\n",
                 encoding="utf-8",
             )
             got = module.vendor_dconf_extensions(Path(directory))
