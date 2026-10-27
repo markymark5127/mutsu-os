@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="Mutsu Portal">
-  <rect x="48" y="24" width="160" height="208" rx="32" stroke="#788773" stroke-width="14" fill="none"/>
+  <rect x="48" y="24" width="160" height="208" rx="32" stroke="#788773" stroke-width="14" fill="#F3EFE7"/>
   <path d="M80 124 Q128 84 176 116" stroke="#788773" stroke-width="14" stroke-linecap="round" fill="none"/>
   <path d="M80 156 Q128 118 176 148" stroke="#788773" stroke-width="14" stroke-linecap="round" fill="none"/>
 </svg>

@@ -22,5 +22,9 @@ printf 'MutsuJapandi\n' > /usr/share/themes/MutsuJapandi/index.theme
 install -Dm0755 /tmp/mutsu-portal /usr/bin/mutsu-portal
 install -Dm0644 /tmp/mutsu-portal.desktop \
   /usr/share/applications/mutsu-portal.desktop
+if [[ -s /tmp/mutsu-updater.desktop ]]; then
+  install -Dm0644 /tmp/mutsu-updater.desktop \
+    /usr/share/applications/mutsu-updater.desktop
+fi
 
 printf 'Mutsu Portal installed. It does not open on login.\n'

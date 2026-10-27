@@ -52,6 +52,13 @@ export default class MutsuBrandingExtension extends Extension {
         menu.addAction('Follow System', () => this._settings.set_string('appearance', 'system'));
 
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'left');
+        this._pinLogoLeft();
+        // Global Menu may insert menus after us; re-pin once it settles.
+        this._pinId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            this._pinLogoLeft();
+            this._pinId = 0;
+            return GLib.SOURCE_REMOVE;
+        });
 
         this._changedId = this._settings.connect('changed::appearance', () => this._applyAppearance(true));
         this._applyAppearance(false);
@@ -63,6 +70,14 @@ export default class MutsuBrandingExtension extends Extension {
         } catch (e) {
             console.warn('Mutsu branding: launch failed', argv, e);
         }
+    }
+
+    _pinLogoLeft() {
+        try {
+            const container = this._indicator?.container;
+            if (container?.get_parent() === Main.panel._leftBox)
+                Main.panel._leftBox.set_child_at_index(container, 0);
+        } catch (e) {}
     }
 
     _applyAppearance(explicitChange = false) {
@@ -269,6 +284,10 @@ export default class MutsuBrandingExtension extends Extension {
         if (this._changedId) {
             this._settings.disconnect(this._changedId);
             this._changedId = 0;
+        }
+        if (this._pinId) {
+            GLib.source_remove(this._pinId);
+            this._pinId = 0;
         }
         this._indicator?.destroy();
         this._indicator = null;

@@ -1,9 +1,11 @@
 [Desktop Entry]
 Type=Application
 Name=Mutsu Portal
+GenericName=Mutsu Setup
 Comment=Optional Mutsu OS setup. Does not open on login.
 Exec=/usr/bin/mutsu-portal
 Icon=mutsu-portal
 Terminal=false
 Categories=System;Settings;
 StartupNotify=true
+StartupWMClass=yafti

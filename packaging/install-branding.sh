@@ -27,6 +27,15 @@ if [[ -s "$brand/icon-theme/MutsuCyberpunk/index.theme" ]]; then
   if [[ -d "$brand/icon-theme/MutsuCyberpunk/scalable" ]]; then
     cp -a "$brand/icon-theme/MutsuCyberpunk/scalable/." /usr/share/icons/MutsuCyberpunk/scalable/
   fi
+  # Ensure desktop folder and updater exist in the cyberpunk theme
+  if [[ -s "$brand/icons/folder-desktop-cyberpunk.svg" ]]; then
+    install -Dm0644 "$brand/icons/folder-desktop-cyberpunk.svg" \
+      /usr/share/icons/MutsuCyberpunk/scalable/places/folder-desktop.svg
+  fi
+  if [[ -s "$brand/icons/mutsu-updater-cyberpunk.svg" ]]; then
+    install -Dm0644 "$brand/icons/mutsu-updater-cyberpunk.svg" \
+      /usr/share/icons/MutsuCyberpunk/scalable/apps/mutsu-updater.svg
+  fi
 fi
 install -Dm0644 "$brand/icons/mutsu-logo-japandi.svg" \
   /usr/share/icons/MutsuJapandi/scalable/apps/mutsu-os-logo.svg
@@ -37,9 +46,13 @@ install -Dm0644 "$brand/icons/mutsu-app-grid.svg" \
 
 # The new approved Japandi assets use standard theme lookup paths so
 # Nautilus can show sage folders without replacing third-party app branding.
-for icon in folder folder-documents folder-music folder-pictures; do
-  install -Dm0644 "$brand/icons/$icon.svg" \
-    "/usr/share/icons/MutsuJapandi/scalable/places/$icon.svg"
+for icon in folder folder-desktop folder-documents folder-downloads folder-home \
+         folder-music folder-pictures folder-removable folder-templates \
+         folder-trash folder-videos; do
+  if [[ -s "$brand/icons/$icon.svg" ]]; then
+    install -Dm0644 "$brand/icons/$icon.svg" \
+      "/usr/share/icons/MutsuJapandi/scalable/places/$icon.svg"
+  fi
 done
 # The source asset is plural; the standard FreeDesktop lookup is singular.
 install -Dm0644 "$brand/icons/folder-downloads.svg" \
@@ -47,9 +60,11 @@ install -Dm0644 "$brand/icons/folder-downloads.svg" \
 install -Dm0644 "$brand/icons/folder-downloads.svg" \
   /usr/share/icons/MutsuJapandi/scalable/places/folder-downloads.svg
 
-for icon in mutsu-portal mutsu-settings; do
-  install -Dm0644 "$brand/icons/$icon.svg" \
-    "/usr/share/icons/MutsuJapandi/scalable/apps/$icon.svg"
+for icon in mutsu-portal mutsu-settings mutsu-updater; do
+  if [[ -s "$brand/icons/$icon.svg" ]]; then
+    install -Dm0644 "$brand/icons/$icon.svg" \
+      "/usr/share/icons/MutsuJapandi/scalable/apps/$icon.svg"
+  fi
 done
 for icon in mutsu-search-symbolic mutsu-tablet-mode-symbolic; do
   install -Dm0644 "$brand/icons/$icon.svg" \

@@ -314,7 +314,8 @@ export class MenuManager {
 
         this.clear();
 
-        const firstSlot = (enabled('hide-overview-button') ? 0 : 1) + (enabled('show-logo-menu') ? 1 : 0);
+        // Slot 0 is reserved for the Mutsu logo (mutsu-branding).
+        const firstSlot = 1 + (enabled('hide-overview-button') ? 0 : 1) + (enabled('show-logo-menu') ? 1 : 0);
         menus.forEach((menu, i) => {
             const button = new TopLevelMenuButton(menu.label, menu.children, focus?.app ?? null);
             Main.panel.addToStatusArea(`${this.uuid}-${i}`, button, firstSlot + i, 'left');

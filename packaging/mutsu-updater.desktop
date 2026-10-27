@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Mutsu Updater
+GenericName=System Update
+Comment=Update Mutsu OS
+Exec=bazzite-updater
+Icon=mutsu-updater
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true
