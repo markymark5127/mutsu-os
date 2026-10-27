@@ -141,31 +141,56 @@ else
   echo >&2 "WARNING: branding/installer/ not present; Anaconda will keep upstream sidebar."
 fi
 
-# os-release cosmetic name and logo.
+# Display name is "Mutsu OS". Fedora 44 must not leak into Anaconda, GDM,
+# or the desktop. Keep the upstream release number only as a dnf var so
+# Fedora repos still resolve $releasever.
 python3 - <<'PY'
 from pathlib import Path
 
 path = Path("/usr/lib/os-release")
-lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+lines = path.read_text(encoding="utf-8").splitlines()
+values = {}
+for line in lines:
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    values[key] = value.strip().strip('"')
+
+release = values.get("VERSION_ID") or values.get("VERSION", "").split()[0]
+if release:
+    var = Path("/etc/dnf/vars/releasever")
+    var.parent.mkdir(parents=True, exist_ok=True)
+    var.write_text(release + "\n", encoding="utf-8")
+
+# Anaconda titles itself as NAME + VERSION_ID. Blank the human version
+# fields so the installer says Mutsu OS, not Mutsu OS 44.
 patch = {
     "NAME": '"Mutsu OS"',
     "PRETTY_NAME": '"Mutsu OS"',
+    "VERSION": '""',
+    "VERSION_ID": '""',
+    "VARIANT": '""',
+    "VARIANT_ID": '""',
     "LOGO": "mutsu-os-logo",
 }
-seen: set[str] = set()
+seen = set()
 output = []
 for line in lines:
     key = line.split("=", 1)[0] if "=" in line else ""
     if key in patch:
         if key not in seen:
-            output.append(f"{key}={patch[key]}\n")
+            output.append(f"{key}={patch[key]}")
             seen.add(key)
     else:
         output.append(line)
 for key, value in patch.items():
     if key not in seen:
-        output.append(f"{key}={value}\n")
-path.write_text("".join(output), encoding="utf-8")
+        output.append(f"{key}={value}")
+path.write_text("\n".join(output) + "\n", encoding="utf-8")
+
+for release_file in (Path("/etc/system-release"), Path("/etc/fedora-release"), Path("/usr/lib/system-release")):
+    if release_file.exists() and not release_file.is_symlink():
+        release_file.write_text("Mutsu OS\n", encoding="utf-8")
 PY
 
 # GDM login logo. Use the rendered 280px PNG, not the 1060px SVG.
