@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="Cyberpunk Mutsu Portal">
+  <defs>
+    <linearGradient id="neon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="50%" stop-color="#7A5CFF"/>
+      <stop offset="100%" stop-color="#FF2D9B"/>
+    </linearGradient>
+  </defs>
+  <rect x="48" y="24" width="160" height="208" rx="32" stroke="url(#neon)" stroke-width="14" fill="none"/>
+  <path d="M80 124 Q128 84 176 116" stroke="url(#neon)" stroke-width="14" stroke-linecap="round" fill="none"/>
+  <path d="M80 156 Q128 118 176 148" stroke="url(#neon)" stroke-width="14" stroke-linecap="round" fill="none"/>
+</svg>

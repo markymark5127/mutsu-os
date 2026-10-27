@@ -1,0 +1,5 @@
+# Kiwi panel window controls: Mac-style stoplights on the top bar for
+# maximized windows of any toolkit (GTK, Electron, Discord, VS Code).
+[org/gnome/shell/extensions/kiwi]
+show-window-controls=true
+enable-app-window-buttons=true

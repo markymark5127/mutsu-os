@@ -21,6 +21,13 @@ fi
 theme="$brand/icon-theme/MutsuJapandi/index.theme"
 [[ -s "$theme" ]] || { echo >&2 "Missing MutsuJapandi index.theme"; exit 1; }
 install -Dm0644 "$theme" /usr/share/icons/MutsuJapandi/index.theme
+# Cyberpunk icon theme (neon folders/apps). Switched at runtime via icon-theme.
+if [[ -s "$brand/icon-theme/MutsuCyberpunk/index.theme" ]]; then
+  install -Dm0644 "$brand/icon-theme/MutsuCyberpunk/index.theme" /usr/share/icons/MutsuCyberpunk/index.theme
+  if [[ -d "$brand/icon-theme/MutsuCyberpunk/scalable" ]]; then
+    cp -a "$brand/icon-theme/MutsuCyberpunk/scalable/." /usr/share/icons/MutsuCyberpunk/scalable/
+  fi
+fi
 install -Dm0644 "$brand/icons/mutsu-logo-japandi.svg" \
   /usr/share/icons/MutsuJapandi/scalable/apps/mutsu-os-logo.svg
 install -Dm0644 "$brand/icons/mutsu-ai.svg" \
@@ -79,6 +86,10 @@ for name in mutsu-japandi-4k.png mutsu-cyberpunk-4k.png; do
 done
 
 # Stage additional approved Mutsu artwork and palette sources.
+if [[ -s "$brand/icons/mutsu-login-cyberpunk.svg" ]]; then
+  install -Dm0644 "$brand/icons/mutsu-login-cyberpunk.svg" \
+    /usr/share/mutsu-os/branding/icons/mutsu-login-cyberpunk.svg
+fi
 for asset in "$brand"/icons/mutsu-logo-*.svg \
              "$brand"/icons/mutsu-wordmark-*.svg \
              "$brand"/icons/mutsu-lockup-*.svg \

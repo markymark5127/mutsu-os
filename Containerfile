@@ -62,6 +62,7 @@ COPY packaging/20-mutsu-shortcut.dconf /etc/dconf/db/mutsu.d/20-mutsu-shortcut
 COPY packaging/30-mutsu-mac-defaults.dconf /etc/dconf/db/mutsu.d/30-mutsu-mac-defaults
 COPY packaging/40-mutsu-japandi-defaults.dconf /etc/dconf/db/mutsu.d/40-mutsu-japandi-defaults
 COPY packaging/50-mutsu-global-menu.dconf /etc/dconf/db/mutsu.d/50-mutsu-global-menu
+COPY packaging/60-mutsu-kiwi.dconf /etc/dconf/db/mutsu.d/60-mutsu-kiwi
 COPY packaging/configure-shortcut-defaults.sh /tmp/mutsu-configure-shortcut-defaults.sh
 COPY vendor/ai-desktop/scripts/configure-newelle-key.sh /usr/share/mutsu-os/scripts/configure-newelle-key.sh
 COPY vendor/ai-desktop/scripts/install-newelle-service.sh /usr/share/mutsu-os/scripts/install-newelle-service.sh
@@ -95,6 +96,12 @@ COPY extensions/mutsu-adaptive@mutsu-os /tmp/mutsu-adaptive-src
 COPY packaging/install-adaptive-extension.sh /tmp/mutsu-install-adaptive.sh
 RUN bash /tmp/mutsu-install-adaptive.sh && \
     rm -rf /tmp/mutsu-adaptive-src /tmp/mutsu-install-adaptive.sh
+
+### KIWI (panel window controls for any toolkit)
+COPY extensions/kiwi@kemma /tmp/mutsu-kiwi-src
+COPY packaging/install-kiwi.sh /tmp/mutsu-install-kiwi.sh
+RUN bash /tmp/mutsu-install-kiwi.sh && \
+    rm -rf /tmp/mutsu-kiwi-src /tmp/mutsu-install-kiwi.sh
 
 ### GLOBAL MENU (Mac-style File / Edit / View / Window bar)
 # Vendored Global Menu for GNOME. Provides contextual menus next to the Mutsu logo.

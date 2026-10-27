@@ -21,11 +21,12 @@ BRANDING = "mutsu-branding@mutsu-os"
 DOCK = "dash-to-dock@micxgx.gmail.com"
 ADAPTIVE = "mutsu-adaptive@mutsu-os"
 GLOBAL_MENU = "globalmenu@ShiroOSL.github.io"
+KIWI = "kiwi@kemma"
 # Adaptive Desktop loads on first GNOME login as a core Mutsu feature.
 # Automatic posture still requires real-hardware qualification; experimental
 # bottom-edge interception stays off until touch QA passes.
 # Global Menu provides the Mac-style File/Edit/View/Window bar.
-MUTSU_EXTENSIONS = (BRANDING, DOCK, ADAPTIVE, GLOBAL_MENU)
+MUTSU_EXTENSIONS = (BRANDING, DOCK, ADAPTIVE, GLOBAL_MENU, KIWI)
 DESKTOP_ROOT = Path(os.environ.get("MUTSU_DESKTOP_ROOT", "/"))
 DCONF_DIR = DESKTOP_ROOT / "etc/dconf/db"
 MUTSU_DEFAULTS = DCONF_DIR / "mutsu.d/10-mutsu-shell"

@@ -112,9 +112,17 @@ export default class MutsuBrandingExtension extends Extension {
             const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
             iface.set_string('color-scheme', isCyber ? 'prefer-dark' : 'prefer-light');
             iface.set_string('accent-color', isCyber ? 'blue' : 'green');
+            iface.set_string('icon-theme', isCyber ? 'MutsuCyberpunk' : 'MutsuJapandi');
         } catch (e) {
             log(`Mutsu branding: interface settings failed (${e})`);
         }
+        try {
+            const gdm = new Gio.Settings({ schema_id: 'org.gnome.login-screen' });
+            const logo = isCyber
+                ? '/usr/share/mutsu-os/branding/icons/mutsu-login-cyberpunk.svg'
+                : '/usr/share/pixmaps/mutsu/mutsu-login-wordmark.png';
+            gdm.set_string('logo', logo);
+        } catch (e) {}
         try {
             const wm = new Gio.Settings({ schema_id: 'org.gnome.desktop.wm.preferences' });
             wm.set_string('button-layout', 'close,minimize,maximize:');

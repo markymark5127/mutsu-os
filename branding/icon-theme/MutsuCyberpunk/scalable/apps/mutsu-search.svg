@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="Cyberpunk Mutsu Search">
+  <defs>
+    <linearGradient id="neon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="50%" stop-color="#7A5CFF"/>
+      <stop offset="100%" stop-color="#FF2D9B"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="#080C16"/>
+  <circle cx="112" cy="112" r="46" stroke="url(#neon)" stroke-width="14"/>
+  <path d="M146 146 L198 198" stroke="url(#neon)" stroke-width="18" stroke-linecap="round"/>
+  <path d="M82 118 Q112 96 142 114 M82 132 Q112 110 142 128" stroke="url(#neon)" stroke-width="6" stroke-linecap="round"/>
+</svg>
