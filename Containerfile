@@ -115,15 +115,15 @@ RUN bash /tmp/mutsu-install-portal.sh && \
     rm -rf /tmp/mutsu-portal-assets /tmp/mutsu-portal \
            /tmp/mutsu-portal.desktop /tmp/mutsu-install-portal.sh
 
-### Boot safety: preserve the verified upstream bootc initramfs
-# In PR #52 the image-build dracut --no-hostonly stage omitted
-# ostree-prepare-root (confirmed by CI logs). This is fatal to OSTree boot.
-# Stage Mutsu Plymouth artwork and branding, but do not regenerate or replace
-# the boot-critical initramfs until the correctly configured dracut module set
-# has passed a fresh-install VM test. Fail closed if upstream OSTree support
-# is absent.
+### Guarded Mutsu Plymouth for bootc/OSTree
+# Check original vendor initramfs first. Regenerate only a generic candidate
+# with explicit ostree + plymouth (+ bootc if present). Validate OSTree root
+# and logo before replacing it. Fresh installed VM boot tests still required.
 COPY packaging/verify-upstream-initramfs.sh /tmp/mutsu-verify-initramfs.sh
-RUN bash /tmp/mutsu-verify-initramfs.sh && rm /tmp/mutsu-verify-initramfs.sh
+COPY packaging/rebuild-mutsu-initramfs.sh /tmp/mutsu-rebuild-initramfs.sh
+RUN bash /tmp/mutsu-verify-initramfs.sh && \
+    bash /tmp/mutsu-rebuild-initramfs.sh && \
+    rm /tmp/mutsu-verify-initramfs.sh /tmp/mutsu-rebuild-initramfs.sh
 
 ### LINTING
 ## Verify final image and contents are correct.

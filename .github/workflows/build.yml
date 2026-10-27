@@ -57,6 +57,7 @@ jobs:
           bash -n packaging/install-shell-branding.sh
           bash -n packaging/render-plymouth-theme.sh
           bash -n packaging/verify-upstream-initramfs.sh
+          bash -n packaging/rebuild-mutsu-initramfs.sh
           bash -n packaging/install-newelle.sh
           # Catch installer, keyd and branding script errors BEFORE OCI building.
           for script in build_files/build.sh \

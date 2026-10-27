@@ -49,12 +49,19 @@ class CleanInstallTests(TestCase):
             container.index("dnf5 install -y plymouth-plugin-script"),
             container.index("COPY packaging/install-branding.sh"),
         )
-        # A generic dracut rebuild from the image-build container lost
-        # ostree-prepare-root in PR #52, even with --no-hostonly enabled.
-        # Preserve the known-OSTree-capable vendor initramfs as a release gate.
+        # Earlier rebuilds lost ostree-prepare-root. Require a fail-closed
+        # generic replacement candidate AND a vendor initramfs precheck.
         self.assertIn("packaging/verify-upstream-initramfs.sh", container)
-        self.assertNotIn("COPY packaging/rebuild-mutsu-initramfs.sh", container)
-        self.assertNotIn("RUN bash /tmp/mutsu-rebuild-initramfs.sh", container)
+        self.assertIn("COPY packaging/rebuild-mutsu-initramfs.sh", container)
+        self.assertIn("bash /tmp/mutsu-rebuild-initramfs.sh", container)
+        rebuild = read("packaging/rebuild-mutsu-initramfs.sh")
+        for required in ("--no-hostonly", "--no-hostonly-cmdline",
+                         "ostree plymouth", "ostree-prepare-root",
+                         "bootc-root-setup.service", "mutsu-boot-logo.png",
+                         "restore_root", "mutsu-candidate"):
+            self.assertIn(required, rebuild)
+        self.assertLess(rebuild.index("ostree-prepare-root"),
+                        rebuild.index('mv -f -- "$candidate" "$img"'))
         verifier = read("packaging/verify-upstream-initramfs.sh")
         self.assertIn("ostree-prepare-root", verifier)
         self.assertIn("lsinitrd", verifier)

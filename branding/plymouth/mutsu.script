@@ -1,7 +1,7 @@
 # Mutsu OS — centered approved two-wave emblem and accessible text prompts.
 # Script splash requires the plymouth-plugin-script RPM in the image.
-Window.SetBackgroundTopColor(0.031, 0.043, 0.075);
-Window.SetBackgroundBottomColor(0.031, 0.043, 0.075);
+Window.SetBackgroundTopColor(0.953, 0.941, 0.910);
+Window.SetBackgroundBottomColor(0.953, 0.941, 0.910);
 
 logo_image = Image("mutsu-boot-logo.png");
 logo_sprite = Sprite(logo_image);
@@ -9,7 +9,7 @@ logo_sprite.SetZ(10);
 
 # Explicit password and question callbacks matter for encrypted disks.
 # Never print the actual password; only show bullet counts.
-input_image = Image.Text(" ", 1, 1, 1);
+input_image = Image.Text(" ", 0.14, 0.17, 0.14);
 input_sprite = Sprite(input_image);
 input_sprite.SetZ(20);
 input_sprite.SetOpacity(0);
@@ -24,14 +24,14 @@ fun center_sprites() {
 fun display_password(prompt, bullet_count) {
     masked = "";
     for (i = 0; i < bullet_count; i++) masked = masked + "*";
-    input_image = Image.Text("Enter passphrase: " + masked, 1, 1, 1);
+    input_image = Image.Text("Enter passphrase: " + masked, 0.14, 0.17, 0.14);
     input_sprite.SetImage(input_image);
     input_sprite.SetOpacity(1);
     center_sprites();
 }
 
 fun display_question(prompt, entry) {
-    input_image = Image.Text(prompt + "  " + entry, 1, 1, 1);
+    input_image = Image.Text(prompt + "  " + entry, 0.14, 0.17, 0.14);
     input_sprite.SetImage(input_image);
     input_sprite.SetOpacity(1);
     center_sprites();
