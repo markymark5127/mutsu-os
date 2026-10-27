@@ -31,6 +31,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._pendingTablet = null;
         this._saved = {};
         this._postureSignalId = 0;
+        this._posturePollId = 0;
         this._searchBusy = false;
 
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
@@ -435,11 +436,41 @@ export default class MutsuAdaptiveExtension extends Extension {
                         this._requestTablet(!!active);
                     });
                     log(`Mutsu Adaptive: connected posture signal '${sig}'`);
-                    return;
+                    break;
                 }
             } catch (e) {}
         }
-        log('Mutsu Adaptive: no tablet-mode signal found; Automatic stays manual until hardware exposes SW_TABLET_MODE');
+        // Sysfs fallback for convertibles that expose SW_TABLET_MODE
+        // without a GNOME backend signal. Polls only while Automatic is set.
+        this._posturePollId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
+            if (this._settings.get_string('mode') !== 'automatic')
+                return GLib.SOURCE_CONTINUE;
+            const active = this._readSysfsTablet();
+            if (active !== null && active !== this._inTablet)
+                this._requestTablet(active);
+            return GLib.SOURCE_CONTINUE;
+        });
+        log('Mutsu Adaptive: sysfs tablet-mode poller started');
+    }
+
+    _readSysfsTablet() {
+        const paths = [
+            '/sys/bus/platform/devices/tablet-mode-switch/tablet-mode',
+            '/sys/devices/platform/tablet-mode-switch/tablet-mode',
+            '/sys/class/input/tablet-mode',
+        ];
+        for (const path of paths) {
+            try {
+                const f = Gio.File.new_for_path(path);
+                if (!f.query_exists(null))
+                    continue;
+                const [, contents] = f.load_contents(null);
+                const val = new TextDecoder().decode(contents).trim();
+                if (val === '1' || val === '0')
+                    return val === '1';
+            } catch (e) {}
+        }
+        return null;
     }
 
     _stopPostureWatcher() {
@@ -448,6 +479,10 @@ export default class MutsuAdaptiveExtension extends Extension {
                 global.backend.disconnect(this._postureSignalId);
             } catch (e) {}
             this._postureSignalId = 0;
+        }
+        if (this._posturePollId) {
+            GLib.source_remove(this._posturePollId);
+            this._posturePollId = 0;
         }
     }
 

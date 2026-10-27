@@ -140,6 +140,7 @@ export default class MutsuBrandingExtension extends Extension {
         } catch (e) {}
 
         this._writeGtkCss(isCyber);
+        this._refreshGtkApps();
         this._syncAppearanceFile(isCyber ? 'cyberpunk' : 'japandi');
     }
 
@@ -215,6 +216,32 @@ export default class MutsuBrandingExtension extends Extension {
             const body = JSON.stringify({ appearance: mode }) + '\n';
             f.replace_contents(body, null, false, Gio.FileCreateFlags.NONE, null);
         } catch (e) {}
+    }
+
+    _refreshGtkApps() {
+        // Force running GTK apps to re-read CSS by touching the files and
+        // briefly flipping gtk-theme (apps that watch GSettings reload).
+        try {
+            const home = GLib.get_home_dir();
+            for (const name of ['gtk.css', 'mutsu-theme.css']) {
+                const f = Gio.File.new_for_path(`${home}/.config/gtk-4.0/${name}`);
+                if (f.query_exists(null))
+                    f.set_attribute_uint64('time::modified', GLib.get_real_time(), Gio.FileQueryInfoFlags.NONE, null);
+            }
+        } catch (e) {}
+        try {
+            const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+            const current = iface.get_string('gtk-theme');
+            iface.set_string('gtk-theme', 'Adwaita');
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
+                try {
+                    iface.set_string('gtk-theme', current || 'Adwaita');
+                } catch (e) {}
+                return GLib.SOURCE_REMOVE;
+            });
+        } catch (e) {
+            log(`Mutsu branding: GTK refresh failed (${e})`);
+        }
     }
 
     _unloadStyle() {

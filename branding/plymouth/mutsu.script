@@ -7,6 +7,23 @@ logo_image = Image("mutsu-boot-logo.png");
 logo_sprite = Sprite(logo_image);
 logo_sprite.SetZ(10);
 
+# Spinner: pre-rotated frames of the logo, drawn below the main emblem.
+spinner_image = Image("mutsu-boot-logo.png");
+spinner_sprite = Sprite(spinner_image);
+spinner_sprite.SetZ(5);
+spinner_index = 0;
+spinner_frames = 24;
+spinner_cache = [];
+for (i = 0; i < spinner_frames; i++) {
+    spinner_cache[i] = spinner_image.Rotate(2 * Math.Pi * i / spinner_frames);
+}
+spinner_sprite.SetOpacity(0.35);
+
+# Status text under the logo.
+status_image = Image.Text("Preparing Mutsu OS", 0.14, 0.17, 0.14);
+status_sprite = Sprite(status_image);
+status_sprite.SetZ(15);
+
 # Explicit password and question callbacks matter for encrypted disks.
 # Never print the actual password; only show bullet counts.
 input_image = Image.Text(" ", 0.14, 0.17, 0.14);
@@ -17,8 +34,12 @@ input_sprite.SetOpacity(0);
 fun center_sprites() {
     logo_sprite.SetX((Window.GetWidth() - logo_image.GetWidth()) / 2);
     logo_sprite.SetY((Window.GetHeight() - logo_image.GetHeight()) / 2);
+    spinner_sprite.SetX((Window.GetWidth() - spinner_image.GetWidth()) / 2);
+    spinner_sprite.SetY(Window.GetHeight() * 0.62);
+    status_sprite.SetX((Window.GetWidth() - status_image.GetWidth()) / 2);
+    status_sprite.SetY(Window.GetHeight() * 0.72);
     input_sprite.SetX((Window.GetWidth() - input_image.GetWidth()) / 2);
-    input_sprite.SetY(Window.GetHeight() * 0.76);
+    input_sprite.SetY(Window.GetHeight() * 0.80);
 }
 
 fun display_password(prompt, bullet_count) {
@@ -42,6 +63,14 @@ fun display_normal() {
 }
 
 fun refresh() {
+    spinner_index = (spinner_index + 1) % spinner_frames;
+    spinner_sprite.SetImage(spinner_cache[spinner_index]);
+    dots = ".";
+    t = Math.Int(Plymouth.GetTime() * 2) % 3;
+    if (t == 1) dots = "..";
+    if (t == 2) dots = "...";
+    status_image = Image.Text("Preparing Mutsu OS" + dots, 0.14, 0.17, 0.14);
+    status_sprite.SetImage(status_image);
     center_sprites();
 }
 
