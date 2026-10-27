@@ -49,20 +49,14 @@ class CleanInstallTests(TestCase):
             container.index("dnf5 install -y plymouth-plugin-script"),
             container.index("COPY packaging/install-branding.sh"),
         )
-        # No host-specific initramfs is generated in a container build.
-        self.assertIn("packaging/verify-upstream-initramfs.sh", container)
-        self.assertNotIn("packaging/rebuild-plymouth-initramfs.sh", container)
-        verifier = read("packaging/verify-upstream-initramfs.sh")
-        self.assertIn("/usr/lib/modules/$kernel/initramfs.img", verifier)
-        self.assertIn('[[ -s "$img" ]]', verifier)
-        self.assertIn('lsinitrd "$img" | grep -E', verifier)
-        self.assertIn("'ostree-prepare-root'", verifier)
-        # Comments may mention prior unsafe commands, but the script must
-        # never execute dracut while inheriting an image-build host context.
-        self.assertNotRegex(verifier, r"(?m)^\\s*(?:DRACUT_NO_XATTR=\\S+\\s+)?dracut\\b")
-
+        # Mutsu's newer Plymouth rebuild is generic, never host-only, and
+        # fails the image if the OSTree root-preparation hook is absent.
+        self.assertIn("packaging/rebuild-mutsu-initramfs.sh", container)
+        builder = read("packaging/rebuild-mutsu-initramfs.sh")
+        self.assertIn("dracut --force --no-hostonly", builder)
+        self.assertIn("'ostree-prepare-root'", builder)
+        self.assertIn("lsinitrd", builder)
         self.assertNotIn("DRACUT_NO_XATTR=1 dracut -f", container)
-        self.assertNotIn("DRACUT_NO_XATTR=1 dracut -f", verifier)
         self.assertNotIn("plymouth-set-default-theme -R", read("packaging/install-branding.sh"))
         script = read("branding/plymouth/mutsu.script")
         self.assertIn("Plymouth.SetDisplayPasswordFunction", script)
