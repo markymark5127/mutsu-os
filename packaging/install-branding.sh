@@ -26,6 +26,17 @@ if [[ -s "$brand/icons/mutsu-logo-symbolic.svg" ]]; then
     /usr/share/icons/hicolor/symbolic/apps/mutsu-os-symbolic.svg
 fi
 
+# GDM draws the login logo at the file's natural size. The SVG is 1060px
+# wide, so render a compact PNG instead.
+command -v rsvg-convert >/dev/null || {
+  echo >&2 "Missing librsvg2-tools in the Mutsu image"
+  exit 1
+}
+login_logo=/usr/share/pixmaps/mutsu/mutsu-login-wordmark.png
+rsvg-convert --width=280 --keep-aspect-ratio \
+  --output="$login_logo" "$wordmark"
+test -s "$login_logo"
+
 for name in mutsu-japandi-4k.png mutsu-cyberpunk-4k.png; do
   if [[ ! -s "$brand/wallpapers/$name" ]]; then
     echo >&2 "Missing Mutsu wallpaper: $name"
@@ -65,10 +76,6 @@ if [[ -d "$plymouth_src" ]]; then
 
   # Fail the image build if the renderer or plugin is missing, rather than
   # quietly publish a generic upstream boot splash.
-  command -v rsvg-convert >/dev/null || {
-    echo >&2 "Missing librsvg2-tools in the Mutsu image"
-    exit 1
-  }
   [[ -f /usr/lib64/plymouth/script.so ]] || {
     echo >&2 "Missing plymouth-plugin-script in the Mutsu image"
     exit 1
@@ -128,12 +135,12 @@ for key, value in patch.items():
 path.write_text("".join(output), encoding="utf-8")
 PY
 
-# GDM login logo.
+# GDM login logo. Use the rendered 280px PNG, not the 1060px SVG.
 if command -v dconf >/dev/null 2>&1; then
   install -d -m 0755 /etc/dconf/db/gdm.d
   cat > /etc/dconf/db/gdm.d/90-mutsu-logo <<'DCONF'
 [org/gnome/login-screen]
-logo='/usr/share/pixmaps/mutsu/mutsu-logo-wordmark.svg'
+logo='/usr/share/pixmaps/mutsu/mutsu-login-wordmark.png'
 DCONF
   dconf update
 else
