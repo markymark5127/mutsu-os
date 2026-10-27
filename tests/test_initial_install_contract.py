@@ -80,92 +80,56 @@ class CleanInstallTests(TestCase):
         self.assertNotIn("flatpak preinstall", script.split("cat > /usr/libexec/mutsu-os")[1])
         self.assertNotIn("flatpak install --system", script.split("cat > /usr/libexec/mutsu-os")[0])
 
-    def _load_first_boot(self):
-        path = ROOT / "packaging/mutsu-first-boot"
-        loader = SourceFileLoader("mutsu_first_boot_test", str(path))
-        spec = importlib.util.spec_from_loader(loader.name, loader)
+    def _load_native_desktop(self):
+        path = ROOT / "packaging/configure-native-desktop.py"
+        spec = importlib.util.spec_from_file_location("mutsu_native_desktop_test", path)
         module = importlib.util.module_from_spec(spec)
         assert spec and spec.loader
         spec.loader.exec_module(module)
         return module
 
-    def test_first_boot_does_not_mark_failure_as_success(self):
-        module = self._load_first_boot()
-        with TemporaryDirectory() as directory:
-            module.MARKER = Path(directory) / "first-boot-japandi-v2"
-            module.APPEARANCE_MARKER = Path(directory) / "japandi-defaults-v1"
-            failed = subprocess.CompletedProcess(
-                args=["gnome-extensions"], returncode=1, stdout="",
-                stderr="Extension incompatible",
-            )
-            with mock.patch.object(module, "apply_initial_japandi_defaults"), \
-                 mock.patch.object(module, "run", return_value=failed):
-                self.assertEqual(module.main(), 1)
-            self.assertFalse(module.MARKER.exists())
-            self.assertTrue(module.APPEARANCE_MARKER.exists())
+    def test_native_japandi_requires_no_login_hooks(self):
+        image = read("Containerfile")
+        native_installer = read("packaging/install-shell-branding.sh")
+        self.assertIn("COPY packaging/configure-native-desktop.py", image)
+        self.assertIn("python3 /tmp/mutsu-configure-native-desktop.py", image)
+        self.assertNotIn("COPY packaging/mutsu-first-boot ", image)
+        self.assertNotIn("COPY packaging/mutsu-first-boot.desktop", image)
+        self.assertNotIn("install -Dm0644 /tmp/mutsu-first-boot.desktop", native_installer)
+        self.assertIn("glib-compile-schemas --strict", native_installer)
+        self.assertFalse((ROOT / "packaging/mutsu-first-boot").exists())
+        self.assertFalse((ROOT / "packaging/mutsu-first-boot.desktop").exists())
+        self.assertIn("system-db:mutsu", read("packaging/configure-shortcut-defaults.sh"))
+        self.assertIn("dconf update", read("packaging/configure-native-desktop.py"))
 
-    def test_first_boot_activates_branding_and_dock_only_once(self):
-        module = self._load_first_boot()
+    def test_native_shell_extensions_preserve_upstream_defaults(self):
+        module = self._load_native_desktop()
+        upstream = ["gsconnect@andyholmes.github.io", "appindicatorsupport@rgcjonas.gmail.com"]
+        schema = ["dash-to-panel@jderose9.github.com", "user-theme@gnome-shell-extensions.gcampax.github.com"]
+        merged = module.merged_extensions(upstream, schema)
+        self.assertEqual(merged[:2], upstream)
+        self.assertNotIn("dash-to-panel@jderose9.github.com", merged)
+        self.assertIn(module.BRANDING, merged)
+        self.assertIn(module.DOCK, merged)
+        self.assertEqual(len(merged), len(set(merged)))
+        self.assertEqual(module.parse_array("@as []"), [])
+        self.assertEqual(module.parse_array("['one@example', 'two@example']"),
+                         ["one@example", "two@example"])
         with TemporaryDirectory() as directory:
-            module.MARKER = Path(directory) / "first-boot-japandi-v2"
-            module.APPEARANCE_MARKER = Path(directory) / "japandi-defaults-v1"
-            ok = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
-            unavailable = subprocess.CompletedProcess(
-                args=[], returncode=1, stdout="", stderr="Dock not installed",
+            vendor = Path(directory) / "vendor.d"
+            vendor.mkdir()
+            (vendor / "00-test").write_text(
+                "[org/gnome/shell]\\nenabled-extensions=['keep@vendor']\\n",
+                encoding="utf-8",
             )
-            with mock.patch.object(module, "apply_initial_japandi_defaults") as apply, \
-                 mock.patch.object(module, "run", side_effect=[ok, unavailable]) as runner:
-                self.assertEqual(module.main(), 0)
-                self.assertEqual(module.main(), 0)
-                self.assertEqual(apply.call_count, 1)
-                self.assertEqual(runner.call_count, 2)
-                self.assertEqual(
-                    [call.args[:2] for call in runner.call_args_list],
-                    [("gnome-extensions", "enable"), ("gnome-extensions", "info")],
-                )
-                self.assertTrue(module.MARKER.exists())
-                self.assertEqual(module.MARKER.stat().st_mode & 0o777, 0o600)
-                self.assertEqual(module.APPEARANCE_MARKER.stat().st_mode & 0o777, 0o600)
-        source = read("packaging/mutsu-first-boot")
-        self.assertNotIn('"enabled-extensions",', source)
-        self.assertNotIn('"enable-experimental-gestures": "true"', source)
-        self.assertNotIn('run("gnome-extensions", "enable", ADAPTIVE)', source)
-        self.assertNotIn('"gsettings", "set", BRANDING_SCHEMA', source)
-
-    def test_new_japandi_defaults_preserve_existing_personal_preferences(self):
-        module = self._load_first_boot()
-        writes = {}
-        class FakeSettings:
-            def __init__(self, schema):
-                self.schema = schema
-                self.keys = {key for name, key, _, _ in module.INITIAL_DEFAULTS
-                             if name == schema}
-            def list_keys(self):
-                return self.keys
-            def get_user_value(self, key):
-                # Existing custom wallpaper must not be reset by upgrade.
-                if self.schema == "org.gnome.desktop.background" and key == "picture-uri":
-                    return "user-customized"
-                return None
-            def record(self, key, value):
-                writes[(self.schema, key)] = value
-                return True
-            set_string = record
-            set_boolean = record
-            set_int = record
-            set_double = record
-        module.apply_initial_japandi_defaults(lambda schema: FakeSettings(schema))
-        self.assertNotIn(("org.gnome.desktop.background", "picture-uri"), writes)
-        self.assertEqual(
-            writes[("org.gnome.desktop.background", "picture-uri-dark")],
-            module.WALLPAPER,
-        )
-        self.assertEqual(
-            writes[("org.gnome.desktop.interface", "color-scheme")], "prefer-light",
-        )
-        self.assertEqual(
-            writes[(module.DOCK_SCHEMA, "dock-position")], "BOTTOM",
-        )
+            got = module.vendor_dconf_extensions(Path(directory))
+            self.assertEqual(got, ["keep@vendor"])
+        generated = module.render_extensions(merged)
+        self.assertIn("[org/gnome/shell]", generated)
+        self.assertIn("enabled-extensions=", generated)
+        self.assertIn("'mutsu-branding@mutsu-os'", generated)
+        self.assertIn("'dash-to-dock@micxgx.gmail.com'", generated)
+        self.assertNotIn("mutsu-adaptive@mutsu-os", generated)
 
     def test_image_ships_gnome50_japandi_and_real_floating_dock(self):
         container = read("Containerfile")
