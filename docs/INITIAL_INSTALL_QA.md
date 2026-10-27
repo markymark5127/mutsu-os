@@ -42,7 +42,10 @@ On a NEW 60+ GB virtual disk (never use a daily-driver disk):
       `systemctl cat mutsu-newelle-preinstall.service`.
       Respect explicit uninstall/opt-out.
 - [ ] Reboot and confirm the welcome wizard does not return after completion.
-- [ ] Inspect `plymouth-set-default-theme` and confirm theme `mutsu`.
+- [ ] Confirm the **installed OS boots** using the unmodified generic
+      Bazzite initramfs. Do not treat the absence of the new Mutsu logo
+      at boot as a failure during this boot-safety test.
+- [ ] Inspect `plymouth-set-default-theme` (informational for now).
       **Test disk-encryption unlock** in an encrypted disposable VM; the
       script splash has masked-password and question callbacks but their
       runtime behavior is not yet verified.
@@ -75,6 +78,9 @@ container image and ISO build alone are not proof of a verified installed OS.
 - `.github/workflows/build.yml` -> publish signed OCI
 - `.github/workflows/build-disk.yml` -> verified digest -> image builder
 - `packaging/inject-iso-branding.sh` -> preservative ISO edit plus SHA256
-- `packaging/rebuild-plymouth-initramfs.sh` -> image-kernel dracut rebuild
+- `packaging/verify-upstream-initramfs.sh` -> preserve original generic
+  Bazzite bootc initramfs; avoids build-container host-only dracut failures.
+  The Mutsu Plymouth artwork is staged but its new splash is **not**
+  guaranteed to display until a verified generic initramfs integration exists.
 - `packaging/install-newelle.sh` -> one-time Flatpak first-boot service
 - `packaging/mutsu-first-boot` -> reversible first-login branding
