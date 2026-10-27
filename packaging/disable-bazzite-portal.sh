@@ -50,9 +50,10 @@ hide_app() {
   local name
   name="$(basename "$src")"
   [[ -f "$src" ]] || return 0
-  # Prefer an override in /usr/local or /etc so a later package update can be overridden.
-  local dest="/usr/local/share/applications/$name"
-  install -d -m 0755 /usr/local/share/applications
+  # /usr/local is a symlink on this image and cannot be created during the build.
+  # Overwrite the desktop file in /usr/share/applications, which is a real directory.
+  local dest="/usr/share/applications/$name"
+  install -d -m 0755 /usr/share/applications
   {
     cat "$src"
     printf '\nNoDisplay=true\nHidden=true\n'
