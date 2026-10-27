@@ -62,31 +62,35 @@ for kver in "${kernels[@]}"; do
   img="/usr/lib/modules/$kver/initramfs.img"
   candidate="${img}.mutsu-candidate"
   [[ -s "$img" ]] || { echo >&2 "Missing vendor initramfs: $img"; exit 1; }
-  rm -f -- "$candidate"
-  trap 'rm -f -- "$candidate"; restore_root' EXIT
+  rm -f -- "$candidate" "$candidate.list" "$candidate.vendor-list"
+  trap 'rm -f -- "$candidate" "$candidate.list" "$candidate.vendor-list"; restore_root' EXIT
 
   # Generic: don't specialize to the temporary CI container's hardware or cmdline.
   env DRACUT_NO_XATTR=1 dracut --force --no-hostonly --no-hostonly-cmdline \
     --add "$add_modules" "$candidate" "$kver"
   [[ -s "$candidate" ]] || { echo >&2 'dracut produced no image'; exit 1; }
 
+  # Save the complete inventory to avoid grep -q SIGPIPE under pipefail.
+  lsinitrd "$candidate" > "$candidate.list"
+  lsinitrd "$img" > "$candidate.vendor-list"
   # Fail closed: the previous failure came from a missing OSTree root pivot.
   for required in ostree-prepare-root mutsu.script mutsu-boot-logo.png; do
-    lsinitrd "$candidate" | grep -Fq "$required" || {
+    grep -Fq "$required" "$candidate.list" || {
       echo >&2 "FATAL: rebuilt initramfs lacks $required"
       exit 1
     }
   done
 
   # Preserve bootc/composefs boot support if the vendor image included it.
-  if lsinitrd "$img" | grep -Fq bootc-root-setup.service; then
-    lsinitrd "$candidate" | grep -Fq bootc-root-setup.service || {
+  if grep -Fq bootc-root-setup.service "$candidate.vendor-list"; then
+    grep -Fq bootc-root-setup.service "$candidate.list" || {
       echo >&2 'FATAL: rebuilt initramfs lost bootc root setup'
       exit 1
     }
   fi
 
   mv -f -- "$candidate" "$img"
+  rm -f -- "$candidate.list" "$candidate.vendor-list"
   echo "Mutsu Plymouth embedded in generic OSTree-safe initramfs for $kver."
 done
 trap - EXIT
