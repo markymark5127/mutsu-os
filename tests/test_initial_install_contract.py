@@ -49,8 +49,14 @@ class CleanInstallTests(TestCase):
             container.index("dnf5 install -y plymouth-plugin-script"),
             container.index("COPY packaging/install-branding.sh"),
         )
-        self.assertIn("packaging/rebuild-plymouth-initramfs.sh", container)
-        self.assertIn("DRACUT_NO_XATTR=1 dracut -f", read("packaging/rebuild-plymouth-initramfs.sh"))
+        # No host-specific initramfs is generated in a container build.
+        self.assertIn("packaging/verify-upstream-initramfs.sh", container)
+        self.assertNotIn("packaging/rebuild-plymouth-initramfs.sh", container)
+        verifier = read("packaging/verify-upstream-initramfs.sh")
+        self.assertIn("/usr/lib/modules/$kernel/initramfs.img", verifier)
+        self.assertIn('[[ -s "$img" ]]', verifier)
+        self.assertNotIn("DRACUT_NO_XATTR=1 dracut -f", container)
+        self.assertNotIn("DRACUT_NO_XATTR=1 dracut -f", verifier)
         self.assertNotIn("plymouth-set-default-theme -R", read("packaging/install-branding.sh"))
         script = read("branding/plymouth/mutsu.script")
         self.assertIn("Plymouth.SetDisplayPasswordFunction", script)
