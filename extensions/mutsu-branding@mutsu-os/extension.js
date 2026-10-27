@@ -9,7 +9,8 @@ import Gio from 'gi://Gio';
 import St from 'gi://St';
 
 const BASE = '/usr/share/mutsu-os/branding/shell';
-const SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-symbolic-white.svg';
+const JAPANDI_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-symbolic.svg';
+const DARK_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-symbolic-white.svg';
 
 export default class MutsuBrandingExtension extends Extension {
     enable() {
@@ -28,12 +29,11 @@ export default class MutsuBrandingExtension extends Extension {
         }
 
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu OS', false);
-        const file = Gio.File.new_for_path(SYMBOL);
-        this._indicator.add_child(new St.Icon({
-            gicon: new Gio.FileIcon({file}),
+        this._logoIcon = new St.Icon({
             style_class: 'system-status-icon',
             icon_size: 22,
-        }));
+        });
+        this._indicator.add_child(this._logoIcon);
 
         const menu = this._indicator.menu;
         menu.addAction('About Mutsu OS', () => this._launch(['gnome-control-center', 'info-overview']));
@@ -67,6 +67,12 @@ export default class MutsuBrandingExtension extends Extension {
     _applyAppearance() {
         this._unloadStyle();
         const name = this._settings.get_string('appearance');
+        // The symbolic white logo disappeared against our cream Japandi bar.
+        // Use the dark symbol in light mode; white in dark/cyberpunk mode.
+        const iconPath = name === 'japandi' ? JAPANDI_SYMBOL : DARK_SYMBOL;
+        this._logoIcon.gicon = new Gio.FileIcon({
+            file: Gio.File.new_for_path(iconPath),
+        });
         if (!['japandi', 'cyberpunk'].includes(name))
             return;
         const file = Gio.File.new_for_path(`${BASE}/${name}.css`);
@@ -101,6 +107,7 @@ export default class MutsuBrandingExtension extends Extension {
         }
         this._indicator?.destroy();
         this._indicator = null;
+        this._logoIcon = null;
 
         try {
             const activities = Main.panel.statusArea.activities;
