@@ -57,7 +57,9 @@ class CleanInstallTests(TestCase):
         self.assertIn('[[ -s "$img" ]]', verifier)
         self.assertIn('lsinitrd "$img" | grep -E', verifier)
         self.assertIn("'ostree-prepare-root'", verifier)
-        self.assertNotIn("dracut -f", verifier)
+        # Comments may mention prior unsafe commands, but the script must
+        # never execute dracut while inheriting an image-build host context.
+        self.assertNotRegex(verifier, r"(?m)^\\s*(?:DRACUT_NO_XATTR=\\S+\\s+)?dracut\\b")
 
         self.assertNotIn("DRACUT_NO_XATTR=1 dracut -f", container)
         self.assertNotIn("DRACUT_NO_XATTR=1 dracut -f", verifier)
