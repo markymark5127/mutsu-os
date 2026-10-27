@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Manual launcher. Never used from autostart.
+set -euo pipefail
+export GTK_THEME=MutsuJapandi
+config=/usr/share/yafti/yafti.yml
+if [[ -x /usr/bin/yafti ]]; then
+  exec /usr/bin/yafti "$config"
+fi
+if [[ -x /usr/libexec/bazzite-yafti-launcher ]]; then
+  exec /usr/libexec/bazzite-yafti-launcher
+fi
+echo "Mutsu Portal is not available in this image" >&2
+exit 1
