@@ -132,6 +132,19 @@ class DiskImageWorkflowTests(unittest.TestCase):
         self.assertIn('contents = ""', blueprint)
         self.assertIn('disk_config/iso.toml', self.workflow)
 
+    def test_local_just_iso_matches_github_anaconda_iso_type(self):
+        self.assertIn(
+            '(_build-bib target_image tag "anaconda-iso" "disk_config/iso.toml")',
+            self.just,
+        )
+        self.assertIn(
+            '(_rebuild-bib target_image tag "anaconda-iso" "disk_config/iso.toml")',
+            self.just,
+        )
+        self.assertNotIn('(_build-bib target_image tag "iso" "disk_config/iso.toml")', self.just)
+        self.assertNotIn('(_rebuild-bib target_image tag "iso" "disk_config/iso.toml")', self.just)
+        self.assertIn('image_file="output/bootiso/install.iso"', self.just)
+
     def test_branded_iso_script_is_syntax_checked_in_both_workflows(self):
         image = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
         self.assertIn("bash -n \"$script\"", image)
