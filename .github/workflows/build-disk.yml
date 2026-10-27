@@ -63,7 +63,10 @@ jobs:
           # that produced the completed image.
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - name: Validate disk-image contract
-        run: python3 -m unittest discover -s tests -p 'test_disk_image_workflow.py' -v
+        run: |
+          set -euo pipefail
+          bash -n packaging/inject-iso-branding.sh
+          python3 -m unittest discover -s tests -p 'test_disk_image_workflow.py' -v
 
   build:
     name: Build disk images
