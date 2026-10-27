@@ -112,6 +112,7 @@ class CleanInstallTests(TestCase):
         self.assertNotIn("dash-to-panel@jderose9.github.com", merged)
         self.assertIn(module.BRANDING, merged)
         self.assertIn(module.DOCK, merged)
+        self.assertIn(module.ADAPTIVE, merged)
         self.assertEqual(len(merged), len(set(merged)))
         self.assertEqual(module.parse_array("@as []"), [])
         self.assertEqual(module.parse_array("['one@example', 'two@example']"),
@@ -130,7 +131,7 @@ class CleanInstallTests(TestCase):
         self.assertIn("enabled-extensions=", generated)
         self.assertIn("'mutsu-branding@mutsu-os'", generated)
         self.assertIn("'dash-to-dock@micxgx.gmail.com'", generated)
-        self.assertNotIn("mutsu-adaptive@mutsu-os", generated)
+        self.assertIn("'mutsu-adaptive@mutsu-os'", generated)
 
     def test_image_ships_gnome50_japandi_and_real_floating_dock(self):
         container = read("Containerfile")
