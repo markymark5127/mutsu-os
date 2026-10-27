@@ -118,8 +118,10 @@ export default class MutsuBrandingExtension extends Extension {
 
         // Only write user preferences on an explicit menu choice.
         // On enable we load the shell look but do not clobber GSettings or gtk.css.
-        if (explicitChange)
+        if (explicitChange) {
+            this._snapshotUserPrefs();
             this._applyDesktopTheme(isCyber);
+        }
     }
 
     _applyDesktopTheme(isCyber) {
@@ -167,10 +169,55 @@ export default class MutsuBrandingExtension extends Extension {
         this._syncAppearanceFile(isCyber ? 'cyberpunk' : 'japandi');
     }
 
+    _snapshotUserPrefs() {
+        const home = GLib.get_home_dir();
+        const path = `${home}/.config/ai-desktop/appearance-backup.json`;
+        const file = Gio.File.new_for_path(path);
+        if (file.query_exists(null))
+            return;
+        try {
+            const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+            const bg = new Gio.Settings({ schema_id: 'org.gnome.desktop.background' });
+            const snap = {
+                'color-scheme': iface.get_string('color-scheme'),
+                'accent-color': iface.get_string('accent-color'),
+                'icon-theme': iface.get_string('icon-theme'),
+                'picture-uri': bg.get_string('picture-uri'),
+                'picture-uri-dark': bg.get_string('picture-uri-dark'),
+            };
+            const dir = Gio.File.new_for_path(`${home}/.config/ai-desktop`);
+            dir.make_directory_with_parents(null);
+            file.replace_contents(JSON.stringify(snap) + '\n', null, false, Gio.FileCreateFlags.NONE, null);
+        } catch (e) {}
+    }
+
     _restoreSystemDefaults() {
-        // Clear the Mutsu-controlled GTK import and let dconf defaults show through.
         this._removeGtkImport();
         this._syncAppearanceFile('system');
+        try {
+            const home = GLib.get_home_dir();
+            const file = Gio.File.new_for_path(`${home}/.config/ai-desktop/appearance-backup.json`);
+            if (!file.query_exists(null))
+                return;
+            const [ok, bytes] = file.load_contents(null);
+            if (!ok)
+                return;
+            const snap = JSON.parse(new TextDecoder().decode(bytes));
+            const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+            if (snap['color-scheme'])
+                iface.set_string('color-scheme', snap['color-scheme']);
+            if (snap['accent-color'])
+                iface.set_string('accent-color', snap['accent-color']);
+            if (snap['icon-theme'])
+                iface.set_string('icon-theme', snap['icon-theme']);
+            const bg = new Gio.Settings({ schema_id: 'org.gnome.desktop.background' });
+            if (snap['picture-uri'])
+                bg.set_string('picture-uri', snap['picture-uri']);
+            if (snap['picture-uri-dark'])
+                bg.set_string('picture-uri-dark', snap['picture-uri-dark']);
+        } catch (e) {
+            log(`Mutsu branding: restore failed (${e})`);
+        }
     }
 
     _writeGtkCss(isCyber) {
