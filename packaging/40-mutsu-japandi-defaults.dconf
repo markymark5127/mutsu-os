@@ -1,0 +1,32 @@
+# Mutsu OS Japandi desktop: reversible GNOME defaults for fresh accounts.
+# These are ordinary dconf defaults, not locked settings. The first-login
+# program also applies appearance defaults only when the user hasn't chosen
+# an override, because upstream Bazzite may ship its own dconf defaults.
+#
+# GNOME Shell wallpaper / libadwaita light palette.
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+picture-uri-dark='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+picture-options='zoom'
+
+[org/gnome/desktop/screensaver]
+picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+
+[org/gnome/desktop/interface]
+color-scheme='prefer-light'
+
+# Dash-to-Dock default. Required extension packaged in the Mutsu image.
+# Compact, centered, always-visible floating dock instead of the stock
+# overview-only dash. No extension list is replaced.
+[org/gnome/shell/extensions/dash-to-dock]
+dock-position='BOTTOM'
+dock-fixed=true
+extend-height=false
+height-fraction=0.78
+dash-max-icon-size=44
+show-show-apps-button=true
+show-apps-at-top=false
+custom-background-color=true
+background-color='#788773'
+background-opacity=0.78
+transparency-mode='FIXED'
