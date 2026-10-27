@@ -95,50 +95,95 @@ class CleanInstallTests(TestCase):
     def test_first_boot_does_not_mark_failure_as_success(self):
         module = self._load_first_boot()
         with TemporaryDirectory() as directory:
-            module.MARKER = Path(directory) / "first-boot-done"
+            module.MARKER = Path(directory) / "first-boot-japandi-v2"
+            module.APPEARANCE_MARKER = Path(directory) / "japandi-defaults-v1"
             failed = subprocess.CompletedProcess(
                 args=["gnome-extensions"], returncode=1, stdout="",
                 stderr="Extension incompatible",
             )
-            with mock.patch.object(module, "run", return_value=failed):
+            with mock.patch.object(module, "apply_initial_japandi_defaults"), \
+                 mock.patch.object(module, "run", return_value=failed):
                 self.assertEqual(module.main(), 1)
             self.assertFalse(module.MARKER.exists())
+            self.assertTrue(module.APPEARANCE_MARKER.exists())
 
-    def test_first_boot_safely_activates_and_is_idempotent(self):
+    def test_first_boot_activates_branding_and_dock_only_once(self):
         module = self._load_first_boot()
         with TemporaryDirectory() as directory:
-            module.MARKER = Path(directory) / "first-boot-done"
+            module.MARKER = Path(directory) / "first-boot-japandi-v2"
+            module.APPEARANCE_MARKER = Path(directory) / "japandi-defaults-v1"
             ok = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
             unavailable = subprocess.CompletedProcess(
-                args=[], returncode=1, stdout="", stderr="Extension not installed"
+                args=[], returncode=1, stdout="", stderr="Dock not installed",
             )
-
-            def mock_command(*args, **_kwargs):
-                # Optional adaptive / dock components must not make first
-                # login fail when absent.
-                if args[:2] == ("gnome-extensions", "info"):
-                    return unavailable
-                return ok
-
-            with mock.patch.object(module, "run", side_effect=mock_command) as runner:
+            with mock.patch.object(module, "apply_initial_japandi_defaults") as apply, \
+                 mock.patch.object(module, "run", side_effect=[ok, unavailable]) as runner:
                 self.assertEqual(module.main(), 0)
+                self.assertEqual(module.main(), 0)
+                self.assertEqual(apply.call_count, 1)
+                self.assertEqual(runner.call_count, 2)
+                self.assertEqual(
+                    [call.args[:2] for call in runner.call_args_list],
+                    [("gnome-extensions", "enable"), ("gnome-extensions", "info")],
+                )
                 self.assertTrue(module.MARKER.exists())
-                self.assertEqual(module.main(), 0)
-                self.assertEqual(runner.call_count, 4)
-                names = [call.args[:2] for call in runner.call_args_list]
-                self.assertEqual(names, [
-                    ("gnome-extensions", "enable"),
-                    ("gsettings", "set"),
-                    ("gnome-extensions", "info"),
-                    ("gnome-extensions", "info"),
-                ])
-                self.assertEqual(runner.call_args_list[1].args[3], "appearance")
                 self.assertEqual(module.MARKER.stat().st_mode & 0o777, 0o600)
+                self.assertEqual(module.APPEARANCE_MARKER.stat().st_mode & 0o777, 0o600)
+        source = read("packaging/mutsu-first-boot")
+        self.assertNotIn('"enabled-extensions",', source)
+        self.assertNotIn('"enable-experimental-gestures": "true"', source)
+        self.assertNotIn('run("gnome-extensions", "enable", ADAPTIVE)', source)
+        self.assertNotIn('"gsettings", "set", BRANDING_SCHEMA', source)
 
-        # No replacements of user's extension list, wallpaper, or forced
-        # experimental gesture interceptor on first login.
-        first_login = read("packaging/mutsu-first-boot")
-        self.assertNotIn('"enabled-extensions",', first_login)
-        self.assertNotIn('"picture-uri"', first_login)
-        self.assertNotIn('"enable-experimental-gestures": "true"', first_login)
+    def test_new_japandi_defaults_preserve_existing_personal_preferences(self):
+        module = self._load_first_boot()
+        writes = {}
+        class FakeSettings:
+            def __init__(self, schema):
+                self.schema = schema
+                self.keys = {key for name, key, _, _ in module.INITIAL_DEFAULTS
+                             if name == schema}
+            def list_keys(self):
+                return self.keys
+            def get_user_value(self, key):
+                # Existing custom wallpaper must not be reset by upgrade.
+                if self.schema == "org.gnome.desktop.background" and key == "picture-uri":
+                    return "user-customized"
+                return None
+            def record(self, key, value):
+                writes[(self.schema, key)] = value
+                return True
+            set_string = record
+            set_boolean = record
+            set_int = record
+            set_double = record
+        module.apply_initial_japandi_defaults(lambda schema: FakeSettings(schema))
+        self.assertNotIn(("org.gnome.desktop.background", "picture-uri"), writes)
+        self.assertEqual(
+            writes[("org.gnome.desktop.background", "picture-uri-dark")],
+            module.WALLPAPER,
+        )
+        self.assertEqual(
+            writes[("org.gnome.desktop.interface", "color-scheme")], "prefer-light",
+        )
+        self.assertEqual(
+            writes[(module.DOCK_SCHEMA, "dock-position")], "BOTTOM",
+        )
 
+    def test_image_ships_gnome50_japandi_and_real_floating_dock(self):
+        container = read("Containerfile")
+        meta = __import__("json").loads(
+            read("extensions/mutsu-branding@mutsu-os/metadata.json")
+        )
+        self.assertIn("50", meta["shell-version"])
+        self.assertIn("gnome-shell-extension-dash-to-dock", container)
+        self.assertIn("40-mutsu-japandi-defaults.dconf", container)
+        self.assertIn("dconf update", read("packaging/configure-shortcut-defaults.sh"))
+        defaults = read("packaging/40-mutsu-japandi-defaults.dconf")
+        self.assertIn("mutsu-japandi-4k.png", defaults)
+        self.assertIn("dock-position='BOTTOM'", defaults)
+        self.assertIn("extend-height=false", defaults)
+        self.assertIn("color-scheme='prefer-light'", defaults)
+        ext = read("extensions/mutsu-branding@mutsu-os/extension.js")
+        self.assertIn("mutsu-logo-japandi.svg", ext)
+        self.assertIn("mutsu-logo-symbolic-white.svg", ext)
