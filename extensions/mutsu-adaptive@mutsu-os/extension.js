@@ -24,6 +24,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._settings = this.getSettings();
         this._inTablet = false;
         this._maximizeHandlerId = 0;
+        this._focusHandlerId = 0;
         this._gestureActors = [];
         this._pullActor = null;
         this._overviewShowingId = 0;
@@ -170,6 +171,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._applyTabletHome();
         this._applyTouchVisuals();
         this._installMaximizeOnLaunch();
+        this._installAppLayering();
         this._installPullSearch();
         if (this._settings.get_boolean('enable-experimental-gestures'))
             this._installBottomGesture();
@@ -183,6 +185,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._inTablet = false;
 
         this._removeMaximizeOnLaunch();
+        this._removeAppLayering();
         this._removeBottomGesture();
         this._removePullSearch();
         this._restoreTabletHome();
@@ -484,6 +487,42 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (this._posturePollId) {
             GLib.source_remove(this._posturePollId);
             this._posturePollId = 0;
+        }
+    }
+
+    _installAppLayering() {
+        // Overview is always above windows. Hide it when an app is focused
+        // so open apps sit above the app grid. Show the grid again when
+        // nothing is open (home).
+        if (this._focusHandlerId)
+            return;
+        try {
+            this._focusHandlerId = global.display.connect('notify::focus-window', () => {
+                if (!this._inTablet)
+                    return;
+                const win = global.display.focus_window;
+                if (win && !win.is_skip_taskbar?.()) {
+                    try { Main.overview.hide(); } catch (e) {}
+                } else if (!this._anyNormalWindows()) {
+                    try { Main.overview.showApps(); } catch (e) {}
+                }
+            });
+        } catch (e) {}
+    }
+
+    _anyNormalWindows() {
+        try {
+            const wins = global.display.get_tab_list(Meta.TabList.NORMAL, null) || [];
+            return wins.some(w => !w.minimized && !w.is_skip_taskbar?.());
+        } catch (e) {
+            return false;
+        }
+    }
+
+    _removeAppLayering() {
+        if (this._focusHandlerId) {
+            try { global.display.disconnect(this._focusHandlerId); } catch (e) {}
+            this._focusHandlerId = 0;
         }
     }
 
