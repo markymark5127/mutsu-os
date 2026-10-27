@@ -109,6 +109,8 @@ export default class MutsuAdaptiveExtension extends Extension {
         else if (mode === 'always-desktop')
             this._requestTablet(false);
         else if (mode === 'automatic') {
+            // Do not leave an old forced-tablet state stuck on an ordinary laptop.
+            // Enter tablet mode only after a positive hardware indication.
             this._requestTablet(false);
         }
         this._syncQsToggle();
