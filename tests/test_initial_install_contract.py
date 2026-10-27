@@ -100,7 +100,8 @@ class CleanInstallTests(TestCase):
         self.assertFalse((ROOT / "packaging/mutsu-first-boot").exists())
         self.assertFalse((ROOT / "packaging/mutsu-first-boot.desktop").exists())
         self.assertIn("system-db:mutsu", read("packaging/configure-shortcut-defaults.sh"))
-        self.assertIn("dconf update", read("packaging/configure-native-desktop.py"))
+        self.assertIn('subprocess.run(["dconf", "update"], check=True)',
+                      read("packaging/configure-native-desktop.py"))
 
     def test_native_shell_extensions_preserve_upstream_defaults(self):
         module = self._load_native_desktop()
