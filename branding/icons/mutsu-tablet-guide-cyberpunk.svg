@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" fill="none" role="img" aria-label="Cyberpunk Tablet mode guide">
+  <defs>
+    <linearGradient id="neon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="50%" stop-color="#7A5CFF"/>
+      <stop offset="100%" stop-color="#FF2D9B"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" rx="28" fill="#0A1428"/>
+  <rect x="70" y="70" width="200" height="140" rx="16" fill="#080C16" stroke="url(#neon)" stroke-width="4"/>
+  <rect x="86" y="86" width="168" height="96" rx="8" fill="#1D3553"/>
+  <rect x="130" y="214" width="80" height="10" rx="4" fill="url(#neon)"/>
+  <path d="M300 150 H360" stroke="#7A5CFF" stroke-width="6" stroke-linecap="round"/>
+  <path d="M344 134 L366 150 L344 166" stroke="url(#neon)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="390" y="60" width="160" height="220" rx="20" fill="#080C16" stroke="url(#neon)" stroke-width="4"/>
+  <rect x="406" y="78" width="128" height="160" rx="10" fill="#1D3553"/>
+  <circle cx="470" cy="256" r="8" fill="url(#neon)"/>
+</svg>

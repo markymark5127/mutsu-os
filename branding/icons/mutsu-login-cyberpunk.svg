@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160" fill="none" role="img" aria-label="Cyberpunk Mutsu login background">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#080C16"/>
+      <stop offset="70%" stop-color="#0A1428"/>
+      <stop offset="100%" stop-color="#1D3553"/>
+    </linearGradient>
+    <linearGradient id="neon" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="50%" stop-color="#7A5CFF"/>
+      <stop offset="100%" stop-color="#FF2D9B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="36%" r="40%">
+      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#080C16" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="3840" height="2160" fill="url(#sky)"/>
+  <rect width="3840" height="2160" fill="url(#glow)"/>
+  <rect y="1560" width="3840" height="600" fill="#0D1A30"/>
+  <path d="M0 1480 C640 1320 1280 1640 1920 1480 C2560 1320 3200 1620 3840 1440 V2160 H0 Z" fill="#163050"/>
+  <path d="M0 1680 C720 1520 1440 1840 2160 1680 C2880 1520 3360 1760 3840 1600 V2160 H0 Z" fill="#1D3553"/>
+  <path d="M0 1480 C640 1320 1280 1640 1920 1480 C2560 1320 3200 1620 3840 1440" stroke="#00E5FF" stroke-width="3" fill="none" opacity="0.6"/>
+  <path d="M0 1680 C720 1520 1440 1840 2160 1680 C2880 1520 3360 1760 3840 1600" stroke="#FF2D9B" stroke-width="2" fill="none" opacity="0.5"/>
+  <circle cx="1920" cy="780" r="160" stroke="url(#neon)" stroke-width="8" fill="#0A1428"/>
+  <path d="M1800 800 Q1920 680 2040 770 M1800 860 Q1920 740 2040 830" stroke="url(#neon)" stroke-width="16" stroke-linecap="round"/>
+  <path d="M1680 980 H2160" stroke="#00E5FF" stroke-width="10" stroke-linecap="round"/>
+  <path d="M1760 1040 H2080" stroke="#FF2D9B" stroke-width="8" stroke-linecap="round"/>
+</svg>

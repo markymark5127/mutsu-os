@@ -1,0 +1,33 @@
+/* Mutsu OS Anaconda installer branding — Cyberpunk neon */
+@define-color mutsu #00E5FF;
+@define-color mutsu-dark #0A1428;
+@define-color mutsu-pink #FF2D9B;
+
+.logo-sidebar {
+    background-color: #080C16;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.logo {
+    background-position: 50% 36px;
+    background-repeat: no-repeat;
+    background-size: 150px auto;
+    background-color: transparent;
+}
+
+.product-logo {
+    background-image: none;
+    background-color: transparent;
+}
+
+AnacondaSpokeWindow #nav-box {
+    background-color: #0A1428;
+    background-repeat: repeat-x;
+    color: #E9F7FF;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.35);
+}
+
+AnacondaSpokeWindow #nav-box * {
+    color: #E9F7FF;
+}

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="Cyberpunk AI offline">
+  <defs>
+    <linearGradient id="neon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="50%" stop-color="#7A5CFF"/>
+      <stop offset="100%" stop-color="#FF2D9B"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="28" fill="#0A1428"/>
+  <circle cx="128" cy="118" r="36" stroke="url(#neon)" stroke-width="6"/>
+  <path d="M100 124 Q128 96 156 118 M100 140 Q128 112 156 134" stroke="url(#neon)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M88 176 H168" stroke="#7A5CFF" stroke-width="8" stroke-linecap="round"/>
+  <path d="M104 160 L152 192" stroke="url(#neon)" stroke-width="6" stroke-linecap="round"/>
+</svg>

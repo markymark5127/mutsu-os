@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="Cyberpunk No search results">
+  <defs>
+    <linearGradient id="neon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="50%" stop-color="#7A5CFF"/>
+      <stop offset="100%" stop-color="#FF2D9B"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="28" fill="#0A1428"/>
+  <circle cx="112" cy="112" r="36" stroke="#7A5CFF" stroke-width="10"/>
+  <path d="M138 138 L178 178" stroke="#7A5CFF" stroke-width="12" stroke-linecap="round"/>
+  <path d="M96 112 H128" stroke="url(#neon)" stroke-width="6" stroke-linecap="round"/>
+</svg>

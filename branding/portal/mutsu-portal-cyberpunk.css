@@ -1,0 +1,39 @@
+/* Solid Cyberpunk skin for the Mutsu Portal window.
+ * Applied only when launching Mutsu Portal in cyberpunk mode. */
+window, .background {
+  background-color: #080C16;
+  color: #E9F7FF;
+}
+headerbar, .titlebar {
+  background-color: #0A1428;
+  color: #E9F7FF;
+  border-bottom: 1px solid #34506B;
+}
+.sidebar, .navigation-sidebar {
+  background-color: #0D1A30;
+  color: #E9F7FF;
+}
+list, listview, .view {
+  background-color: #0A1428;
+  color: #E9F7FF;
+}
+list row:selected, listview row:selected {
+  background-color: #1D3553;
+  color: #00E5FF;
+}
+button, .button {
+  background-color: #0A1428;
+  color: #E9F7FF;
+  border: 1px solid #34506B;
+}
+button:hover, .button:hover {
+  background-color: rgba(0, 229, 255, 0.14);
+  color: #00E5FF;
+  border-color: #00E5FF;
+}
+label, .title {
+  color: #E9F7FF;
+}
+.dim-label {
+  color: #91A6BA;
+}
