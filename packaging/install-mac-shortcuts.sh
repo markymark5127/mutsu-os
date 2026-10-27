@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Install keyd and the Mutsu Mac-style shortcut map.
-# keyd is not in Fedora. Build the pinned release, then enable it by
-# symlink because the image build has no systemd bus.
+# keyd is not in Fedora. Build the pinned release into /usr.
+# /usr/local cannot be created on this image, and the build has no
+# systemd bus, so enable the unit with a symlink.
 set -euo pipefail
 
 KEYD_VERSION=v2.6.0
@@ -11,9 +12,9 @@ dnf5 install -y gcc make git
 src=$(mktemp -d)
 trap 'rm -rf "$src"' EXIT
 git clone --depth 1 --branch "$KEYD_VERSION" https://github.com/rvaiya/keyd.git "$src"
-make -C "$src"
-make -C "$src" install
-command -v keyd >/dev/null
+make -C "$src" PREFIX=/usr
+make -C "$src" install PREFIX=/usr FORCE_SYSTEMD=1
+test -x /usr/bin/keyd
 
 install -d -m 0755 /etc/keyd
 install -Dm0644 /tmp/mutsu-keyd.conf /etc/keyd/default.conf
