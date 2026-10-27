@@ -64,6 +64,13 @@ RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login && 
     PYTHONPATH=/usr/libexec/mutsu-os/src /usr/bin/python3 -m aidesktop --help >/dev/null && \
     PYTHONPATH=/usr/libexec/mutsu-os/src /usr/bin/python3 -m aidesktop --setup-status >/dev/null
 
+### MAC-STYLE SHORTCUTS
+# Super (Windows key) acts as Command: Super+C copy, Super+V paste, etc.
+COPY packaging/keyd/default.conf /tmp/mutsu-keyd.conf
+COPY packaging/install-mac-shortcuts.sh /tmp/mutsu-install-mac-shortcuts.sh
+RUN bash /tmp/mutsu-install-mac-shortcuts.sh && \
+    rm -f /tmp/mutsu-keyd.conf /tmp/mutsu-install-mac-shortcuts.sh
+
 ### NEWELLE (preinstalled, no API key)
 COPY packaging/install-newelle.sh /tmp/mutsu-install-newelle.sh
 RUN bash /tmp/mutsu-install-newelle.sh && rm -f /tmp/mutsu-install-newelle.sh
