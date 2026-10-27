@@ -14,6 +14,11 @@ picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-light'
+# GNOME/libadwaita supports named accents; green is the nearest
+# supported hue to Mutsu sage. Mutsu-owned surfaces use exact #788773.
+accent-color='green'
+# Missing icons inherit from Adwaita and hicolor.
+icon-theme='MutsuJapandi'
 
 # Dash-to-Dock default. Required extension packaged in the Mutsu image.
 # Compact, centered, always-visible floating dock instead of the stock
