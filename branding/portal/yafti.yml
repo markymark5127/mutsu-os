@@ -1,0 +1,72 @@
+title: Mutsu Portal
+screens:
+  - title: "Welcome to Mutsu OS"
+    description: "A calm Japandi desktop. This portal does not open on login."
+    actions:
+      - id: "mutsu-search"
+        title: "Open Mutsu Search"
+        description: "Spotlight-style search, already installed."
+        default: false
+        script: "gtk4-launch io.github.markymark5127.AIDesktop || mutsu-search"
+      - id: "software"
+        title: "Browse apps"
+        description: "Install extra software from the app store."
+        default: false
+        script: "gtk4-launch org.gnome.Software || true"
+
+  - title: "Everyday apps"
+    description: "Optional. Nothing here installs unless you turn it on."
+    actions:
+      - id: "firefox"
+        title: "Firefox"
+        description: "Web browser."
+        default: false
+        script: "flatpak install -y flathub org.mozilla.firefox"
+      - id: "libreoffice"
+        title: "LibreOffice"
+        description: "Documents, sheets, and slides."
+        default: false
+        script: "flatpak install -y flathub org.libreoffice.LibreOffice"
+      - id: "vlc"
+        title: "VLC"
+        description: "Plays almost any media file."
+        default: false
+        script: "flatpak install -y flathub org.videolan.VLC"
+      - id: "gimp"
+        title: "GIMP"
+        description: "Image editing."
+        default: false
+        script: "flatpak install -y flathub org.gimp.GIMP"
+      - id: "inkscape"
+        title: "Inkscape"
+        description: "Vector drawing."
+        default: false
+        script: "flatpak install -y flathub org.inkscape.Inkscape"
+
+  - title: "System"
+    description: "Useful tools. These still use the underlying system commands."
+    actions:
+      - id: "update"
+        title: "Check for updates"
+        description: "Apply the next Mutsu OS image."
+        default: false
+        script: "ujust update; status=$?; echo; echo 'Press Enter to close...'; read -r _; exit $status"
+      - id: "ssh"
+        title: "Enable SSH"
+        description: "Allow remote terminal access."
+        default: false
+        script: "ujust toggle-ssh; status=$?; echo; echo 'Press Enter to close...'; read -r _; exit $status"
+      - id: "grub"
+        title: "Boot menu"
+        description: "Show or hide the boot menu."
+        default: false
+        options:
+          - id: "show"
+            label: "Always show"
+            script: "ujust configure-grub show"
+          - id: "hide"
+            label: "Hide after a good boot"
+            script: "ujust configure-grub hide"
+
+  - title: "Done"
+    description: "Mutsu OS is ready. Open Mutsu Portal from the app menu if you want this again."
