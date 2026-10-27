@@ -1,7 +1,7 @@
-# Mutsu OS Japandi desktop: reversible GNOME defaults for fresh accounts.
-# These are ordinary dconf defaults, not locked settings. The first-login
-# program also applies appearance defaults only when the user hasn't chosen
-# an override, because upstream Bazzite may ship its own dconf defaults.
+# Mutsu OS Japandi desktop: real machine-wide GNOME defaults.
+# GNOME reads these from the compiled image dconf database at session start.
+# Settings are user-overridable; no per-login scripts, resets, or policy locks.
+# The Mutsu system database is ordered ahead of Bazzite vendor databases.
 #
 # GNOME Shell wallpaper / libadwaita light palette.
 [org/gnome/desktop/background]
