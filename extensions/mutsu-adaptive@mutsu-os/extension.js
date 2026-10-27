@@ -479,12 +479,41 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._posturePollId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
             if (this._settings.get_string('mode') !== 'automatic')
                 return GLib.SOURCE_CONTINUE;
-            const active = this._readSysfsTablet();
+            let active = this._readHingeTablet();
+            if (active === null)
+                active = this._readSysfsTablet();
             if (active !== null && active !== this._inTablet)
                 this._requestTablet(active);
             return GLib.SOURCE_CONTINUE;
         });
         log('Mutsu Adaptive: sysfs tablet-mode poller started (no seat signal)');
+    }
+
+    _readHingeTablet() {
+        // Convertibles without SW_TABLET_MODE often expose a hinge angle
+        // on an iio device (in_angl*). Folded past ~180 degrees is tablet.
+        try {
+            const dir = Gio.File.new_for_path('/sys/bus/iio/devices');
+            const kids = dir.enumerate_children('standard::*', Gio.FileQueryInfoFlags.NONE, null);
+            let info;
+            while ((info = kids.next_file(null))) {
+                const name = info.get_name();
+                for (const file of ['in_angl0_raw', 'in_angl_raw', 'in_angl0_input']) {
+                    const path = `/sys/bus/iio/devices/${name}/${file}`;
+                    const f = Gio.File.new_for_path(path);
+                    if (!f.query_exists(null))
+                        continue;
+                    const [ok, bytes] = f.load_contents(null);
+                    if (!ok)
+                        continue;
+                    const angle = parseInt(new TextDecoder().decode(bytes).trim(), 10);
+                    if (Number.isNaN(angle))
+                        continue;
+                    return angle >= 180;
+                }
+            }
+        } catch (e) {}
+        return null;
     }
 
     _readSysfsTablet() {
