@@ -159,7 +159,7 @@ export default class MutsuBrandingExtension extends Extension {
         } catch (e) {}
         try {
             const dock = new Gio.Settings({ schema_id: 'org.gnome.shell.extensions.dash-to-dock' });
-            dock.set_string('background-color', isCyber ? '#0A1428' : '#788773');
+            dock.set_string('background-color', isCyber ? '#0A1428' : '#2F3330');
         } catch (e) {}
 
         this._writeGtkCss(isCyber);
