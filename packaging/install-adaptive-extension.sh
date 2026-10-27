@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Install, but DO NOT automatically enable, the experimental Adaptive Desktop
-# extension. GNOME/Bazzite's existing enabled extensions must be preserved.
+# Package Adaptive Desktop as a core Mutsu extension, enabled for fresh users
+# by configure-native-desktop.py while preserving vendor extension defaults.
 # Run only within the Mutsu OS container image build.
 set -euo pipefail
 
@@ -22,11 +22,11 @@ if [[ -d "$dest/schemas" ]]; then
   glib-compile-schemas --strict "$dest/schemas"
 fi
 
-# Important: no '/org/gnome/shell/ enabled-extensions' default is written here.
-# That GSettings list is a replacement, not additive, and overwriting it can
-# disable Bazzite/third-party extensions. Keep this unverified experimental
-# Shell extension OFF until it passes actual GNOME and tablet-device testing.
-# Test opt-in: gnome-extensions enable mutsu-adaptive@mutsu-os
+# Important: this installer does NOT replace the enabled-extensions array.
+# configure-native-desktop.py composes the Mutsu defaults with vendor defaults.
+# The extension is enabled at first login; hardware auto-detection is still
+# unverified, and unsafe bottom-edge interception stays off by default.
+# Manual enable: gnome-extensions enable mutsu-adaptive@mutsu-os
 # Recovery:    gnome-extensions disable mutsu-adaptive@mutsu-os
 
 # Migrate away from any older template overlay written by a previous Mutsu
@@ -39,4 +39,4 @@ if [[ -f "$legacy" ]] && grep -Fq 'mutsu-adaptive@mutsu-os' "$legacy"; then
   dconf update
 fi
 
-printf 'Mutsu Adaptive Desktop installed (not enabled; opt in after GNOME QA).\n'
+printf 'Mutsu Adaptive Desktop installed (enabled by native GNOME defaults; gesture interception off).\n'
