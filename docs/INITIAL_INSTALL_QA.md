@@ -80,6 +80,9 @@ container image and ISO build alone are not proof of a verified installed OS.
 - `packaging/inject-iso-branding.sh` -> preservative ISO edit plus SHA256
 - `packaging/verify-upstream-initramfs.sh` -> preserve original generic
   Bazzite bootc initramfs; avoids build-container host-only dracut failures.
+  The container build checks with `lsinitrd` for OSTree's
+  `ostree-prepare-root` boot hook, preventing ISO publication if the
+  chosen initramfs cannot pivot a physical Btrfs root into a deployment.
   The Mutsu Plymouth artwork is staged but its new splash is **not**
   guaranteed to display until a verified generic initramfs integration exists.
 - `packaging/install-newelle.sh` -> one-time Flatpak first-boot service
