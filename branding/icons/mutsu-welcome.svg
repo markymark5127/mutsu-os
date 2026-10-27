@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" fill="none" role="img" aria-label="Welcome to Mutsu">
+  <rect width="640" height="360" rx="28" fill="#FFFCF6"/>
+  <rect x="40" y="40" width="560" height="280" rx="20" fill="#F3EFE7"/>
+  <circle cx="320" cy="150" r="52" stroke="#788773" stroke-width="4"/>
+  <path d="M278 156 Q320 118 362 148 M278 174 Q320 136 362 166" stroke="#788773" stroke-width="6" stroke-linecap="round"/>
+  <path d="M160 248 H480" stroke="#DBE7D7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M200 272 H440" stroke="#8E9B89" stroke-width="6" stroke-linecap="round"/>
+  <path d="M248 292 H392" stroke="#788773" stroke-width="4" stroke-linecap="round"/>
+</svg>

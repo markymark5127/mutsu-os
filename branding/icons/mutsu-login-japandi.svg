@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160" fill="none" role="img" aria-label="Mutsu login background">
+  <rect width="3840" height="2160" fill="#F3EFE7"/>
+  <rect y="1560" width="3840" height="600" fill="#E7E2D6"/>
+  <path d="M0 1480 C640 1360 1280 1600 1920 1480 C2560 1360 3200 1580 3840 1460 V2160 H0 Z" fill="#DBE7D7"/>
+  <path d="M0 1680 C720 1560 1440 1800 2160 1680 C2880 1560 3360 1720 3840 1620 V2160 H0 Z" fill="#C9D6C4"/>
+  <circle cx="1920" cy="780" r="160" stroke="#788773" stroke-width="8" fill="#FFFCF6"/>
+  <path d="M1800 800 Q1920 680 2040 770 M1800 860 Q1920 740 2040 830" stroke="#788773" stroke-width="16" stroke-linecap="round"/>
+  <path d="M1680 980 H2160" stroke="#788773" stroke-width="10" stroke-linecap="round"/>
+  <path d="M1760 1040 H2080" stroke="#8E9B89" stroke-width="8" stroke-linecap="round"/>
+</svg>
