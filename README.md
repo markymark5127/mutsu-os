@@ -13,6 +13,7 @@ This repository is the **bootc image build**. The related [ai-desktop](https://g
 - Based on `ghcr.io/ublue-os/bazzite-gnome:stable` with Bazzite/Steam hardware support intact; upstream technical distro IDs are preserved.
 - Mutsu OS identity in `os-release`, GNOME About icon, GDM greeter wordmark.
 - Original Mutsu two-wave SVGs and **both 3840×2160 wallpapers**, installed in standard shared paths.
+- First-stage **MutsuJapandi icon theme** with Adwaita/hicolor fallback, Mutsu-owned app/action icons, and a system green accent; see [Japandi icon guide](docs/JAPANDI_ICONS.md). The full GNOME app icon set is not yet redesigned.
 - A new GNOME 50 user gets the **Japandi desktop**: 4K sage wallpaper, light appearance, sage Mutsu top-bar identity, and a compact bottom floating Dash-to-Dock. Desktop choices remain user-overridable and previous custom wallpapers/themes are not reset.
 - `/usr/bin/mutsu-search` — a system-installed, GNOME-integrated Mutsu Search launcher with real local app search, a bounded local file search, and an optional AI fallback.
 - An app-grid entry **Mutsu OS Search**, using the SVG icon.

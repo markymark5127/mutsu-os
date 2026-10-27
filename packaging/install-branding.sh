@@ -16,6 +16,18 @@ if [[ ! -s "$symbol" || ! -s "$wordmark" ]]; then
   exit 1
 fi
 
+# Install first-party icon theme with Adwaita/hicolor fallback.
+# Do not rebrand GNOME's/third-party apps without dedicated artwork.
+theme="$brand/icon-theme/MutsuJapandi/index.theme"
+[[ -s "$theme" ]] || { echo >&2 "Missing MutsuJapandi index.theme"; exit 1; }
+install -Dm0644 "$theme" /usr/share/icons/MutsuJapandi/index.theme
+install -Dm0644 "$brand/icons/mutsu-logo-japandi.svg" \
+  /usr/share/icons/MutsuJapandi/scalable/apps/mutsu-os-logo.svg
+install -Dm0644 "$brand/icons/mutsu-ai.svg" \
+  /usr/share/icons/MutsuJapandi/scalable/apps/mutsu-ai.svg
+install -Dm0644 "$brand/icons/mutsu-app-grid.svg" \
+  /usr/share/icons/MutsuJapandi/scalable/actions/mutsu-app-grid.svg
+
 # Install without deleting Fedora/Bazzite icons or renaming RPMs/services.
 install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/apps/mutsu-os-logo.svg
 install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/apps/io.github.markymark5127.AIDesktop.svg
