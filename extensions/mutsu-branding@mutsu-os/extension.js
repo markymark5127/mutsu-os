@@ -52,36 +52,8 @@ export default class MutsuBrandingExtension extends Extension {
 
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'left');
 
-        // Mac-style File / Edit menus immediately after the Mutsu logo.
-        // Full per-app global menu can be layered later with Global Menu for GNOME.
-        this._fileMenu = new PanelMenu.Button(0.0, 'File', false);
-        this._fileMenu.add_child(new St.Label({text: 'File', style_class: 'mutsu-menu-label'}));
-        this._fileMenu.menu.addAction('New Window', () => this._launch(['nautilus']));
-        this._fileMenu.menu.addAction('Open Files', () => this._launch(['nautilus']));
-        this._fileMenu.menu.addAction('Mutsu Search', () => this._launch(['/usr/bin/mutsu-search']));
-        this._fileMenu.menu.addAction('Show Applications', () => {
-            try { Main.overview.showApps(); } catch (e) {}
-        });
-        Main.panel.addToStatusArea(this.uuid + '-file', this._fileMenu, 1, 'left');
-
-        this._editMenu = new PanelMenu.Button(0.0, 'Edit', false);
-        this._editMenu.add_child(new St.Label({text: 'Edit', style_class: 'mutsu-menu-label'}));
-        this._editMenu.menu.addAction('Copy', () => this._key(['super', 'c']));
-        this._editMenu.menu.addAction('Paste', () => this._key(['super', 'v']));
-        this._editMenu.menu.addAction('Select All', () => this._key(['super', 'a']));
-        this._editMenu.menu.addAction('System Settings…', () => this._launch(['gnome-control-center']));
-        Main.panel.addToStatusArea(this.uuid + '-edit', this._editMenu, 2, 'left');
-
         this._changedId = this._settings.connect('changed::appearance', () => this._applyAppearance());
         this._applyAppearance();
-    }
-
-    _key(combo) {
-        // Best-effort: emit a key via xdotool/ydotool if present; otherwise no-op.
-        // Real Mac menu integration is better served by Global Menu for GNOME.
-        try {
-            Gio.Subprocess.new(['ydotool', 'key', combo.join('+')], Gio.SubprocessFlags.NONE);
-        } catch (e) {}
     }
 
     _launch(argv) {
@@ -135,10 +107,6 @@ export default class MutsuBrandingExtension extends Extension {
         }
         this._indicator?.destroy();
         this._indicator = null;
-        this._fileMenu?.destroy();
-        this._fileMenu = null;
-        this._editMenu?.destroy();
-        this._editMenu = null;
         this._logoIcon = null;
 
         try {

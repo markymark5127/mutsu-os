@@ -1,0 +1,11 @@
+/* Layout-only rules. Colors, backgrounds, borders, and text color are
+ * intentionally NOT set here, so the active shell theme applies. */
+
+/* --- Recent Items flyout (a real PopupMenu.PopupMenu, styled narrower
+ * than the default so it doesn't dominate the screen next to the main
+ * System Menu — a slimmer submenu width, like macOS) --- */
+
+.globalmenu-recent-flyout {
+    min-width: 220px;
+    max-width: 280px;
+}

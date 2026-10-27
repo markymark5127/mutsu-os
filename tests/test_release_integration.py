@@ -97,11 +97,14 @@ class ImageIntegrationTests(unittest.TestCase):
         script = read("packaging/install-branding.sh")
         self.assertIn('"PRETTY_NAME"', script)
         self.assertIn('"LOGO"', script)
-        # Machine identity stays Fedora/Bazzite. VERSION_ID is blanked only
-        # for display; the original number is saved for dnf $releasever.
+        # Machine identity stays Fedora/Bazzite. VERSION_ID is preserved
+        # (numeric) so bootc-image-builder can parse "{ID}-{VERSION_ID}".
+        # The human-readable VERSION string is blanked; Anaconda product name
+        # comes from .buildstamp. The original number is also saved for dnf.
         self.assertNotIn('"ID":', script)
         self.assertNotIn('"ID_LIKE":', script)
-        self.assertIn('"VERSION_ID":', script)
+        self.assertNotIn('"VERSION_ID":', script)  # not blanked in the patch dict
+        self.assertIn("Do not blank it", script)
         self.assertIn("/etc/dnf/vars/releasever", script)
         self.assertIn("mutsu-logo-symbol.svg", script)
         self.assertIn("mutsu-japandi-4k.png", script)

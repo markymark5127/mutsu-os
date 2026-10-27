@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="gm-l-screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3f95dc"/>
+      <stop offset="1" stop-color="#5eb0f2"/>
+    </linearGradient>
+    <linearGradient id="gm-l-base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9aa3b0"/>
+      <stop offset="1" stop-color="#5b6371"/>
+    </linearGradient>
+    <radialGradient id="gm-l-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#000" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="64" cy="97.2" rx="56" ry="2.4" fill="url(#gm-l-shadow)"/>
+  <rect x="16.5" y="27.2" width="95" height="64.45" rx="4" fill="#0b0c10"/>
+  <rect x="16.8" y="27.5" width="94.4" height="63.9" rx="3.7" fill="none" stroke="#2e343b" stroke-width="0.36"/>
+  <rect x="18.34" y="29" width="91.3" height="59.4" rx="1.8" fill="url(#gm-l-screen)"/>
+  <path d="M59.2 29h9.8v.29a1.16 1.16 0 0 1-1.16 1.16h-7.48a1.16 1.16 0 0 1-1.16-1.16z" fill="#0b0c10"/>
+  <path d="M14.35 91.64h99.3c5.63.91 10.35 2.36 10.35 3.63 0 .8-1.2 1.5-2.8 1.5H6.8c-1.6 0-2.8-.7-2.8-1.5 0-1.27 4.72-2.72 10.35-3.63z" fill="url(#gm-l-base)"/>
+  <rect x="19.8" y="92.9" width="89.1" height="1.09" rx="0.5" fill="#17181a"/>
+  <path d="M54.65 93.8h18.52v.4a9.26 2 0 0 1-18.52 0z" fill="#c3c9d3"/>
+</svg>

@@ -95,6 +95,15 @@ COPY packaging/install-adaptive-extension.sh /tmp/mutsu-install-adaptive.sh
 RUN bash /tmp/mutsu-install-adaptive.sh && \
     rm -rf /tmp/mutsu-adaptive-src /tmp/mutsu-install-adaptive.sh
 
+### GLOBAL MENU (Mac-style File / Edit / View / Window bar)
+# Vendored Global Menu for GNOME. Provides contextual menus next to the Mutsu logo.
+# Installed before configure-native-desktop.py so it is present when the
+# enabled-extensions list is compiled.
+COPY extensions/globalmenu@ShiroOSL.github.io /tmp/mutsu-global-menu-src
+COPY packaging/install-global-menu.sh /tmp/mutsu-install-global-menu.sh
+RUN bash /tmp/mutsu-install-global-menu.sh && \
+    rm -rf /tmp/mutsu-global-menu-src /tmp/mutsu-install-global-menu.sh
+
 ### NATIVE MUTSU GNOME SHELL (no per-user first-boot appearance script)
 # Install the real system extension, compose upstream+Mutsu enabled extension
 # defaults, and compile the high-priority user-overridable dconf database.
