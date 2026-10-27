@@ -1,10 +1,27 @@
 #!/usr/bin/env bash
 # Manual Mutsu Portal launcher. Never used from autostart.
+# This is the Bazzite portal (yafti) with Mutsu's config and name.
 set -euo pipefail
-export GTK_THEME=MutsuJapandi
 config=/usr/share/yafti/yafti.yml
+
+# Prefer a direct yafti launch so our yafti.yml (title: Mutsu Portal) is used.
 if [[ -x /usr/bin/yafti && -s "$config" ]]; then
   exec /usr/bin/yafti "$config"
 fi
+if command -v yafti_gtk.py >/dev/null 2>&1 && [[ -s "$config" ]]; then
+  exec yafti_gtk.py "$config"
+fi
+if [[ -x /usr/bin/yafti_gtk.py && -s "$config" ]]; then
+  exec /usr/bin/yafti_gtk.py "$config"
+fi
+# Bazzite wrapper. Our install overwrites /usr/share/yafti/yafti.yml, so this
+# still shows Mutsu Portal content.
+if [[ -x /usr/libexec/bazzite-yafti-launcher ]]; then
+  exec /usr/libexec/bazzite-yafti-launcher
+fi
+if [[ -x /usr/bin/bazzite-yafti-launcher ]]; then
+  exec /usr/bin/bazzite-yafti-launcher
+fi
+
 echo "Mutsu Portal is not available in this image" >&2
 exit 1

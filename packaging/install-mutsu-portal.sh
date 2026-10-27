@@ -32,3 +32,11 @@ if [[ -s /tmp/mutsu-documentation.desktop ]]; then
 fi
 
 printf 'Mutsu Portal installed. It does not open on login.\n'
+
+# Re-skin the portal window title if the GTK launcher hardcodes "Bazzite Portal".
+for candidate in /usr/bin/yafti_gtk.py /usr/libexec/yafti_gtk.py; do
+  if [[ -f "$candidate" ]] && grep -q "Bazzite Portal" "$candidate"; then
+    sed -i 's/Bazzite Portal/Mutsu Portal/g' "$candidate" || true
+  fi
+done
+
