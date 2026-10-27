@@ -120,6 +120,39 @@ class DiskImageWorkflowTests(unittest.TestCase):
         self.assertIn("-report_el_torito plain", self.workflow)
         self.assertIn("if-no-files-found: error", self.workflow)
 
+    def test_only_supported_mutsu_installer_blueprint_exists(self):
+        # Former iso-gnome.toml and iso-kde.toml silently switched users
+        # to ghcr.io/ublue-os/image-template:latest. They were never wired
+        # to the production ISO and must not be shipped as usable configs.
+        configs = sorted(path.name for path in (ROOT / "disk_config").glob("*.toml"))
+        self.assertEqual(configs, ["disk.toml", "iso.toml"])
+        blueprint = (ROOT / "disk_config/iso.toml").read_text(encoding="utf-8")
+        self.assertNotIn("image-template", blueprint)
+        self.assertIn('[customizations.installer.kickstart]', blueprint)
+        self.assertIn('contents = ""', blueprint)
+        self.assertIn('disk_config/iso.toml', self.workflow)
+
+    def test_local_just_iso_matches_github_anaconda_iso_type(self):
+        self.assertIn(
+            '(_build-bib target_image tag "anaconda-iso" "disk_config/iso.toml")',
+            self.just,
+        )
+        self.assertIn(
+            '(_rebuild-bib target_image tag "anaconda-iso" "disk_config/iso.toml")',
+            self.just,
+        )
+        self.assertNotIn('(_build-bib target_image tag "iso" "disk_config/iso.toml")', self.just)
+        self.assertNotIn('(_rebuild-bib target_image tag "iso" "disk_config/iso.toml")', self.just)
+        self.assertIn('image_file="output/bootiso/install.iso"', self.just)
+
+    def test_branded_iso_script_is_syntax_checked_in_both_workflows(self):
+        image = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
+        self.assertIn("bash -n \"$script\"", image)
+        self.assertIn("packaging/install-mac-shortcuts.sh", image)
+        self.assertIn("packaging/install-branding.sh", image)
+        self.assertIn("packaging/inject-iso-branding.sh", image)
+        self.assertIn("bash -n packaging/inject-iso-branding.sh", self.workflow)
+
     def test_action_still_uses_read_only_builder_config(self):
         self.assertIn("uses: osbuild/bootc-image-builder-action@", self.workflow)
         self.assertIn("config-file: ${{ matrix.disk-type", self.workflow)

@@ -35,7 +35,12 @@ On a NEW 60+ GB virtual disk (never use a daily-driver disk):
       then `flatpak list --system --app | grep -i Newelle`. Internet is
       required on initial boot, and retry occurs on a later boot if offline.
       `flatpak run io.github.qwersyk.Newelle` should launch without a model
-      or API key being preconfigured. Respect explicit uninstall/opt-out.
+      or API key being preconfigured. The OS uses the portable Flatpak install
+      command on first successful online boot and writes a marker under
+      `/var/lib/mutsu-os/`. An offline first boot retries on the next boot;
+      after success, uninstalling Newelle must NOT reinstall it. Check with
+      `systemctl cat mutsu-newelle-preinstall.service`.
+      Respect explicit uninstall/opt-out.
 - [ ] Reboot and confirm the welcome wizard does not return after completion.
 - [ ] Inspect `plymouth-set-default-theme` and confirm theme `mutsu`.
       **Test disk-encryption unlock** in an encrypted disposable VM; the
@@ -71,5 +76,5 @@ container image and ISO build alone are not proof of a verified installed OS.
 - `.github/workflows/build-disk.yml` -> verified digest -> image builder
 - `packaging/inject-iso-branding.sh` -> preservative ISO edit plus SHA256
 - `packaging/rebuild-plymouth-initramfs.sh` -> image-kernel dracut rebuild
-- `packaging/install-newelle.sh` -> Flatpak preinstall manifest and boot service
+- `packaging/install-newelle.sh` -> one-time Flatpak first-boot service
 - `packaging/mutsu-first-boot` -> reversible first-login branding
