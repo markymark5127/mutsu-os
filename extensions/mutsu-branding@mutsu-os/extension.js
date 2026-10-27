@@ -9,7 +9,7 @@ import Gio from 'gi://Gio';
 import St from 'gi://St';
 
 const BASE = '/usr/share/mutsu-os/branding/shell';
-const JAPANDI_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-symbolic.svg';
+const JAPANDI_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-japandi.svg';
 const DARK_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-symbolic-white.svg';
 
 export default class MutsuBrandingExtension extends Extension {
