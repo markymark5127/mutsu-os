@@ -37,6 +37,20 @@
   border-radius: 7px;
 }
 
+/* GNOME's existing application grid is Mutsu Home in tablet mode.
+ * Keep its implementation; just harmonize focus and folder chrome. */
+.app-well-app:hover .overview-icon,
+.app-well-app:focus .overview-icon,
+.app-well-app:checked .overview-icon {
+  background-color: rgba(120, 135, 115, 0.18);
+  border-radius: 16px;
+}
+.app-folder-dialog {
+  background-color: #FFFCF6;
+  border: 1px solid #D6DCCF;
+  border-radius: 18px;
+}
+
 /* Floating dock chrome, including the fallback GNOME overview dash.
  * Targets Shell-only surfaces and leaves ordinary applications untouched. */
 #dashtodockContainer .dash-background,
