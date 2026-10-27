@@ -56,7 +56,7 @@ class ImageIntegrationTests(unittest.TestCase):
         self.assertNotIn("\nenabled-extensions=", installer)
         self.assertNotIn("cat > /etc/dconf/db/mutsu.d/40-mutsu-adaptive", installer)
         self.assertIn("glib-compile-schemas --strict", installer)
-        self.assertIn("Mutsu Adaptive Desktop installed (not enabled", installer)
+        self.assertIn("Mutsu Adaptive Desktop installed (enabled by native GNOME defaults", installer)
         self.assertIn("COPY extensions/mutsu-adaptive@mutsu-os", image)
 
     def test_touch_interception_is_explicit_opt_in(self):
@@ -83,7 +83,7 @@ class ImageIntegrationTests(unittest.TestCase):
         self.assertEqual(
             metadata["settings-schema"], "org.gnome.shell.extensions.mutsu-adaptive"
         )
-        self.assertTrue(metadata.get("shell-version"))
+        self.assertIn("50", metadata["shell-version"])
         ET.fromstring(
             read("extensions/mutsu-adaptive@mutsu-os/schemas/"
                  "org.gnome.shell.extensions.mutsu-adaptive.gschema.xml")
