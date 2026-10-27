@@ -96,12 +96,15 @@ RUN bash /tmp/mutsu-install-shell-branding.sh && \
     rm -rf /tmp/mutsu-branding-extension-src /tmp/mutsu-install-shell-branding.sh \
            /tmp/mutsu-first-boot /tmp/mutsu-first-boot.desktop
 
-### Boot splash: Mutsu Plymouth in a generic initramfs
-# Plymouth reads its theme from the initramfs, so leaving Bazzite's image
-# in place keeps the Bazzite logo on the preparing-system screen.
-# Rebuild generic (--no-hostonly) and refuse the image if OSTree prep is gone.
-COPY packaging/rebuild-mutsu-initramfs.sh /tmp/mutsu-rebuild-initramfs.sh
-RUN bash /tmp/mutsu-rebuild-initramfs.sh && rm /tmp/mutsu-rebuild-initramfs.sh
+### Boot safety: preserve the verified upstream bootc initramfs
+# In PR #52 the image-build dracut --no-hostonly stage omitted
+# ostree-prepare-root (confirmed by CI logs). This is fatal to OSTree boot.
+# Stage Mutsu Plymouth artwork and branding, but do not regenerate or replace
+# the boot-critical initramfs until the correctly configured dracut module set
+# has passed a fresh-install VM test. Fail closed if upstream OSTree support
+# is absent.
+COPY packaging/verify-upstream-initramfs.sh /tmp/mutsu-verify-initramfs.sh
+RUN bash /tmp/mutsu-verify-initramfs.sh && rm /tmp/mutsu-verify-initramfs.sh
 
 ### LINTING
 ## Verify final image and contents are correct.
