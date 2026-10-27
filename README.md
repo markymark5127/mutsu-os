@@ -22,7 +22,7 @@ This repository is the **bootc image build**. The related [ai-desktop](https://g
 - The Mutsu AI result displays the installed emblem if no separate AI SVG exists. The assistant is opt-in and off by default for model requests.
 - Optional Newelle user-service and key-configuration scripts are installed in `/usr/share/mutsu-os/scripts`.
 
-**Alpha status:** Mutsu logo, wallpaper, top-bar extension source, branded Anaconda ISO and Plymouth script theme are packaged. Custom Plymouth assets are staged, but the OS retains Bazzite's OSTree-compatible initramfs for reliable boot. Newelle is installed through a network-dependent, **one-time first-boot** Flatpak service (retry on a later boot if offline, and no forced reinstallation after user removal) (the AI model, account and credentials are intentionally not bundled). System-wide GTK/Qt appearance, native GNOME Spotlight, a custom icon pack, dock/overview polish and automatic tablet posture are not finished. **Bootable-media and fresh-install tests remain outstanding**; see [clean-install QA](docs/INITIAL_INSTALL_QA.md). These are separate milestones.
+**Alpha status:** Mutsu logo, wallpaper, top-bar extension source, branded Anaconda ISO and Plymouth script theme are packaged. A guarded generic initramfs rebuild is proposed to embed the Mutsu Plymouth splash while explicitly preserving OSTree root-pivot modules. It is still **unverified in a fresh VM**, and should not be considered a working boot splash until that test passes. Newelle is installed through a network-dependent, **one-time first-boot** Flatpak service (retry on a later boot if offline, and no forced reinstallation after user removal) (the AI model, account and credentials are intentionally not bundled). System-wide GTK/Qt appearance, native GNOME Spotlight, a custom icon pack, dock/overview polish and automatic tablet posture are not finished. **Bootable-media and fresh-install tests remain outstanding**; see [clean-install QA](docs/INITIAL_INSTALL_QA.md). These are separate milestones.
 
 ## Adaptive Desktop (planned)
 
@@ -90,6 +90,6 @@ The optional ISO workflow references `disk_config/iso.toml`, containing supporte
 
 ## Remaining distribution tasks
 
-See the [ai-desktop roadmap](https://github.com/markymark5127/ai-desktop/blob/main/docs/ROADMAP.md) and [docs/ADAPTIVE_DESKTOP_IMAGE.md](docs/ADAPTIVE_DESKTOP_IMAGE.md). High priorities are a GNOME Shell extension for a real native Spotlight overlay and top-left Mutsu logo; version-compatible extension packaging; Adaptive Desktop (tablet posture, app-grid Home, bottom-edge gestures); genuine custom Plymouth/ISO boot images; and Newelle Flatpak first-boot provisioning.
+See the [ai-desktop roadmap](https://github.com/markymark5127/ai-desktop/blob/main/docs/ROADMAP.md) and [docs/ADAPTIVE_DESKTOP_IMAGE.md](docs/ADAPTIVE_DESKTOP_IMAGE.md). High priorities are a GNOME Shell extension for a real native Spotlight overlay and top-left Mutsu logo; version-compatible extension packaging; Adaptive Desktop (tablet posture, app-grid Home, bottom-edge gestures); fresh-VM verification of the proposed custom Plymouth image and ISO branding; and Newelle Flatpak first-boot provisioning.
 
 Source projects remain attributed to Bazzite, Universal Blue and Fedora; the visible **Mutsu OS** name does not remove upstream dependencies, copyright, or licensing obligations.
