@@ -113,8 +113,17 @@ def apply_initial_japandi_defaults(factory=None) -> None:
             # Respect an existing user preference, including a prior choice
             # of cyberpunk wallpaper and light/dark mode.
             continue
-        if not getattr(settings, setter)(key, value):
-            raise RuntimeError(f"Could not apply Mutsu initial default {schema}:{key}")
+        try:
+            written = getattr(settings, setter)(key, value)
+        except Exception as exc:
+            if schema != DOCK_SCHEMA:
+                raise
+            print(f"Mutsu dock setting unavailable {key}: {exc}", file=sys.stderr)
+            continue
+        if not written:
+            if schema != DOCK_SCHEMA:
+                raise RuntimeError(f"Could not apply Mutsu initial default {schema}:{key}")
+            print(f"Mutsu dock setting rejected: {key}", file=sys.stderr)
 
 
 def activate_branding() -> None:
