@@ -58,6 +58,14 @@ jobs:
           bash -n packaging/render-plymouth-theme.sh
           bash -n packaging/rebuild-plymouth-initramfs.sh
           bash -n packaging/install-newelle.sh
+          # Catch installer, keyd and branding script errors BEFORE OCI building.
+          for script in build_files/build.sh \
+                        packaging/install-branding.sh \
+                        packaging/install-mac-shortcuts.sh \
+                        packaging/inject-iso-branding.sh \
+                        packaging/configure-shortcut-defaults.sh; do
+            bash -n "$script"
+          done
           python3 -m py_compile packaging/mutsu-first-boot
 
       - name: Check Just Syntax
