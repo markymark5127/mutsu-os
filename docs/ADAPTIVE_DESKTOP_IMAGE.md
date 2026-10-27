@@ -27,7 +27,7 @@ On supported 2-in-1 hardware (Lenovo Yoga-class and similar):
 ## Image responsibilities (this repo)
 
 1. Ship a GNOME Shell extension that owns posture detection, Home, and gestures.
-2. Keep the extension **disabled by default** until GNOME Shell version compatibility and tablet behavior are verified. Do not overwrite Bazzite's `enabled-extensions` list.
+2. Enable the extension as a **core first-login Mutsu default**, composed with existing vendor GNOME extensions. Automatic hinge detection and touch gestures still require GNOME 50/hardware QA; do not imply runtime verification from source tests.
 3. Provide clear recovery instructions (`gnome-extensions disable mutsu-adaptive@mutsu-os`).
 4. Keep the change reversible and avoid breaking keyboard/trackpad recovery or OSK gestures.
 
@@ -35,9 +35,9 @@ On supported 2-in-1 hardware (Lenovo Yoga-class and similar):
 
 - Extension UUID: `mutsu-adaptive@mutsu-os`
 - Source: `extensions/mutsu-adaptive@mutsu-os/`
-- Install script: `packaging/install-adaptive-extension.sh` (explicitly does not enable)
+- Install script: `packaging/install-adaptive-extension.sh` (installs only); `packaging/configure-native-desktop.py` enables the extension through system-wide GNOME defaults.
 - Settings added in Phases 2–4: `touch-text-scale`, `collapse-dock-in-tablet`, `rotation-lock`, `gesture-exceptions`.
-- Automatic mode does not yet listen for `SW_TABLET_MODE`.
+- Automatic mode is not yet wired to a verified `SW_TABLET_MODE` source. If no working signal is available, it safely remains in desktop mode; manual tablet mode is available.
 - Experimental bottom-edge actor is gated behind a setting that defaults off.
 
 ## Remaining for production
