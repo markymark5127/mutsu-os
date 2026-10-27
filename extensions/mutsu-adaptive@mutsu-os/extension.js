@@ -34,11 +34,11 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._searchBusy = false;
 
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
-        const icon = new St.Icon({
-            icon_name: 'mutsu-tablet-mode-symbolic',
+        this._modeIcon = new St.Icon({
+            icon_name: 'video-display-symbolic',
             style_class: 'system-status-icon',
         });
-        this._indicator.add_child(icon);
+        this._indicator.add_child(this._modeIcon);
         this._indicator.menu.addAction('Toggle Tablet Mode', () => this._toggleManual());
         this._indicator.menu.addAction('Always Desktop', () => this._setMode('always-desktop'));
         this._indicator.menu.addAction('Always Tablet', () => this._setMode('always-tablet'));
@@ -85,6 +85,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._indicator.destroy();
             this._indicator = null;
         }
+        this._modeIcon = null;
         this._stopPostureWatcher();
         this._leaveTablet();
         this._settings = null;
@@ -117,10 +118,22 @@ export default class MutsuAdaptiveExtension extends Extension {
     }
 
     _syncQsToggle() {
-        if (!this._qsToggle)
-            return;
         const mode = this._settings.get_string('mode');
-        this._qsToggle.checked = mode === 'always-tablet' || (mode === 'automatic' && this._inTablet);
+        const inTablet = mode === 'always-tablet' || (mode === 'automatic' && this._inTablet);
+        if (this._qsToggle)
+            this._qsToggle.checked = inTablet;
+        this._updateModeIcon(inTablet);
+    }
+
+    _updateModeIcon(inTablet) {
+        if (!this._modeIcon)
+            return;
+        // Show the current mode: tablet icon while in tablet, desktop icon otherwise.
+        this._modeIcon.icon_name = inTablet
+            ? 'mutsu-tablet-mode-symbolic'
+            : 'video-display-symbolic';
+        if (this._indicator)
+            this._indicator.accessible_name = inTablet ? 'Tablet mode' : 'Desktop mode';
     }
 
     _requestTablet(wantTablet) {
