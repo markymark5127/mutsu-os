@@ -1,19 +1,13 @@
-/* Mutsu Cyberpunk — harsh, squared, high-contrast */
-window, .background, dialog, .dialog {
-  border-radius: 2px;
-}
-headerbar, .titlebar, windowhandle {
+/* Mutsu Cyberpunk — sharp corners on primary chrome only. */
+headerbar, .titlebar {
   border-radius: 2px 2px 0 0;
 }
-button, .button, entry, .entry, spinbutton, combobox {
-  border-radius: 2px;
+window > box > headerbar {
+  border-radius: 2px 2px 0 0;
 }
-list row, listview row, .sidebar, .navigation-sidebar {
-  border-radius: 2px;
-}
-popover, .popover, menu, .menu {
+popover, .popover {
   border-radius: 3px;
 }
-.card, .view, scrolledwindow {
+.card {
   border-radius: 2px;
 }

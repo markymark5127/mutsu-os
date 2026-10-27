@@ -1,0 +1,6 @@
+# Global Menu provides the File/Edit/View/Window bar.
+# Mutsu branding owns the top-left logo button, so hide Global Menu's
+# own system-menu button to avoid a duplicate.
+[org/gnome/shell/extensions/globalmenu]
+show-logo-menu=false
+hide-overview-button=true

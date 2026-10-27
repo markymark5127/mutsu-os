@@ -53,8 +53,8 @@ export default class MutsuBrandingExtension extends Extension {
 
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'left');
 
-        this._changedId = this._settings.connect('changed::appearance', () => this._applyAppearance());
-        this._applyAppearance();
+        this._changedId = this._settings.connect('changed::appearance', () => this._applyAppearance(true));
+        this._applyAppearance(false);
     }
 
     _launch(argv) {
@@ -65,22 +65,31 @@ export default class MutsuBrandingExtension extends Extension {
         }
     }
 
-    _applyAppearance() {
+    _applyAppearance(explicitChange = false) {
         this._unloadStyle();
         const name = this._settings.get_string('appearance');
         const isCyber = name === 'cyberpunk';
         const isJapandi = name === 'japandi';
+        const isSystem = name === 'system';
 
-        // Logo
+        // Logo always follows current mode
         const iconPath = isJapandi ? JAPANDI_SYMBOL : DARK_SYMBOL;
         this._logoIcon.gicon = new Gio.FileIcon({
             file: Gio.File.new_for_path(iconPath),
         });
 
+        if (isSystem) {
+            // Follow System: unload custom shell CSS; restore prior user values
+            // only if we previously overrode them.
+            if (explicitChange)
+                this._restoreSystemDefaults();
+            return;
+        }
+
         if (!isJapandi && !isCyber)
             return;
 
-        // Shell stylesheet
+        // Shell stylesheet (safe to load on every enable)
         const file = Gio.File.new_for_path(`${BASE}/${name}.css`);
         try {
             if (file.query_exists(null)) {
@@ -92,8 +101,10 @@ export default class MutsuBrandingExtension extends Extension {
             console.warn('Mutsu branding: could not load theme', error);
         }
 
-        // Full desktop switch: color scheme, wallpaper, accent, GTK CSS
-        this._applyDesktopTheme(isCyber);
+        // Only write user preferences on an explicit menu choice.
+        // On enable we load the shell look but do not clobber GSettings or gtk.css.
+        if (explicitChange)
+            this._applyDesktopTheme(isCyber);
     }
 
     _applyDesktopTheme(isCyber) {
@@ -128,8 +139,14 @@ export default class MutsuBrandingExtension extends Extension {
             dock.set_string('background-color', isCyber ? '#0A1428' : '#788773');
         } catch (e) {}
 
-        // Write user GTK CSS that imports the chosen radius style + stoplights
         this._writeGtkCss(isCyber);
+        this._syncAppearanceFile(isCyber ? 'cyberpunk' : 'japandi');
+    }
+
+    _restoreSystemDefaults() {
+        // Clear the Mutsu-controlled GTK import and let dconf defaults show through.
+        this._removeGtkImport();
+        this._syncAppearanceFile('system');
     }
 
     _writeGtkCss(isCyber) {
@@ -137,19 +154,67 @@ export default class MutsuBrandingExtension extends Extension {
             const home = GLib.get_home_dir();
             const dir = Gio.File.new_for_path(`${home}/.config/gtk-4.0`);
             dir.make_directory_with_parents(null);
-            const css = Gio.File.new_for_path(`${home}/.config/gtk-4.0/gtk.css`);
+            // Our controlled file — never touch a user's gtk.css contents.
+            const mutsuCss = Gio.File.new_for_path(`${home}/.config/gtk-4.0/mutsu-theme.css`);
             const style = isCyber ? 'cyberpunk' : 'japandi';
             const content = [
-                '/* Mutsu OS theme — written by mutsu-branding */',
+                '/* Mutsu OS theme — controlled by mutsu-branding. Do not edit. */',
                 `@import url('/usr/share/mutsu-os/branding/gtk/${style}.css');`,
                 `@import url('/usr/share/mutsu-os/branding/gtk/stoplights.css');`,
-                isCyber ? '.background { }' : '',
                 '',
             ].join('\n');
-            css.replace_contents(content, null, false, Gio.FileCreateFlags.NONE, null);
+            mutsuCss.replace_contents(content, null, false, Gio.FileCreateFlags.NONE, null);
+            // Append a single import to gtk.css only if missing.
+            this._ensureGtkImport(home);
         } catch (e) {
             log(`Mutsu branding: GTK CSS write failed (${e})`);
         }
+    }
+
+    _ensureGtkImport(home) {
+        const gtkCss = Gio.File.new_for_path(`${home}/.config/gtk-4.0/gtk.css`);
+        const importLine = '@import url(\'mutsu-theme.css\');';
+        let existing = '';
+        try {
+            if (gtkCss.query_exists(null)) {
+                const [, contents] = gtkCss.load_contents(null);
+                existing = new TextDecoder().decode(contents);
+            }
+        } catch (e) {}
+        if (existing.includes('mutsu-theme.css'))
+            return;
+        const next = existing ? existing.trimEnd() + '\n' + importLine + '\n' : importLine + '\n';
+        gtkCss.replace_contents(next, null, false, Gio.FileCreateFlags.NONE, null);
+    }
+
+    _removeGtkImport() {
+        try {
+            const home = GLib.get_home_dir();
+            const gtkCss = Gio.File.new_for_path(`${home}/.config/gtk-4.0/gtk.css`);
+            if (!gtkCss.query_exists(null))
+                return;
+            const [, contents] = gtkCss.load_contents(null);
+            let text = new TextDecoder().decode(contents);
+            text = text.split('\n').filter(l => !l.includes('mutsu-theme.css')).join('\n');
+            gtkCss.replace_contents(text, null, false, Gio.FileCreateFlags.NONE, null);
+            // Remove our controlled file
+            const mutsuCss = Gio.File.new_for_path(`${home}/.config/gtk-4.0/mutsu-theme.css`);
+            if (mutsuCss.query_exists(null))
+                mutsuCss.delete(null);
+        } catch (e) {}
+    }
+
+    _syncAppearanceFile(mode) {
+        // Single source of truth: GSettings is canonical. Mirror to the file
+        // ai-desktop already reads so Search and the welcome wizard stay in sync.
+        try {
+            const home = GLib.get_home_dir();
+            const dir = Gio.File.new_for_path(`${home}/.config/ai-desktop`);
+            dir.make_directory_with_parents(null);
+            const f = Gio.File.new_for_path(`${home}/.config/ai-desktop/appearance.json`);
+            const body = JSON.stringify({ appearance: mode }) + '\n';
+            f.replace_contents(body, null, false, Gio.FileCreateFlags.NONE, null);
+        } catch (e) {}
     }
 
     _unloadStyle() {

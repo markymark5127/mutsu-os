@@ -94,17 +94,7 @@ if ollama.returncode == 0:
         set_json("llm-settings", llm)
         gsettings(["set", schema, "language-model", "ollama"])
 
-onboarding = __import__("pathlib").Path.home() / ".config" / "ai-desktop" / "onboarding.json"
-if onboarding.is_file():
-    try:
-        data = json.loads(onboarding.read_text())
-    except json.JSONDecodeError:
-        data = {}
-    if isinstance(data, dict) and data.get("model_sharing") is not True:
-        data["model_sharing"] = True
-        onboarding.write_text(json.dumps(data) + "\n")
-        onboarding.chmod(0o600)
-PY
+# model_sharing is a user choice; do not force it.\nPY
 
 unit_dir="$config_root/systemd/user"
 mkdir -p "$unit_dir"
@@ -126,11 +116,19 @@ WantedBy=default.target
 EOF
 fi
 
+started=0
 if command -v systemctl >/dev/null; then
   systemctl --user daemon-reload || true
-  systemctl --user enable --now ai-desktop-newelle.service || true
+  if systemctl --user enable --now ai-desktop-newelle.service; then
+    started=1
+  fi
 fi
 
-touch "$marker"
-chmod 600 "$marker"
-echo "Newelle linked to Mutsu Search on 127.0.0.1:${port}."
+if [[ "$started" -eq 1 ]]; then
+  touch "$marker"
+  chmod 600 "$marker"
+  echo "Newelle linked to Mutsu Search on 127.0.0.1:${port}."
+else
+  echo >&2 "Newelle service did not start; marker not written. Will retry next login."
+  exit 1
+fi

@@ -6,7 +6,7 @@ After=graphical-session.target
 ConditionPathExists=!%h/.config/ai-desktop/onboarding.json
 
 [Service]
-Type=oneshot
+Type=simple
 ExecStart=/usr/libexec/mutsu-os/mutsu-first-login
 TimeoutStartSec=10min
 

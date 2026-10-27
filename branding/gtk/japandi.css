@@ -1,19 +1,13 @@
-/* Mutsu Japandi — soft, rounded, calm */
-window, .background, dialog, .dialog {
-  border-radius: 16px;
+/* Mutsu Japandi — soft rounded corners on primary chrome only. */
+headerbar, .titlebar {
+  border-radius: 14px 14px 0 0;
 }
-headerbar, .titlebar, windowhandle {
-  border-radius: 16px 16px 0 0;
+window > box > headerbar {
+  border-radius: 14px 14px 0 0;
 }
-button, .button, entry, .entry, spinbutton, combobox {
-  border-radius: 10px;
+popover, .popover {
+  border-radius: 12px;
 }
-list row, listview row, .sidebar, .navigation-sidebar {
-  border-radius: 10px;
-}
-popover, .popover, menu, .menu {
-  border-radius: 13px;
-}
-.card, .view, scrolledwindow {
+.card {
   border-radius: 12px;
 }

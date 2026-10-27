@@ -1,5 +1,5 @@
-/* Mac-style traffic-light window controls (close / minimize / maximize).
- * Works with GTK4 / libadwaita apps that honor button-layout. */
+/* Mac-style traffic-light window controls.
+ * Self-contained — no .mutsu-cyberpunk class required. */
 windowcontrols {
   border-spacing: 6px;
   margin: 0 6px;
@@ -9,7 +9,6 @@ windowcontrols > button {
   min-height: 14px;
   padding: 0;
   border-radius: 100%;
-  background-size: 0;
   background-image: none;
   box-shadow: none;
 }
@@ -32,18 +31,4 @@ windowcontrols > button:hover {
 }
 windowcontrols > button:active {
   filter: brightness(0.8);
-}
-/* Cyberpunk override: sharper, neon-tinted lights */
-.mutsu-cyberpunk windowcontrols > button {
-  border-radius: 2px;
-}
-.mutsu-cyberpunk windowcontrols > button.close {
-  background-color: #FF2D9B;
-}
-.mutsu-cyberpunk windowcontrols > button.minimize {
-  background-color: #FFD600;
-}
-.mutsu-cyberpunk windowcontrols > button.maximize,
-.mutsu-cyberpunk windowcontrols > button.restore {
-  background-color: #00E5FF;
 }
