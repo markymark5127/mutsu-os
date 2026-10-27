@@ -13,7 +13,9 @@ import subprocess
 import sys
 
 STATE = Path.home() / ".config" / "mutsu-os"
-MARKER = STATE / "first-boot-done"
+# Versioned so existing installs with an old first-boot marker get Mutsu's
+# GNOME 50-capable look exactly once after upgrading.
+MARKER = STATE / "first-boot-japandi-v2"
 APPEARANCE_MARKER = STATE / "japandi-initial-defaults-v1"
 BRANDING = "mutsu-branding@mutsu-os"
 ADAPTIVE = "mutsu-adaptive@mutsu-os"
@@ -66,6 +68,22 @@ def _gio_settings(schema: str):
     # Imported on demand so this source can be tested in a pure Python CI
     # environment. The installed image already carries python3-gobject.
     from gi.repository import Gio
+    if schema == DOCK_SCHEMA:
+        # Fedora may bundle extension schemas in the extension-local
+        # directory rather than the global GSettings search path.
+        for base in (
+            Path("/usr/share/gnome-shell/extensions"),
+            Path.home() / ".local/share/gnome-shell/extensions",
+        ):
+            schema_dir = base / DOCK / "schemas"
+            if not (schema_dir / "gschemas.compiled").is_file():
+                continue
+            source = Gio.SettingsSchemaSource.new_from_directory(
+                str(schema_dir), Gio.SettingsSchemaSource.get_default(), False
+            )
+            found = source.lookup(schema, True)
+            if found:
+                return Gio.Settings.new_full(found, None, None)
     return Gio.Settings.new(schema)
 
 
@@ -75,8 +93,18 @@ def apply_initial_japandi_defaults(factory=None) -> None:
     cache = {}
     for schema, key, setter, value in INITIAL_DEFAULTS:
         if schema not in cache:
-            cache[schema] = factory(schema)
+            try:
+                cache[schema] = factory(schema)
+            except Exception as exc:
+                if schema != DOCK_SCHEMA:
+                    raise
+                # A missing optional dock schema must never prevent Mutsu
+                # wallpaper and branding from loading for a new user.
+                print(f"Mutsu dock defaults unavailable: {exc}", file=sys.stderr)
+                cache[schema] = None
         settings = cache[schema]
+        if settings is None:
+            continue
         if key not in settings.list_keys():
             # Fedora / extension schemas can evolve; avoid breaking login.
             print(f"Mutsu appearance: unavailable key {schema}:{key}", file=sys.stderr)
@@ -120,7 +148,7 @@ def main() -> int:
     if not APPEARANCE_MARKER.exists():
         try:
             apply_initial_japandi_defaults()
-        except (Exception,) as exc:
+        except Exception as exc:
             print(f"Mutsu Japandi defaults unavailable; will retry: {exc}", file=sys.stderr)
             return 1
         APPEARANCE_MARKER.parent.mkdir(parents=True, exist_ok=True)
