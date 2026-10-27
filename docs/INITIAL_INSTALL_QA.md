@@ -58,15 +58,15 @@ On a NEW 60+ GB virtual disk (never use a daily-driver disk):
       `systemctl cat mutsu-newelle-preinstall.service`.
       Respect explicit uninstall/opt-out.
 - [ ] Reboot and confirm the welcome wizard does not return after completion.
-- [ ] Confirm that the container-image build kept Bazzite's original
-      OSTree-capable initramfs and that the image build logs report the
-      ostree-prepare-root check succeeded. PR #52's custom Dracut splash
-      stage previously failed because its rebuilt image omitted that hook.
-- [ ] Confirm the **installed OS boots** using the unmodified generic
-      Bazzite initramfs. Do not treat the absence of the new Mutsu logo
-      at boot as a failure during this boot-safety test.
-- [ ] Inspect `plymouth-set-default-theme` (informational for now).
-      **Test disk-encryption unlock** in an encrypted disposable VM; the
+- [ ] Verify the image-build log first checks the original Bazzite/OSTree
+      initramfs, then regenerates a **generic** candidate with explicit
+      ostree and Plymouth modules (plus bootc when available). Check that
+      ostree-prepare-root and Mutsu Plymouth script/logo were present before
+      the candidate replaced the original initramfs.
+- [ ] Fresh UEFI VM: verify the **installed OS boots** with the new Mutsu
+      Plymouth screen (not Bazzite) and continues into Mutsu GNOME. Confirm
+      cold boot, reboot, splash fallback and rollback.
+- [ ] **Test disk-encryption unlock** in an encrypted disposable VM; the
       script splash has masked-password and question callbacks but their
       runtime behavior is not yet verified.
 - [ ] With the VM powered off, take a checkpoint. Test update and rollback
