@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Launch Mutsu's welcome wizard once. Newelle pairing is a separate unit.
+"""Launch Mutsu's welcome wizard until setup is completed or skipped.
 
-The wizard is exec'd so the user unit tracks it. If the user closes the
-wizard without finishing, the oneshot ConditionPathExists will re-run it
-on the next login until onboarding.json exists.
+The wizard is exec'd so the user unit tracks it. Completion is the saved
+status, not the presence of onboarding.json. Preference saves create that
+file before the user finishes.
 """
 from __future__ import annotations
 import os
