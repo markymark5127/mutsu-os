@@ -28,12 +28,18 @@ On a NEW 60+ GB virtual disk (never use a daily-driver disk):
       appearance, sage-accented floating bottom dock, and Mutsu top-bar icon**,
       not the stock Bazzite desktop. The packaged GNOME 50 extension and
       Fedora Dash-to-Dock must actually enable in the session.
-- [ ] Confirm the versioned first-login marker
-      `~/.config/mutsu-os/first-boot-japandi-v2` exists. The separate
-      `japandi-initial-defaults-v1` marker means the wallpaper/color
-      defaults were offered once, without overwriting prior user choices.
-      On an upgraded user with a custom wallpaper or Cyberpunk choice,
-      confirm those settings are preserved.
+- [ ] Confirm Mutsu appears **at the initial GNOME session**, without
+      `~/.config/mutsu-os/first-boot-japandi-v2` or a login-time
+      `mutsu-first-boot` launcher. The wallpaper, Shell extensions, dock
+      and color preference must come from compiled system defaults.
+- [ ] As a fresh account, run `gsettings get org.gnome.shell enabled-extensions`
+      and confirm both `mutsu-branding@mutsu-os` and
+      `dash-to-dock@micxgx.gmail.com` are listed alongside preserved vendor
+      extensions. Check `gsettings get org.gnome.desktop.background picture-uri`
+      and `gsettings get org.gnome.desktop.interface color-scheme`.
+- [ ] As an upgraded account with its own wallpaper or GNOME extension list,
+      confirm the OS update does NOT reset individual preferences. GNOME
+      only applies new extension defaults to accounts without a user override.
 - [ ] Check `gnome-extensions list --enabled` and
       `gnome-extensions info mutsu-branding@mutsu-os`. The extension
       declares GNOME Shell 46–50; compatibility must still be
@@ -76,9 +82,11 @@ the *affected user's* session, or from GNOME Extensions:
 gnome-extensions disable mutsu-branding@mutsu-os
 ```
 
-`packaging/mutsu-first-boot` now fails without marking itself done when the
-extension could not be enabled; this allows retry after a corrected image.
-It never overwrites the entire `enabled-extensions` list or a user's wallpaper.
+The Mutsu branding and dock extensions now load through the **OS-installed
+GNOME dconf defaults**, not a first-login hook. The build script preserves
+the available upstream enabled-extension list before generating Mutsu's
+override. Existing users with a personalized `enabled-extensions` list retain
+their choices; use GNOME Extensions to enable Mutsu manually if necessary.
 
 If the Plymouth theme obscures disk-unlock input, use the standard Plymouth
 fallback/boot text mode from the boot menu, or roll back to the previous
@@ -100,4 +108,4 @@ container image and ISO build alone are not proof of a verified installed OS.
   The Mutsu Plymouth artwork is staged but its new splash is **not**
   guaranteed to display until a verified generic initramfs integration exists.
 - `packaging/install-newelle.sh` -> one-time Flatpak first-boot service
-- `packaging/mutsu-first-boot` -> reversible first-login branding
+- `packaging/configure-native-desktop.py` -> image-build-time GNOME extension defaults; no user login hook

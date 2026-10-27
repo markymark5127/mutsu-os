@@ -87,14 +87,23 @@ COPY packaging/install-adaptive-extension.sh /tmp/mutsu-install-adaptive.sh
 RUN bash /tmp/mutsu-install-adaptive.sh && \
     rm -rf /tmp/mutsu-adaptive-src /tmp/mutsu-install-adaptive.sh
 
-### GNOME SHELL BRANDING (enabled on first login)
+### NATIVE MUTSU GNOME SHELL (no per-user first-boot appearance script)
+# Install the real system extension, compose upstream+Mutsu enabled extension
+# defaults, and compile the high-priority user-overridable dconf database.
+# GNOME loads Mutsu at the START of the first user session.
 COPY extensions/mutsu-branding@mutsu-os /tmp/mutsu-branding-extension-src
 COPY packaging/install-shell-branding.sh /tmp/mutsu-install-shell-branding.sh
-COPY packaging/mutsu-first-boot /tmp/mutsu-first-boot
-COPY packaging/mutsu-first-boot.desktop /tmp/mutsu-first-boot.desktop
+COPY packaging/configure-native-desktop.py /tmp/mutsu-configure-native-desktop.py
 RUN bash /tmp/mutsu-install-shell-branding.sh && \
+    python3 /tmp/mutsu-configure-native-desktop.py && \
     rm -rf /tmp/mutsu-branding-extension-src /tmp/mutsu-install-shell-branding.sh \
-           /tmp/mutsu-first-boot /tmp/mutsu-first-boot.desktop
+           /tmp/mutsu-configure-native-desktop.py
+
+### MUTSU WELCOME ONLY
+# Bazzite Portal (yafti) autostarts on first login. Hide it so Mutsu's
+# welcome wizard is the only setup the user sees.
+COPY packaging/disable-bazzite-portal.sh /tmp/mutsu-disable-bazzite-portal.sh
+RUN bash /tmp/mutsu-disable-bazzite-portal.sh && rm /tmp/mutsu-disable-bazzite-portal.sh
 
 ### Boot safety: preserve the verified upstream bootc initramfs
 # In PR #52 the image-build dracut --no-hostonly stage omitted
