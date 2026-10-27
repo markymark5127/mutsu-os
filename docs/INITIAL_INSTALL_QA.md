@@ -24,12 +24,22 @@ On a NEW 60+ GB virtual disk (never use a daily-driver disk):
       `PRETTY_NAME="Mutsu OS"` with base OS compatibility IDs intact.
 - [ ] Check Mutsu logo in About and GDM; inspect `journalctl --user -b`
       if branding fails.
-- [ ] Default Japandi background visible. Confirm old user wallpapers aren't
-      reset by the one-time Mutsu branding autostart.
+- [ ] First GNOME login shows the **Japandi wallpaper, light GNOME
+      appearance, sage-accented floating bottom dock, and Mutsu top-bar icon**,
+      not the stock Bazzite desktop. The packaged GNOME 50 extension and
+      Fedora Dash-to-Dock must actually enable in the session.
+- [ ] Confirm the versioned first-login marker
+      `~/.config/mutsu-os/first-boot-japandi-v2` exists. The separate
+      `japandi-initial-defaults-v1` marker means the wallpaper/color
+      defaults were offered once, without overwriting prior user choices.
+      On an upgraded user with a custom wallpaper or Cyberpunk choice,
+      confirm those settings are preserved.
 - [ ] Check `gnome-extensions list --enabled` and
       `gnome-extensions info mutsu-branding@mutsu-os`. The extension
-      currently declares GNOME Shell 46–49; runtime compatibility remains
-      subject to testing.
+      declares GNOME Shell 46–50; compatibility must still be
+      confirmed on a live GNOME 50 session, not just in source metadata.
+      Check `gnome-extensions info dash-to-dock@micxgx.gmail.com`
+      and that no other dock conflicts or duplicates appear.
 - [ ] Open Mutsu Search with Super+Space; complete or skip the one-time wizard.
 - [ ] Run `systemctl status mutsu-newelle-preinstall.service`,
       then `flatpak list --system --app | grep -i Newelle`. Internet is
