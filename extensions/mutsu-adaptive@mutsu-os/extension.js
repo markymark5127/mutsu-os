@@ -35,7 +35,7 @@ export default class MutsuAdaptiveExtension extends Extension {
 
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
         const icon = new St.Icon({
-            icon_name: 'view-app-grid-symbolic',
+            icon_name: 'mutsu-tablet-mode-symbolic',
             style_class: 'system-status-icon',
         });
         this._indicator.add_child(icon);

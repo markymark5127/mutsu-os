@@ -48,6 +48,26 @@ converted to paths or, preferably, omit text. Save SVG with a stable name,
 test render at 16, 24, 48, 64, 128 and 256 pixels, and open a PR adding the
 source SVG and its final icon-theme path. Validate SVG XML and check contrast.
 
+## New SVG integration (first wave)
+
+The source art now includes `mutsu-settings.svg`, `mutsu-portal.svg`,
+`mutsu-search-symbolic.svg`, `mutsu-tablet-mode-symbolic.svg`, and
+`folder.svg`, `folder-documents.svg`, `folder-downloads.svg`,
+`folder-music.svg`, and `folder-pictures.svg`.
+
+At image build they are installed under `/usr/share/icons/MutsuJapandi/`
+in `scalable/apps`, `scalable/actions`, and `scalable/places`.
+`folder-downloads.svg` is also installed under the standard
+`folder-download` theme name for FreeDesktop file manager lookup.
+The Mutsu Portal desktop entry uses `Icon=mutsu-portal`. GNOME Settings
+still uses its own icon, rather than being misleadingly relabeled as
+"Mutsu Settings." The custom tablet status icon is used in the
+Adaptive Desktop top-bar indicator when MutsuJapandi is active.
+
+Not yet designed: `folder-videos.svg`. Not yet guaranteed:
+the custom app-grid icon replacing GNOME/Dash-to-Dock's own Show Apps button.
+Test both in a fresh GNOME 50 desktop.
+
 ## Limitations
 This initial pack brands only Mutsu-owned icons. It does NOT reskin GNOME Files,
 Settings, Steam or third-party apps. Mutsu's custom app-grid SVG is staged as

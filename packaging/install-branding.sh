@@ -28,6 +28,27 @@ install -Dm0644 "$brand/icons/mutsu-ai.svg" \
 install -Dm0644 "$brand/icons/mutsu-app-grid.svg" \
   /usr/share/icons/MutsuJapandi/scalable/actions/mutsu-app-grid.svg
 
+# The new approved Japandi assets use standard theme lookup paths so
+# Nautilus can show sage folders without replacing third-party app branding.
+for icon in folder folder-documents folder-music folder-pictures; do
+  install -Dm0644 "$brand/icons/$icon.svg" \
+    "/usr/share/icons/MutsuJapandi/scalable/places/$icon.svg"
+done
+# The source asset is plural; the standard FreeDesktop lookup is singular.
+install -Dm0644 "$brand/icons/folder-downloads.svg" \
+  /usr/share/icons/MutsuJapandi/scalable/places/folder-download.svg
+install -Dm0644 "$brand/icons/folder-downloads.svg" \
+  /usr/share/icons/MutsuJapandi/scalable/places/folder-downloads.svg
+
+for icon in mutsu-portal mutsu-settings; do
+  install -Dm0644 "$brand/icons/$icon.svg" \
+    "/usr/share/icons/MutsuJapandi/scalable/apps/$icon.svg"
+done
+for icon in mutsu-search-symbolic mutsu-tablet-mode-symbolic; do
+  install -Dm0644 "$brand/icons/$icon.svg" \
+    "/usr/share/icons/MutsuJapandi/scalable/actions/$icon.svg"
+done
+
 # Install without deleting Fedora/Bazzite icons or renaming RPMs/services.
 install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/apps/mutsu-os-logo.svg
 install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/apps/io.github.markymark5127.AIDesktop.svg
