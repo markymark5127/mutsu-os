@@ -33,7 +33,21 @@ for kernel in "${kernels[@]}"; do
     echo >&2 "No upstream initramfs for $kernel"
     exit 1
   }
-  echo "Preserving upstream initramfs for $kernel (size: $(stat -Lc '%s' "$img") bytes)."
+  # The screenshot from a real Mutsu VirtualBox installation confirms that
+  # the kernel mounted /dev/sda3 at /sysroot, but switch-root then failed
+  # with "os-release file is missing". On OSTree/bootc systems this is
+  # consistent with missing ostree-prepare-root, which normally pivots the
+  # physical filesystem mount to the deployment tree before switch-root.
+  # A nonempty image alone is not an adequate build gate.
+  command -v lsinitrd >/dev/null || {
+    echo >&2 "lsinitrd missing; cannot validate OSTree boot support in $img"
+    exit 1
+  }
+  if ! lsinitrd "$img" | grep -Eq 'ostree-prepare-root'; then
+    echo >&2 "FATAL: $img is missing ostree-prepare-root; refusing nonbootable OS"
+    exit 1
+  fi
+  echo "Preserving upstream initramfs for $kernel: OSTree preparation present."
 done
 
 echo 'Mutsu Plymouth assets retained; vendor bootc generic initramfs preserved.'
