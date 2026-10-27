@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="Unpaired device">
+  <rect width="256" height="256" rx="28" fill="#FFFCF6"/>
+  <rect x="48" y="78" width="64" height="100" rx="12" stroke="#788773" stroke-width="6" fill="#F3EFE7"/>
+  <rect x="144" y="78" width="64" height="100" rx="12" stroke="#8E9B89" stroke-width="6" fill="#F3EFE7"/>
+  <path d="M112 128 H144" stroke="#8E9B89" stroke-width="6" stroke-linecap="round" stroke-dasharray="6 8"/>
+</svg>
