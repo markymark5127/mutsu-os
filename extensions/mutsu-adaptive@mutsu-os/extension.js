@@ -429,7 +429,38 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._saved = {};
     }
 
+    _seat() {
+        try {
+            return global.stage?.get_context?.()?.get_backend?.()?.get_default_seat?.()
+                ?? Clutter.get_default_backend?.()?.get_default_seat?.()
+                ?? null;
+        } catch (e) {
+            return null;
+        }
+    }
+
     _startPostureWatcher() {
+        // Prefer Mutter's touch-mode. It is driven by libinput's SW_TABLET_MODE
+        // (and touchscreen + no external keyboard). Keyboard disable, OSK, and
+        // rotation already follow this. Hard-coded sysfs is only a fallback.
+        const seat = this._seat();
+        if (seat && typeof seat.connect === 'function') {
+            try {
+                this._postureSignalId = seat.connect('notify::touch-mode', () => {
+                    if (this._settings.get_string('mode') !== 'automatic')
+                        return;
+                    const active = seat.touch_mode ?? seat.get_touch_mode?.();
+                    this._requestTablet(!!active);
+                });
+                const initial = seat.touch_mode ?? seat.get_touch_mode?.();
+                if (this._settings.get_string('mode') === 'automatic' && initial)
+                    this._requestTablet(true);
+                log('Mutsu Adaptive: following Clutter seat touch-mode');
+                return;
+            } catch (e) {
+                log(`Mutsu Adaptive: seat touch-mode unavailable (${e})`);
+            }
+        }
         const candidates = ['tablet-mode', 'tablet-mode-switch', 'notify::tablet-mode'];
         for (const sig of candidates) {
             try {
@@ -440,12 +471,11 @@ export default class MutsuAdaptiveExtension extends Extension {
                         this._requestTablet(!!active);
                     });
                     log(`Mutsu Adaptive: connected posture signal '${sig}'`);
-                    break;
+                    return;
                 }
             } catch (e) {}
         }
-        // Sysfs fallback for convertibles that expose SW_TABLET_MODE
-        // without a GNOME backend signal. Polls only while Automatic is set.
+        // Last resort for hardware that exposes a sysfs switch Mutter did not see.
         this._posturePollId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
             if (this._settings.get_string('mode') !== 'automatic')
                 return GLib.SOURCE_CONTINUE;
@@ -454,7 +484,7 @@ export default class MutsuAdaptiveExtension extends Extension {
                 this._requestTablet(active);
             return GLib.SOURCE_CONTINUE;
         });
-        log('Mutsu Adaptive: sysfs tablet-mode poller started');
+        log('Mutsu Adaptive: sysfs tablet-mode poller started (no seat signal)');
     }
 
     _readSysfsTablet() {
@@ -478,9 +508,12 @@ export default class MutsuAdaptiveExtension extends Extension {
     }
 
     _stopPostureWatcher() {
-        if (this._postureSignalId && global.backend) {
+        if (this._postureSignalId) {
             try {
-                global.backend.disconnect(this._postureSignalId);
+                this._seat()?.disconnect(this._postureSignalId);
+            } catch (e) {}
+            try {
+                global.backend?.disconnect(this._postureSignalId);
             } catch (e) {}
             this._postureSignalId = 0;
         }
