@@ -90,9 +90,14 @@ RUN bash /tmp/mutsu-install-shell-branding.sh && \
     rm -rf /tmp/mutsu-branding-extension-src /tmp/mutsu-install-shell-branding.sh \
            /tmp/mutsu-first-boot /tmp/mutsu-first-boot.desktop
 
-### Mutsu Plymouth initramfs
-COPY packaging/rebuild-plymouth-initramfs.sh /tmp/mutsu-rebuild-initramfs.sh
-RUN bash /tmp/mutsu-rebuild-initramfs.sh && rm /tmp/mutsu-rebuild-initramfs.sh
+### Boot safety: retain upstream generic bootc initramfs
+# A container-build dracut -f can silently make a host-only image which
+# does not see the target VM disk or OSTree sysroot during first boot.
+# Keep the Bazzite initramfs intact until a VM boot test approves a
+# generic replacement. Mutsu Plymouth assets remain staged but are not
+# forcibly embedded in the initramfs in this alpha.
+COPY packaging/verify-upstream-initramfs.sh /tmp/mutsu-verify-upstream-initramfs.sh
+RUN bash /tmp/mutsu-verify-upstream-initramfs.sh && rm /tmp/mutsu-verify-upstream-initramfs.sh
 
 ### LINTING
 ## Verify final image and contents are correct.

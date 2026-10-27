@@ -57,6 +57,30 @@ Mutsu OS is a bootc image. Standard bootc / rpm-ostree patterns apply:
 
 Document any Mutsu-specific overrides here once verified. Fallback to a pure Bazzite rebase remains possible if the Mutsu layer is removed, but test this path before relying on it.
 
+## Early boot emergency shell (dracut)
+
+If the installed VM shows `Generating /run/initramfs/rdsosreport.txt`
+and drops to emergency mode, it failed **before** GNOME, Newelle,
+or keyboard shortcut services started. From the dracut prompt collect:
+
+```sh
+cat /proc/cmdline
+blkid
+tail -n 100 /run/initramfs/rdsosreport.txt
+```
+
+Check that the VirtualBox disk controller and virtual drive are connected.
+Compare the root UUID in the kernel command line to the output of `blkid`.
+Do not wipe a VM or manually edit its Btrfs subvolumes until the reason is
+known.
+
+An earlier Mutsu Containerfile ran plain `dracut -f` from inside the
+build container, risking a host-only initramfs which lacks a target
+machine's storage modules. The alpha now preserves the original Bazzite
+generic initramfs, with custom Mutsu Plymouth artwork staged for future
+boot-tested integration. This is a **candidate fix**, not proof that
+every dracut emergency mode is caused by the overwritten initramfs.
+
 ## Recovery
 
 - If GNOME fails to start because of the Adaptive Desktop extension, disable it from a TTY or recovery shell:
