@@ -57,14 +57,19 @@ class CleanInstallTests(TestCase):
         self.assertIn("Plymouth.SetDisplayQuestionFunction", script)
         self.assertIn('masked = masked + "*"', script)
 
-    def test_newelle_is_requested_on_installed_system_not_during_build(self):
+    def test_newelle_is_installed_once_at_real_first_boot(self):
         script = read("packaging/install-newelle.sh")
-        self.assertIn("/usr/share/flatpak/preinstall.d/90-mutsu-newelle.preinstall", script)
-        self.assertIn("[Flatpak Preinstall io.github.qwersyk.Newelle]", script)
-        self.assertIn("ExecStart=/usr/bin/flatpak preinstall --assumeyes", script)
+        self.assertIn("install-newelle-once", script)
+        self.assertIn("/var/lib/mutsu-os/newelle-preinstall-complete", script)
+        self.assertIn("flatpak remote-add --system --if-not-exists flathub", script)
+        self.assertIn("flatpak install --system --noninteractive --assumeyes", script)
+        self.assertIn("flatpak info --system", script)
         self.assertIn("systemctl enable mutsu-newelle-preinstall.service", script)
+        self.assertIn("After=network-online.target", script)
+        self.assertIn("ConditionPathExists=!/var/lib/mutsu-os/newelle-preinstall-complete", script)
         self.assertNotIn("--no-deploy", script)
-        self.assertNotIn("flatpak install --system", script)
+        self.assertNotIn("flatpak preinstall", script.split("cat > /usr/libexec/mutsu-os")[1])
+        self.assertNotIn("flatpak install --system", script.split("cat > /usr/libexec/mutsu-os")[0])
 
     def _load_first_boot(self):
         path = ROOT / "packaging/mutsu-first-boot"
