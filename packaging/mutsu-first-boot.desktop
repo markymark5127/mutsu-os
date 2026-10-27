@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Mutsu OS First Boot
-Comment=Apply Japandi theme, Mutsu logo, and wallpaper on first login
+Comment=Configure Japandi first-login wallpaper, Mutsu top bar and floating dock without resetting custom settings
 Exec=/usr/libexec/mutsu-os/mutsu-first-boot
 X-GNOME-Autostart-enabled=true
 X-GNOME-Autostart-Phase=Applications

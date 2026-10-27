@@ -1,6 +1,6 @@
 /*
  * Mutsu OS — Cyberpunk GNOME Shell prototype.
- * NOT automatically loaded. Must be loaded by a verified Shell extension.
+ * Loaded by the Mutsu appearance Shell extension after first login.
  * Restrained neon accents preserve legibility and GNOME input affordances.
  */
 #panel {
@@ -35,4 +35,13 @@
   background-color: #1D3553;
   color: #00E5FF;
   border-radius: 2px;
+}
+
+/* The same dock becomes deep navy when the Cyberpunk Shell palette is active. */
+#dashtodockContainer .dash-background,
+#dash .dash-background {
+  background-color: rgba(10, 20, 40, 0.94);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  border-radius: 7px;
+  box-shadow: 0 6px 22px rgba(0, 229, 255, 0.14);
 }

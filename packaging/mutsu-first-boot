@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Apply first-user Mutsu branding, Adaptive Desktop, and optional dock.
+"""Make Mutsu's Japandi desktop the first-login experience.
 
-Extension activation is additive. Failures never get marked as complete.
+Use one-time user-overridable GSettings defaults, not a reset on every login.
+GNOME/Shell configuration is additive: never replace enabled-extensions lists,
+force conflicting gesture handlers, or overwrite a chosen wallpaper.
 """
 from __future__ import annotations
 
@@ -10,13 +12,39 @@ from pathlib import Path
 import subprocess
 import sys
 
-MARKER = Path.home() / ".config" / "mutsu-os" / "first-boot-done"
+STATE = Path.home() / ".config" / "mutsu-os"
+# Versioned so existing installs with an old first-boot marker get Mutsu's
+# GNOME 50-capable look exactly once after upgrading.
+MARKER = STATE / "first-boot-japandi-v2"
+APPEARANCE_MARKER = STATE / "japandi-initial-defaults-v1"
 BRANDING = "mutsu-branding@mutsu-os"
 ADAPTIVE = "mutsu-adaptive@mutsu-os"
 DOCK = "dash-to-dock@micxgx.gmail.com"
 BRANDING_SCHEMA = "org.gnome.shell.extensions.mutsu-branding"
-ADAPTIVE_SCHEMA = "org.gnome.shell.extensions.mutsu-adaptive"
 DOCK_SCHEMA = "org.gnome.shell.extensions.dash-to-dock"
+WALLPAPER = "file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png"
+
+# name, key, GSettings setter, desired value. Only set if no user value exists.
+# Even Bazzite's stronger dconf system defaults cannot suppress these fresh
+# account defaults, while existing personal overrides remain untouched.
+INITIAL_DEFAULTS = (
+    ("org.gnome.desktop.background", "picture-uri", "set_string", WALLPAPER),
+    ("org.gnome.desktop.background", "picture-uri-dark", "set_string", WALLPAPER),
+    ("org.gnome.desktop.background", "picture-options", "set_string", "zoom"),
+    ("org.gnome.desktop.screensaver", "picture-uri", "set_string", WALLPAPER),
+    ("org.gnome.desktop.interface", "color-scheme", "set_string", "prefer-light"),
+    (DOCK_SCHEMA, "dock-position", "set_string", "BOTTOM"),
+    (DOCK_SCHEMA, "dock-fixed", "set_boolean", True),
+    (DOCK_SCHEMA, "extend-height", "set_boolean", False),
+    (DOCK_SCHEMA, "height-fraction", "set_double", 0.78),
+    (DOCK_SCHEMA, "dash-max-icon-size", "set_int", 44),
+    (DOCK_SCHEMA, "show-show-apps-button", "set_boolean", True),
+    (DOCK_SCHEMA, "show-apps-at-top", "set_boolean", False),
+    (DOCK_SCHEMA, "custom-background-color", "set_boolean", True),
+    (DOCK_SCHEMA, "background-color", "set_string", "#788773"),
+    (DOCK_SCHEMA, "background-opacity", "set_double", 0.78),
+    (DOCK_SCHEMA, "transparency-mode", "set_string", "FIXED"),
+)
 
 
 def run(*cmd: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -36,73 +64,112 @@ def settings_env(uuid: str) -> dict[str, str]:
     return env
 
 
+def _gio_settings(schema: str):
+    # Imported on demand so this source can be tested in a pure Python CI
+    # environment. The installed image already carries python3-gobject.
+    from gi.repository import Gio
+    if schema == DOCK_SCHEMA:
+        # Fedora may bundle extension schemas in the extension-local
+        # directory rather than the global GSettings search path.
+        for base in (
+            Path("/usr/share/gnome-shell/extensions"),
+            Path.home() / ".local/share/gnome-shell/extensions",
+        ):
+            schema_dir = base / DOCK / "schemas"
+            if not (schema_dir / "gschemas.compiled").is_file():
+                continue
+            source = Gio.SettingsSchemaSource.new_from_directory(
+                str(schema_dir), Gio.SettingsSchemaSource.get_default(), False
+            )
+            found = source.lookup(schema, True)
+            if found:
+                return Gio.Settings.new_full(found, None, None)
+    return Gio.Settings.new(schema)
+
+
+def apply_initial_japandi_defaults(factory=None) -> None:
+    if factory is None:
+        factory = _gio_settings
+    cache = {}
+    for schema, key, setter, value in INITIAL_DEFAULTS:
+        if schema not in cache:
+            try:
+                cache[schema] = factory(schema)
+            except Exception as exc:
+                if schema != DOCK_SCHEMA:
+                    raise
+                # A missing optional dock schema must never prevent Mutsu
+                # wallpaper and branding from loading for a new user.
+                print(f"Mutsu dock defaults unavailable: {exc}", file=sys.stderr)
+                cache[schema] = None
+        settings = cache[schema]
+        if settings is None:
+            continue
+        if key not in settings.list_keys():
+            # Fedora / extension schemas can evolve; avoid breaking login.
+            print(f"Mutsu appearance: unavailable key {schema}:{key}", file=sys.stderr)
+            continue
+        if settings.get_user_value(key) is not None:
+            # Respect an existing user preference, including a prior choice
+            # of cyberpunk wallpaper and light/dark mode.
+            continue
+        try:
+            written = getattr(settings, setter)(key, value)
+        except Exception as exc:
+            if schema != DOCK_SCHEMA:
+                raise
+            print(f"Mutsu dock setting unavailable {key}: {exc}", file=sys.stderr)
+            continue
+        if not written:
+            if schema != DOCK_SCHEMA:
+                raise RuntimeError(f"Could not apply Mutsu initial default {schema}:{key}")
+            print(f"Mutsu dock setting rejected: {key}", file=sys.stderr)
+
+
 def activate_branding() -> None:
-    result = run("gnome-extensions", "enable", BRANDING)
-    if result.returncode != 0:
-        raise RuntimeError(
-            "Mutsu branding extension couldn't be enabled: "
-            + (result.stderr.strip() or result.stdout.strip())
-        )
-    result = run(
-        "gsettings", "set", BRANDING_SCHEMA, "appearance", "japandi",
-        env=settings_env(BRANDING),
-    )
-    if result.returncode != 0:
-        raise RuntimeError("Could not select Japandi branding: " + result.stderr.strip())
-
-
-def configure_adaptive() -> None:
-    probe = run("gnome-extensions", "info", ADAPTIVE)
-    if probe.returncode != 0:
-        print("Mutsu Adaptive Desktop not installed", file=sys.stderr)
-        return
-    enabled = run("gnome-extensions", "enable", ADAPTIVE)
+    enabled = run("gnome-extensions", "enable", BRANDING)
     if enabled.returncode != 0:
-        print("Mutsu Adaptive Desktop could not be enabled", file=sys.stderr)
-        return
-    env = settings_env(ADAPTIVE)
-    settings = {
-        "mode": "automatic",
-        # Bottom-edge gesture interception is opt-in; preserve the safe default.
-        "open-home-on-tablet": "true",
-        "collapse-dock-in-tablet": "true",
-    }
-    for key, value in settings.items():
-        changed = run("gsettings", "set", ADAPTIVE_SCHEMA, key, value, env=env)
-        if changed.returncode != 0:
-            print(f"Mutsu Adaptive setting unavailable: {key}", file=sys.stderr)
+        raise RuntimeError(
+            "Mutsu branding extension could not be enabled: "
+            + (enabled.stderr.strip() or enabled.stdout.strip())
+        )
+    # The extension schema defaults to Japandi. Do NOT write that value to
+    # the user's settings here: it would reset an existing Cyberpunk choice.
 
 
 def configure_optional_dock() -> None:
-    probe = run("gnome-extensions", "info", DOCK)
-    if probe.returncode != 0:
+    # GNOME extension is included in the image. Only enable it; preferences
+    # come from ordinary defaults or first-login set-if-unset logic above.
+    result = run("gnome-extensions", "info", DOCK)
+    if result.returncode != 0:
+        print("Mutsu: Dash-to-Dock not detected; desktop remains usable", file=sys.stderr)
         return
     enabled = run("gnome-extensions", "enable", DOCK)
     if enabled.returncode != 0:
-        print("Mutsu dock unavailable; normal GNOME remains usable", file=sys.stderr)
-        return
-    env = settings_env(DOCK)
-    settings = {
-        "dock-position": "BOTTOM",
-        "dock-fixed": "true",
-        "show-apps-at-top": "false",
-        "show-show-apps-button": "true",
-    }
-    for key, value in settings.items():
-        changed = run("gsettings", "set", DOCK_SCHEMA, key, value, env=env)
-        if changed.returncode != 0:
-            print(f"Mutsu dock setting unavailable: {key}", file=sys.stderr)
+        print("Mutsu: Dock could not be enabled; desktop remains usable", file=sys.stderr)
 
 
 def main() -> int:
+    if not APPEARANCE_MARKER.exists():
+        try:
+            apply_initial_japandi_defaults()
+        except Exception as exc:
+            print(f"Mutsu Japandi defaults unavailable; will retry: {exc}", file=sys.stderr)
+            return 1
+        APPEARANCE_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        APPEARANCE_MARKER.write_text("done\n", encoding="utf-8")
+        os.chmod(APPEARANCE_MARKER, 0o600)
+
     if MARKER.exists():
         return 0
     try:
         activate_branding()
     except (OSError, RuntimeError) as exc:
-        print(f"Mutsu first boot not finished; will retry on next login: {exc}", file=sys.stderr)
+        print(f"Mutsu appearance extension unavailable; will retry: {exc}", file=sys.stderr)
         return 1
-    configure_adaptive()
+
+    # The experimental touch/gesture extension remains disabled by default.
+    # Enable it only when a user explicitly opts into tablet features.
     configure_optional_dock()
     MARKER.parent.mkdir(parents=True, exist_ok=True)
     MARKER.write_text("done\n", encoding="utf-8")

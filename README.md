@@ -13,7 +13,7 @@ This repository is the **bootc image build**. The related [ai-desktop](https://g
 - Based on `ghcr.io/ublue-os/bazzite-gnome:stable` with Bazzite/Steam hardware support intact; upstream technical distro IDs are preserved.
 - Mutsu OS identity in `os-release`, GNOME About icon, GDM greeter wordmark.
 - Original Mutsu two-wave SVGs and **both 3840×2160 wallpapers**, installed in standard shared paths.
-- GNOME defaults to the Calm Japandi wallpaper on **new users**; existing user wallpaper selections are left intact.
+- A new GNOME 50 user gets the **Japandi desktop**: 4K sage wallpaper, light appearance, sage Mutsu top-bar identity, and a compact bottom floating Dash-to-Dock. Desktop choices remain user-overridable and previous custom wallpapers/themes are not reset.
 - `/usr/bin/mutsu-search` — a system-installed, GNOME-integrated Mutsu Search launcher with real local app search, a bounded local file search, and an optional AI fallback.
 - An app-grid entry **Mutsu OS Search**, using the SVG icon.
 - A GNOME autostart entry launching the first-run setup wizard **once per user**, until setup is completed or skipped. It respects the `~/.config/ai-desktop/onboarding.json` setting.
@@ -52,6 +52,7 @@ Image source:
 - `packaging/90-mutsu-wallpaper.gschema.override` — initial GNOME background default, overridable by each user.
 - `packaging/20-mutsu-shortcut.dconf` — GNOME shortcut default for new users, overridable in Settings.
 - `packaging/30-mutsu-mac-defaults.dconf` — left window buttons and other Mac-familiar interface defaults.
+- `packaging/40-mutsu-japandi-defaults.dconf` and `packaging/mutsu-first-boot` — reversible default wallpaper, light GNOME colors, sage dock, and first-session Shell styling. The GNOME 50 Mutsu branding extension adds a top-bar menu; it can be disabled from GNOME Extensions.
 
 The GitHub Actions [image workflow](.github/workflows/build.yml) runs preflight checks and the pinned desktop's Python tests before building the OCI image. It also runs a headless app import/CLI smoke check inside the container; neither is a substitute for a real GNOME boot test. Container builds/publishing to GHCR are gated to trusted branch events. The preflight checks are in `tests/test_release_integration.py`.
 

@@ -42,6 +42,11 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/build.sh
 
 ### MUTSU OS DESKTOP
+# Fedora 44 ships a GNOME 50-compatible Dash-to-Dock RPM. Make the
+# Japandi floating dock part of the base image instead of optional.
+RUN dnf5 install -y gnome-shell-extension-dash-to-dock && \
+    test -s /usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/metadata.json
+
 # Pin and stage the ai-desktop source via packaging/prepare-desktop.sh first.
 # The source lives in the image itself; no per-user Git clone is required.
 COPY packaging/desktop-source.env /usr/share/mutsu-os/build-info/desktop-source.env
@@ -53,6 +58,7 @@ COPY packaging/mutsu-first-login.desktop /etc/xdg/autostart/mutsu-first-login.de
 COPY packaging/90-mutsu-wallpaper.gschema.override /usr/share/glib-2.0/schemas/90-mutsu-wallpaper.gschema.override
 COPY packaging/20-mutsu-shortcut.dconf /etc/dconf/db/mutsu.d/20-mutsu-shortcut
 COPY packaging/30-mutsu-mac-defaults.dconf /etc/dconf/db/mutsu.d/30-mutsu-mac-defaults
+COPY packaging/40-mutsu-japandi-defaults.dconf /etc/dconf/db/mutsu.d/40-mutsu-japandi-defaults
 COPY packaging/configure-shortcut-defaults.sh /tmp/mutsu-configure-shortcut-defaults.sh
 COPY vendor/ai-desktop/scripts/configure-newelle-key.sh /usr/share/mutsu-os/scripts/configure-newelle-key.sh
 COPY vendor/ai-desktop/scripts/install-newelle-service.sh /usr/share/mutsu-os/scripts/install-newelle-service.sh

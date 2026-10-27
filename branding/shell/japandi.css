@@ -1,6 +1,6 @@
 /*
  * Mutsu OS — Calm Japandi GNOME Shell prototype.
- * NOT automatically loaded. Must be loaded by a verified Shell extension.
+ * Loaded by the Mutsu appearance Shell extension after first login.
  * This targets only Shell chrome. It does not theme ordinary GTK4/libadwaita apps.
  * Appearance is intentionally readable with no dependencies on custom fonts.
  */
@@ -35,4 +35,19 @@
   background-color: #DBE7D7;
   color: #232823;
   border-radius: 7px;
+}
+
+/* Floating dock chrome, including the fallback GNOME overview dash.
+ * Targets Shell-only surfaces and leaves ordinary applications untouched. */
+#dashtodockContainer .dash-background,
+#dash .dash-background {
+  background-color: rgba(243, 239, 231, 0.91);
+  border: 1px solid rgba(81, 107, 92, 0.28);
+  border-radius: 21px;
+  box-shadow: 0 6px 22px rgba(35, 40, 35, 0.17);
+}
+#dashtodockContainer .app-well-app:focus,
+#dash .app-well-app:focus {
+  background-color: rgba(120, 135, 115, 0.2);
+  border-radius: 12px;
 }
