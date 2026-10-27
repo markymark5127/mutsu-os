@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="Mutsu Search">
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="#F3EFE7"/>
+  <circle cx="112" cy="112" r="46" stroke="#788773" stroke-width="14"/>
+  <path d="M146 146 L198 198" stroke="#788773" stroke-width="18" stroke-linecap="round"/>
+  <path d="M82 118 Q112 96 142 114 M82 132 Q112 110 142 128" stroke="#788773" stroke-width="6" stroke-linecap="round"/>
+</svg>
