@@ -49,13 +49,16 @@ class CleanInstallTests(TestCase):
             container.index("dnf5 install -y plymouth-plugin-script"),
             container.index("COPY packaging/install-branding.sh"),
         )
-        # Mutsu's newer Plymouth rebuild is generic, never host-only, and
-        # fails the image if the OSTree root-preparation hook is absent.
-        self.assertIn("packaging/rebuild-mutsu-initramfs.sh", container)
-        builder = read("packaging/rebuild-mutsu-initramfs.sh")
-        self.assertIn("dracut --force --no-hostonly", builder)
-        self.assertIn("'ostree-prepare-root'", builder)
-        self.assertIn("lsinitrd", builder)
+        # A generic dracut rebuild from the image-build container lost
+        # ostree-prepare-root in PR #52, even with --no-hostonly enabled.
+        # Preserve the known-OSTree-capable vendor initramfs as a release gate.
+        self.assertIn("packaging/verify-upstream-initramfs.sh", container)
+        self.assertNotIn("COPY packaging/rebuild-mutsu-initramfs.sh", container)
+        self.assertNotIn("RUN bash /tmp/mutsu-rebuild-initramfs.sh", container)
+        verifier = read("packaging/verify-upstream-initramfs.sh")
+        self.assertIn("ostree-prepare-root", verifier)
+        self.assertIn("lsinitrd", verifier)
+        self.assertIn('[[ -s "$img" ]]', verifier)
         self.assertNotIn("DRACUT_NO_XATTR=1 dracut -f", container)
         self.assertNotIn("plymouth-set-default-theme -R", read("packaging/install-branding.sh"))
         script = read("branding/plymouth/mutsu.script")
