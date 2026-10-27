@@ -10,7 +10,8 @@ import Clutter from 'gi://Clutter';
 
 // Installed and enabled by default for new Mutsu OS users.
 // Manual desktop/tablet modes are available even without a hinge switch.
-// Automatic posture detection is not yet proven on GNOME 50 hardware.
+// Automatic posture uses the GNOME backend signal when present, plus a
+// sysfs poll of common convertible tablet-mode paths.
 // Experimental bottom-edge interception remains disabled by default.
 // Recovery: gnome-extensions disable mutsu-adaptive@mutsu-os
 
