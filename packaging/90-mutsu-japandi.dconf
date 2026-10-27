@@ -1,0 +1,24 @@
+# System defaults for Mutsu OS. This file sorts after Bazzite's 06-bazzite-theme,
+# so Japandi wins on a fresh install. Nothing here is locked.
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+picture-uri-dark='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+picture-options='zoom'
+primary-color='#f3efe7'
+secondary-color='#788773'
+color-shading-type='solid'
+
+[org/gnome/desktop/screensaver]
+picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+picture-options='zoom'
+primary-color='#f3efe7'
+secondary-color='#516b5c'
+color-shading-type='solid'
+
+[org/gnome/desktop/interface]
+color-scheme='prefer-light'
+clock-format='12h'
+enable-hot-corners=false
+
+[org/gnome/desktop/wm/preferences]
+button-layout='close,minimize,maximize:'
