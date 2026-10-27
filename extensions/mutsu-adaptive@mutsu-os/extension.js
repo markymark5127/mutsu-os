@@ -16,6 +16,7 @@ import Clutter from 'gi://Clutter';
 
 const BOTTOM_EDGE_HEIGHT = 24;
 const DEBOUNCE_MS = 400;
+const PULL_TRIGGER_PX = 70;
 
 export default class MutsuAdaptiveExtension extends Extension {
     enable() {
@@ -23,10 +24,14 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._inTablet = false;
         this._maximizeHandlerId = 0;
         this._gestureActors = [];
+        this._pullActor = null;
+        this._overviewShowingId = 0;
+        this._hiddenChrome = [];
         this._debounceSource = 0;
         this._pendingTablet = null;
         this._saved = {};
         this._postureSignalId = 0;
+        this._searchBusy = false;
 
         this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
         const icon = new St.Icon({
@@ -147,8 +152,10 @@ export default class MutsuAdaptiveExtension extends Extension {
             }
         }
 
+        this._applyTabletHome();
         this._applyTouchVisuals();
         this._installMaximizeOnLaunch();
+        this._installPullSearch();
         if (this._settings.get_boolean('enable-experimental-gestures'))
             this._installBottomGesture();
         this._syncQsToggle();
@@ -162,6 +169,8 @@ export default class MutsuAdaptiveExtension extends Extension {
 
         this._removeMaximizeOnLaunch();
         this._removeBottomGesture();
+        this._removePullSearch();
+        this._restoreTabletHome();
         this._restoreReversibleState();
 
         try {
@@ -169,6 +178,148 @@ export default class MutsuAdaptiveExtension extends Extension {
         } catch (e) {}
         this._syncQsToggle();
         log('Mutsu Adaptive: left tablet mode');
+    }
+
+    _overviewActor() {
+        return Main.overview?._overview ?? null;
+    }
+
+    _controls() {
+        return this._overviewActor()?._controls ?? null;
+    }
+
+    _applyTabletHome() {
+        const overview = this._overviewActor();
+        overview?.add_style_class_name('mutsu-tablet-home');
+        this._hideChrome();
+        if (!this._overviewShowingId) {
+            this._overviewShowingId = Main.overview.connect('showing', () => {
+                if (this._inTablet)
+                    this._hideChrome();
+            });
+        }
+    }
+
+    _restoreTabletHome() {
+        if (this._overviewShowingId) {
+            try {
+                Main.overview.disconnect(this._overviewShowingId);
+            } catch (e) {}
+            this._overviewShowingId = 0;
+        }
+        this._overviewActor()?.remove_style_class_name('mutsu-tablet-home');
+        for (const entry of this._hiddenChrome) {
+            try {
+                entry.actor.visible = entry.visible;
+                entry.actor.opacity = entry.opacity;
+            } catch (e) {}
+        }
+        this._hiddenChrome = [];
+    }
+
+    _hideChrome() {
+        const controls = this._controls();
+        if (!controls)
+            return;
+        const actors = [
+            controls._searchEntry,
+            controls._searchEntryBin,
+            controls._thumbnailsBox,
+        ].filter(Boolean);
+        for (const actor of actors) {
+            if (!this._hiddenChrome.some(entry => entry.actor === actor)) {
+                this._hiddenChrome.push({
+                    actor,
+                    visible: actor.visible,
+                    opacity: actor.opacity,
+                });
+            }
+            actor.opacity = 0;
+            actor.visible = false;
+        }
+    }
+
+    _installPullSearch() {
+        if (this._pullActor)
+            return;
+        try {
+            const width = Math.round(global.stage.width * 0.5);
+            const height = Math.round(global.stage.height * 0.28);
+            const actor = new St.Widget({
+                reactive: true,
+                can_focus: false,
+                track_hover: false,
+                style: 'background-color: transparent;',
+            });
+            actor.set_size(width, height);
+            actor.set_position(
+                Math.round((global.stage.width - width) / 2),
+                Math.round(global.stage.height * 0.18),
+            );
+            Main.layoutManager.uiGroup.add_child(actor);
+            this._pullActor = actor;
+
+            let startY = 0;
+            actor.connect('button-press-event', (_a, event) => {
+                if (!this._inTablet || !Main.overview.visible)
+                    return Clutter.EVENT_PROPAGATE;
+                const [, y] = event.get_coords();
+                startY = y;
+                return Clutter.EVENT_PROPAGATE;
+            });
+            actor.connect('motion-event', (_a, event) => {
+                if (!startY || !this._inTablet || !Main.overview.visible)
+                    return Clutter.EVENT_PROPAGATE;
+                const [, y] = event.get_coords();
+                if (y - startY > PULL_TRIGGER_PX) {
+                    startY = 0;
+                    this._openSpotlight();
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+            actor.connect('button-release-event', () => {
+                startY = 0;
+                return Clutter.EVENT_PROPAGATE;
+            });
+        } catch (e) {
+            log(`Mutsu Adaptive: pull search unavailable (${e})`);
+        }
+    }
+
+    _removePullSearch() {
+        if (!this._pullActor)
+            return;
+        try {
+            this._pullActor.destroy();
+        } catch (e) {}
+        this._pullActor = null;
+    }
+
+    _openSpotlight() {
+        if (this._searchBusy)
+            return;
+        this._searchBusy = true;
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 800, () => {
+            this._searchBusy = false;
+            return GLib.SOURCE_REMOVE;
+        });
+        try {
+            Gio.Subprocess.new(
+                ['/usr/bin/mutsu-search'],
+                Gio.SubprocessFlags.NONE,
+            );
+        } catch (e) {
+            log(`Mutsu Adaptive: mutsu-search failed (${e})`);
+        }
+        try {
+            const keyboard = Main.keyboard;
+            if (keyboard?.open)
+                keyboard.open(Main.layoutManager.primaryIndex);
+            else if (keyboard?.show)
+                keyboard.show(Main.layoutManager.primaryIndex);
+        } catch (e) {
+            log(`Mutsu Adaptive: on-screen keyboard unavailable (${e})`);
+        }
     }
 
     _saveReversibleState() {
@@ -227,8 +378,6 @@ export default class MutsuAdaptiveExtension extends Extension {
     }
 
     _startPostureWatcher() {
-        // Attempt to listen for a tablet-mode signal if Mutter exposes one.
-        // Common names vary by version; try a few and fall back silently.
         const candidates = ['tablet-mode', 'tablet-mode-switch', 'notify::tablet-mode'];
         for (const sig of candidates) {
             try {
@@ -241,9 +390,7 @@ export default class MutsuAdaptiveExtension extends Extension {
                     log(`Mutsu Adaptive: connected posture signal '${sig}'`);
                     return;
                 }
-            } catch (e) {
-                // try next
-            }
+            } catch (e) {}
         }
         log('Mutsu Adaptive: no tablet-mode signal found; Automatic stays manual until hardware exposes SW_TABLET_MODE');
     }

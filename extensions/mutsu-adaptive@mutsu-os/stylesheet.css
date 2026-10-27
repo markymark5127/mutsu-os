@@ -1,0 +1,14 @@
+/* Applied only when the adaptive extension adds .mutsu-tablet-home.
+ * Desktop overview is untouched. */
+.mutsu-tablet-home .search-entry,
+.mutsu-tablet-home .search-entry-bin {
+  opacity: 0;
+  height: 0;
+  min-height: 0;
+}
+
+.mutsu-tablet-home .workspace-thumbnails {
+  opacity: 0;
+  height: 0;
+  min-height: 0;
+}
