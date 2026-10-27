@@ -1,12 +1,13 @@
 {
   "uuid": "mutsu-branding@mutsu-os",
-  "name": "Mutsu OS Appearance (Experimental)",
-  "description": "Opt-in Mutsu top-panel symbol and reversible Japandi/Cyberpunk GNOME Shell styling. Disabled by default until GNOME compatibility testing.",
+  "name": "Mutsu OS Appearance",
+  "description": "Reversible Mutsu top bar and Japandi/Cyberpunk GNOME Shell styling. Japandi is the default.",
   "shell-version": [
     "46",
     "47",
     "48",
-    "49"
+    "49",
+    "50"
   ],
   "settings-schema": "org.gnome.shell.extensions.mutsu-branding",
   "url": "https://github.com/markymark5127/mutsu-os"
