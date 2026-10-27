@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="Mutsu Settings">
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="#F3EFE7"/>
+  <circle cx="128" cy="128" r="72" stroke="#788773" stroke-width="8"/>
+  <path d="M72 116 H184" stroke="#788773" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="108" cy="116" r="12" fill="#788773"/>
+  <path d="M72 148 H184" stroke="#788773" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="156" cy="148" r="12" fill="#788773"/>
+</svg>
