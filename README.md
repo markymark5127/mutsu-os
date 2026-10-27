@@ -22,7 +22,7 @@ This repository is the **bootc image build**. The related [ai-desktop](https://g
 - The Mutsu AI result displays the installed emblem if no separate AI SVG exists. The assistant is opt-in and off by default for model requests.
 - Optional Newelle user-service and key-configuration scripts are installed in `/usr/share/mutsu-os/scripts`.
 
-**Alpha status:** Mutsu logo, wallpaper, top-bar extension source, branded Anaconda ISO and Plymouth script theme are packaged. The image configures the script plugin and initramfs during its build. Newelle is requested through a network-dependent Flatpak **first-boot preinstall** (the AI model, account and credentials are intentionally not bundled). System-wide GTK/Qt appearance, native GNOME Spotlight, a custom icon pack, dock/overview polish and automatic tablet posture are not finished. **Bootable-media and fresh-install tests remain outstanding**; see [clean-install QA](docs/INITIAL_INSTALL_QA.md). These are separate milestones.
+**Alpha status:** Mutsu logo, wallpaper, top-bar extension source, branded Anaconda ISO and Plymouth script theme are packaged. The image configures the script plugin and initramfs during its build. Newelle is installed through a network-dependent, **one-time first-boot** Flatpak service (retry on a later boot if offline, and no forced reinstallation after user removal) (the AI model, account and credentials are intentionally not bundled). System-wide GTK/Qt appearance, native GNOME Spotlight, a custom icon pack, dock/overview polish and automatic tablet posture are not finished. **Bootable-media and fresh-install tests remain outstanding**; see [clean-install QA](docs/INITIAL_INSTALL_QA.md). These are separate milestones.
 
 ## Adaptive Desktop (planned)
 
@@ -71,7 +71,7 @@ command -v mutsu-search
 mutsu-search --search files
 ```
 
-Log into GNOME as a new user: the first-run wizard should appear once. Closing or completing the wizard should not lose the user's app preferences. Use **Show Applications → Mutsu OS Search** to open Spotlight. The appearance selector switches wallpaper; System can restore a previously set user wallpaper. Newelle must be installed/configured separately before its inference backend can answer.
+Log into GNOME as a new user: the first-run wizard should appear once. Closing or completing the wizard should not lose the user's app preferences. Use **Show Applications → Mutsu OS Search** to open Spotlight. The appearance selector switches wallpaper; System can restore a previously set user wallpaper. Newelle should be installed system-wide once the first online boot completes, but a model/provider and private credentials must still be configured before the inference backend can answer.
 
 ### Newelle (opt-in)
 
