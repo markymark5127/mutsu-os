@@ -51,8 +51,8 @@ hide_app() {
   name="$(basename "$src")"
   [[ -f "$src" ]] || return 0
   # Prefer an override in /usr/local or /etc so a later package update can be overridden.
-  local dest="/etc/xdg/applications/$name"
-  install -d -m 0755 /etc/xdg/applications
+  local dest="/usr/local/share/applications/$name"
+  install -d -m 0755 /usr/local/share/applications
   {
     cat "$src"
     printf '\nNoDisplay=true\nHidden=true\n'

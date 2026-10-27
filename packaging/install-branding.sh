@@ -252,3 +252,9 @@ else
 fi
 
 printf 'Mutsu OS image branding installed: GNOME logo, OS display name, login logo, wallpapers, Anaconda sidebar, and Plymouth theme.\n'
+
+# Local beginner guide so Documentation works offline.
+if [[ -s "$brand/docs/BEGINNER.md" ]]; then
+  install -Dm0644 "$brand/docs/BEGINNER.md" /usr/share/mutsu-os/docs/BEGINNER.md
+fi
+

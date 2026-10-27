@@ -24,7 +24,6 @@ if [[ ! -f "$unit" ]]; then
   echo >&2 "keyd unit not found at $unit"
   exit 1
 fi
-install -d -m 0755 /etc/systemd/system/multi-user.target.wants
-ln -sfn "$unit" /etc/systemd/system/multi-user.target.wants/keyd.service
-
-printf 'Mutsu Mac shortcuts installed from keyd %s. Super+C copy, Super+V paste.\n' "$KEYD_VERSION"
+# Installed but not enabled. The setup wizard applies the user's choice.
+# Default is a Windows keyboard; Mac shortcut mapping is opt-in.
+printf 'keyd %s installed but not enabled. Setup wizard chooses the profile.\n' "$KEYD_VERSION"

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="Mutsu Mechanic">
+  <circle cx="128" cy="128" r="96" fill="#F3EFE7" stroke="#788773" stroke-width="12"/>
+  <path d="M96 168 L140 124" stroke="#788773" stroke-width="16" stroke-linecap="round"/>
+  <path d="M148 92 L176 64 L192 80 L164 108" stroke="#788773" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="156" cy="116" r="10" fill="#788773"/>
+</svg>

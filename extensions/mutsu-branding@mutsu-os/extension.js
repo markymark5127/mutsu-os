@@ -236,7 +236,7 @@ export default class MutsuBrandingExtension extends Extension {
             const dir = Gio.File.new_for_path(`${home}/.config/ai-desktop`);
             dir.make_directory_with_parents(null);
             const f = Gio.File.new_for_path(`${home}/.config/ai-desktop/appearance.json`);
-            const body = JSON.stringify({ appearance: mode }) + '\n';
+            const body = JSON.stringify({ appearance: mode, theme: mode }) + '\n';
             f.replace_contents(body, null, false, Gio.FileCreateFlags.NONE, null);
         } catch (e) {}
     }
