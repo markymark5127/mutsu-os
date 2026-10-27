@@ -42,3 +42,33 @@ for unit in bazzite-yafti-launcher.service yafti.service; do
 done
 
 printf 'Bazzite Portal disabled. Mutsu welcome remains the first-boot wizard.\n'
+
+# Hide Bazzite-branded apps from the app grid (portal, updater, etc.).
+# Keep the binaries; just stop them appearing as Bazzite-named launchers.
+hide_app() {
+  local src="$1"
+  local name
+  name="$(basename "$src")"
+  [[ -f "$src" ]] || return 0
+  # Prefer an override in /usr/local or /etc so a later package update can be overridden.
+  local dest="/etc/xdg/applications/$name"
+  install -d -m 0755 /etc/xdg/applications
+  {
+    cat "$src"
+    printf '\nNoDisplay=true\nHidden=true\n'
+  } > "$dest"
+  echo "NoDisplay override for: $name"
+}
+
+for f in \
+  /usr/share/applications/*bazzite* \
+  /usr/share/applications/*yafti* \
+  /usr/share/applications/system-update.desktop \
+  /usr/share/applications/*updater*.desktop
+do
+  case "$f" in
+    *mutsu*) continue ;;
+  esac
+  [[ -f "$f" ]] || continue
+  hide_app "$f"
+done

@@ -32,6 +32,12 @@ BACKGROUND = DESKTOP_ROOT / "usr/share/backgrounds/mutsu/mutsu-japandi-4k.png"
 # Exclude conflicting dock implementations only: GNOME can't render both
 # Dash-to-Panel and Dash-to-Dock as the same coherent dock at once.
 CONFLICTING_DOCKS = {"dash-to-panel@jderose9.github.com"}
+# Bazzite Logo Menu puts a second logo next to Mutsu branding. Disable it.
+# Mutsu branding owns the top-left logo and (with a global menu) the File/Edit bar.
+EXCLUDED_EXTENSIONS = CONFLICTING_DOCKS | {
+    "logomenu@aryan_k",
+    "logo-menu@aryan_k",
+}
 
 
 def parse_array(value: str) -> list[str]:
@@ -82,7 +88,7 @@ def vendor_dconf_extensions(root: Path = DCONF_DIR) -> list[str]:
 def merged_extensions(vendor: list[str], schema: list[str]) -> list[str]:
     ordered: list[str] = []
     for name in [*vendor, *schema, *MUTSU_EXTENSIONS]:
-        if name not in ordered and name not in CONFLICTING_DOCKS:
+        if name not in ordered and name not in EXCLUDED_EXTENSIONS:
             ordered.append(name)
     return ordered
 

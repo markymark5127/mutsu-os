@@ -221,10 +221,21 @@ export default class MutsuAdaptiveExtension extends Extension {
         const controls = this._controls();
         if (!controls)
             return;
+        // Force apps view so the window overview ("desktop thingy") is not shown
+        // above the app grid in tablet mode.
+        try {
+            if (controls._appDisplay && typeof controls._appDisplay.show === 'function')
+                controls._appDisplay.show();
+            if (typeof controls.showApps === 'function')
+                controls.showApps();
+        } catch (e) {}
         const actors = [
             controls._searchEntry,
             controls._searchEntryBin,
             controls._thumbnailsBox,
+            controls._thumbnailsSlider,
+            controls._workspacesDisplay,
+            controls._windowPreview,
         ].filter(Boolean);
         for (const actor of actors) {
             if (!this._hiddenChrome.some(entry => entry.actor === actor)) {
@@ -257,6 +268,11 @@ export default class MutsuAdaptiveExtension extends Extension {
                 Math.round(global.stage.height * 0.18),
             );
             Main.layoutManager.uiGroup.add_child(actor);
+            // Keep the pull surface above the overview so the gesture works
+            // while the app grid is visible.
+            try {
+                Main.layoutManager.uiGroup.set_child_above_sibling(actor, null);
+            } catch (e) {}
             this._pullActor = actor;
 
             let startY = 0;
@@ -308,6 +324,24 @@ export default class MutsuAdaptiveExtension extends Extension {
                 ['/usr/bin/mutsu-search'],
                 Gio.SubprocessFlags.NONE,
             );
+            // Give the search window a moment, then raise it over the overview.
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
+                try {
+                    const wins = global.get_window_actors?.() ?? [];
+                    for (const a of wins) {
+                        const meta = a.meta_window;
+                        if (!meta)
+                            continue;
+                        const title = (meta.get_title?.() || '').toLowerCase();
+                        const wm = (meta.get_wm_class?.() || '').toLowerCase();
+                        if (title.includes('mutsu') || wm.includes('mutsu') || title.includes('search')) {
+                            meta.activate(global.get_current_time());
+                            meta.make_above?.();
+                        }
+                    }
+                } catch (e) {}
+                return GLib.SOURCE_REMOVE;
+            });
         } catch (e) {
             log(`Mutsu Adaptive: mutsu-search failed (${e})`);
         }
