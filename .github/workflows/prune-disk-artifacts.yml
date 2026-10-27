@@ -1,0 +1,45 @@
+name: Prune superseded Mutsu disk images
+
+# Run every four hours so obsolete ISOs/QCOW2s disappear roughly one day
+# after upload. Unlike setting retention-days: 1, this protects the latest.
+on:
+  schedule:
+    - cron: '17 */4 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview without deleting disk-image artifacts'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: prune-mutsu-disk-artifacts
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    name: Keep latest ISO/QCOW2, prune previous builds
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out cleanup script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Test retention safety rules
+        run: python3 -m unittest discover -s tests -p 'test_prune_disk_artifacts.py' -v
+
+      - name: Remove superseded artifacts older than 24 hours
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          if [[ "$DRY_RUN" == "true" ]]; then
+            python3 scripts/prune_disk_artifacts.py --dry-run
+          else
+            python3 scripts/prune_disk_artifacts.py
+          fi
