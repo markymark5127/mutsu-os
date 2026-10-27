@@ -19,7 +19,11 @@ import subprocess
 
 BRANDING = "mutsu-branding@mutsu-os"
 DOCK = "dash-to-dock@micxgx.gmail.com"
-MUTSU_EXTENSIONS = (BRANDING, DOCK)
+ADAPTIVE = "mutsu-adaptive@mutsu-os"
+# Adaptive Desktop loads on first GNOME login as a core Mutsu feature.
+# Automatic posture still requires real-hardware qualification; experimental
+# bottom-edge interception stays off until touch QA passes.
+MUTSU_EXTENSIONS = (BRANDING, DOCK, ADAPTIVE)
 DESKTOP_ROOT = Path(os.environ.get("MUTSU_DESKTOP_ROOT", "/"))
 DCONF_DIR = DESKTOP_ROOT / "etc/dconf/db"
 MUTSU_DEFAULTS = DCONF_DIR / "mutsu.d/10-mutsu-shell"

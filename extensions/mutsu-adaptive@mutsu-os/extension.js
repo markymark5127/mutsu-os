@@ -8,10 +8,10 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Clutter from 'gi://Clutter';
 
-// EXPERIMENTAL — disabled by default in the Mutsu OS image.
-// Automatic posture detection attempts to listen for tablet-mode signals
-// when available; falls back to manual modes if the signal is absent.
-// Bottom-edge gestures are off unless the experimental setting is enabled.
+// Installed and enabled by default for new Mutsu OS users.
+// Manual desktop/tablet modes are available even without a hinge switch.
+// Automatic posture detection is not yet proven on GNOME 50 hardware.
+// Experimental bottom-edge interception remains disabled by default.
 // Recovery: gnome-extensions disable mutsu-adaptive@mutsu-os
 
 const BOTTOM_EDGE_HEIGHT = 24;
@@ -103,7 +103,11 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._requestTablet(true);
         else if (mode === 'always-desktop')
             this._requestTablet(false);
-        // automatic: posture watcher decides when a signal is available
+        else if (mode === 'automatic') {
+            // Do not leave an old forced-tablet state stuck on an ordinary laptop.
+            // Enter tablet mode only after a positive hardware indication.
+            this._requestTablet(false);
+        }
         this._syncQsToggle();
     }
 
