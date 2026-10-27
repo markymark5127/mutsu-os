@@ -11,9 +11,9 @@
 
 .logo {
     background-image: url('/usr/share/anaconda/pixmaps/sidebar-logo.png');
-    background-position: 50% 48px;
+    background-position: 50% 36px;
     background-repeat: no-repeat;
-    background-size: 220px auto;
+    background-size: 150px auto;
     background-color: transparent;
 }
 

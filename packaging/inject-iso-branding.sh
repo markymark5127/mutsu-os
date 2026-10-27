@@ -24,9 +24,33 @@ trap 'rm -rf "$work"; rm -f "$branded"' EXIT
 
 stage="$work/product"
 mkdir -p "$stage/usr/share/anaconda/pixmaps" "$stage/usr/share/anaconda"
-cp "$brand/sidebar-bg.png" "$brand/sidebar-logo.png" "$brand/topbar-bg.png" \
+cp "$brand/sidebar-bg.png" "$brand/topbar-bg.png" \
   "$stage/usr/share/anaconda/pixmaps/"
-# Product styling lives in the live installer, not the target bootc image.
+
+# Anaconda draws sidebar-logo.png at its native size and ignores CSS
+# background-size. The source file is 480px wide; the sidebar is about 200px,
+# so the wordmark overflows. Shrink it before packing product.img.
+logo="$stage/usr/share/anaconda/pixmaps/sidebar-logo.png"
+if command -v convert >/dev/null; then
+  convert "$brand/sidebar-logo.png" -resize 150x \
+    -background none -gravity center -extent 180x48 "$logo"
+elif python3 -c 'from PIL import Image' >/dev/null 2>&1; then
+  python3 - "$brand/sidebar-logo.png" "$logo" <<'PY'
+import sys
+from PIL import Image
+src, dest = sys.argv[1], sys.argv[2]
+im = Image.open(src).convert("RGBA")
+im.thumbnail((150, 48), Image.Resampling.LANCZOS)
+canvas = Image.new("RGBA", (180, 48), (0, 0, 0, 0))
+canvas.paste(im, ((180 - im.width) // 2, (48 - im.height) // 2), im)
+canvas.save(dest, "PNG")
+PY
+else
+  echo >&2 "Need ImageMagick or Pillow to shrink the installer wordmark"
+  exit 1
+fi
+test -s "$logo"
+
 cp "$brand/mutsu.css" "$stage/usr/share/anaconda/anaconda-gtk.css"
 (
   cd "$stage"

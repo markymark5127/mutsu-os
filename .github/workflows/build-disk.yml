@@ -115,7 +115,7 @@ jobs:
         run: |
           set -euxo pipefail
           sudo apt update -y
-          sudo apt install -y podman skopeo xorriso cpio gzip
+          sudo apt install -y podman skopeo xorriso cpio gzip imagemagick
 
       - name: Maximize build space
         if: inputs.platform != 'arm64'
