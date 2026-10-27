@@ -94,7 +94,7 @@ if ollama.returncode == 0:
         set_json("llm-settings", llm)
         gsettings(["set", schema, "language-model", "ollama"])
 
-# model_sharing is a user choice; do not force it.\nPY
+# model_sharing is a user choice; do not force it.
 
 unit_dir="$config_root/systemd/user"
 mkdir -p "$unit_dir"
