@@ -55,6 +55,10 @@ class CleanInstallTests(TestCase):
         verifier = read("packaging/verify-upstream-initramfs.sh")
         self.assertIn("/usr/lib/modules/$kernel/initramfs.img", verifier)
         self.assertIn('[[ -s "$img" ]]', verifier)
+        self.assertIn('lsinitrd "$img" | grep -E', verifier)
+        self.assertIn("'ostree-prepare-root'", verifier)
+        self.assertNotIn("dracut -f", verifier)
+
         self.assertNotIn("DRACUT_NO_XATTR=1 dracut -f", container)
         self.assertNotIn("DRACUT_NO_XATTR=1 dracut -f", verifier)
         self.assertNotIn("plymouth-set-default-theme -R", read("packaging/install-branding.sh"))
