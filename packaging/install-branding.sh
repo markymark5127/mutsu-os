@@ -137,6 +137,11 @@ if [[ -d "$installer" ]]; then
   if [[ -s /usr/share/anaconda/pixmaps/mutsu.css ]]; then
     ln -sf mutsu.css /usr/share/anaconda/pixmaps/mutsu-product.css || true
   fi
+  # Stage .buildstamp so Anaconda product name can be "Mutsu OS" without
+  # relying on blanking VERSION_ID (which breaks bootc-image-builder).
+  if [[ -s "$installer/.buildstamp" ]]; then
+    install -Dm0644 "$installer/.buildstamp" /usr/share/anaconda/.buildstamp
+  fi
 else
   echo >&2 "WARNING: branding/installer/ not present; Anaconda will keep upstream sidebar."
 fi
@@ -162,17 +167,20 @@ if release:
     var.parent.mkdir(parents=True, exist_ok=True)
     var.write_text(release + "\n", encoding="utf-8")
 
-# Anaconda titles itself as NAME + VERSION_ID. Blank the human version
-# fields so the installer says Mutsu OS, not Mutsu OS 44.
+# Anaconda titles itself as NAME + VERSION_ID. Keep VERSION_ID numeric
+# (required by bootc-image-builder to parse the distro name). Blank only
+# the human-readable VERSION string. The installer product name is
+# controlled separately via product.img / .buildstamp.
 patch = {
     "NAME": '"Mutsu OS"',
     "PRETTY_NAME": '"Mutsu OS"',
     "VERSION": '""',
-    "VERSION_ID": '""',
     "VARIANT": '""',
     "VARIANT_ID": '""',
     "LOGO": "mutsu-os-logo",
 }
+# Preserve the original VERSION_ID so the image builder can parse
+# "{ID}-{VERSION_ID}" (e.g. bazzite-44). Do not blank it.
 seen = set()
 output = []
 for line in lines:
