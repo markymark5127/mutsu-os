@@ -124,12 +124,8 @@ def activate_branding() -> None:
             "Mutsu branding extension could not be enabled: "
             + (enabled.stderr.strip() or enabled.stdout.strip())
         )
-    selected = run(
-        "gsettings", "set", BRANDING_SCHEMA, "appearance", "japandi",
-        env=settings_env(BRANDING),
-    )
-    if selected.returncode != 0:
-        raise RuntimeError("Could not select Mutsu Japandi Shell palette: " + selected.stderr.strip())
+    # The extension schema defaults to Japandi. Do NOT write that value to
+    # the user's settings here: it would reset an existing Cyberpunk choice.
 
 
 def configure_optional_dock() -> None:
