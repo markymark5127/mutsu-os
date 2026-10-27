@@ -1,0 +1,35 @@
+/* Solid Japandi skin for the Mutsu Portal window.
+ * Applied only when launching Mutsu Portal, not system-wide. */
+window, .background {
+  background-color: #F3EFE7;
+  color: #232823;
+}
+headerbar, .titlebar {
+  background-color: #F3EFE7;
+  color: #232823;
+  border-bottom: 1px solid #D6DCCF;
+}
+.sidebar, .navigation-sidebar {
+  background-color: #E7EDE4;
+  color: #232823;
+}
+list, listview, .view {
+  background-color: #FFFCF6;
+  color: #232823;
+}
+list row:selected, listview row:selected {
+  background-color: #DBE7D7;
+  color: #232823;
+}
+button.suggested-action, button.default {
+  background-color: #788773;
+  color: #FFFCF6;
+  border-radius: 10px;
+}
+button {
+  border-radius: 10px;
+  border: 1px solid #D6DCCF;
+}
+label.dim-label, .subtitle {
+  color: #5F6D5B;
+}
