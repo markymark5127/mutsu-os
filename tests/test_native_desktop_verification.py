@@ -34,6 +34,19 @@ class NativeDesktopVerificationTests(unittest.TestCase):
         wallpaper = root / checker.REQUIRED_WALLPAPER.removeprefix("file:///")
         wallpaper.parent.mkdir(parents=True)
         wallpaper.write_bytes(b"dummy wallpaper")
+        (root / "etc/dconf/profile/gdm").write_text(
+            "user-db:user\nsystem-db:gdm\n")
+        gdm = dbdir / "gdm.d"
+        gdm.mkdir()
+        (gdm / "90-mutsu-logo").write_text(
+            "[org/gnome/login-screen]\n"
+            "logo='/usr/share/pixmaps/mutsu/mutsu-login-wordmark.png'\n"
+            "[org/gnome/desktop/background]\n"
+            "picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'\n"
+        )
+        logo = root / "usr/share/pixmaps/mutsu/mutsu-login-wordmark.png"
+        logo.parent.mkdir(parents=True)
+        logo.write_bytes(b"dummy logo")
         for uuid in checker.REQUIRED_EXTENSIONS:
             ext = root / "usr/share/gnome-shell/extensions" / uuid
             ext.mkdir(parents=True)
