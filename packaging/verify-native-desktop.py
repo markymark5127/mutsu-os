@@ -20,6 +20,7 @@ REQUIRED_EXTENSIONS = (
     "mutsu-adaptive@mutsu-os",
     "globalmenu@ShiroOSL.github.io",
     "kiwi@kemma",
+    "touchshell@touchshell.com",
 )
 REQUIRED_WALLPAPER = "file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png"
 

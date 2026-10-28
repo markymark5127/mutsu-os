@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="touchshell">
+
+  <enum id="org.gnome.shell.extensions.touchshell.activation">
+    <value nick="off" value="0"/>
+    <value nick="auto" value="1"/>
+    <value nick="always" value="2"/>
+  </enum>
+
+  <schema id="org.gnome.shell.extensions.touchshell"
+          path="/org/gnome/shell/extensions/touchshell/">
+
+    <key name="top-right-swipe-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'always'</default>
+      <summary>When to enable the top-right swipe gesture</summary>
+      <description>
+        Controls whether the top-right swipe → Quick Settings gesture is
+        active. "off" disables it entirely. "auto" enables it only when
+        the system reports tablet mode (e.g. a convertible folded into
+        tablet posture). "always" enables it regardless of mode.
+      </description>
+    </key>
+
+    <key name="top-right-zone-width-percent" type="i">
+      <default>33</default>
+      <range min="5" max="50"/>
+      <summary>Top-right trigger zone width</summary>
+      <description>
+        Percentage of screen width, measured from the right edge, that counts
+        as the trigger zone for the top-right swipe gesture.
+      </description>
+    </key>
+
+    <key name="panel-auto-hide-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'auto'</default>
+      <summary>When to auto-hide the top panel</summary>
+      <description>
+        Controls whether the top panel auto-hides when a window is maximized.
+        "off" keeps the panel always visible. "auto" auto-hides only when the
+        system is in tablet mode. "always" auto-hides in both laptop and
+        tablet modes. The panel reveals on top-edge hover and during panel
+        menu interactions.
+      </description>
+    </key>
+
+    <key name="bottom-edge-swipe-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'always'</default>
+      <summary>When to enable the bottom-edge swipe gesture</summary>
+      <description>
+        Controls whether swiping up from the bottom edge of the screen opens
+        the Activities overview. "off" disables it entirely. "auto" enables
+        it only when the system reports tablet mode. "always" enables it
+        regardless of mode.
+      </description>
+    </key>
+
+    <key name="top-center-swipe-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'always'</default>
+      <summary>When to enable the top-center swipe gesture</summary>
+      <description>
+        Controls whether swiping down from the top-center edge of the screen
+        opens the date menu (notifications and calendar). "off" disables it
+        entirely. "auto" enables it only when the system reports tablet mode.
+        "always" enables it regardless of mode.
+      </description>
+    </key>
+
+    <key name="top-center-zone-width-percent" type="i">
+      <default>30</default>
+      <range min="10" max="60"/>
+      <summary>Width of the top-center trigger zone</summary>
+      <description>
+        Percentage of the monitor width, centered horizontally, that counts
+        as the top-center trigger zone for the notifications swipe gesture.
+      </description>
+    </key>
+
+    <key name="flick-to-close-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'always'</default>
+      <summary>When to enable flick-to-close in the Activities overview</summary>
+      <description>
+        Controls whether flicking upward on a window preview in the
+        Activities overview closes that window. "off" disables it entirely.
+        "auto" enables it only when the system reports tablet mode.
+        "always" enables it regardless of mode.
+      </description>
+    </key>
+
+    <key name="overview-workspace-switch-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'always'</default>
+      <summary>When to enable single-finger workspace switching in the overview</summary>
+      <description>
+        Controls whether a single-finger horizontal swipe over the overview
+        background switches workspaces, tracking the finger 1:1 like the
+        native four-finger touchpad swipe. "off" disables it entirely.
+        "auto" enables it only when the system reports tablet mode.
+        "always" enables it regardless of mode.
+      </description>
+    </key>
+
+    <key name="overview-vertical-swipe-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'always'</default>
+      <summary>When to enable vertical swipe between overview states</summary>
+      <description>
+        Controls whether a single-finger vertical swipe over the overview
+        background moves between overview states: swipe up reveals the app
+        grid, swipe down returns to the windows view or to the desktop.
+        "off" disables it entirely. "auto" enables it only when the system
+        reports tablet mode. "always" enables it regardless of mode.
+      </description>
+    </key>
+
+    <key name="swipe-to-dismiss-notifications-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'always'</default>
+      <summary>When to enable swipe-to-dismiss on notifications</summary>
+      <description>
+        Controls two related gestures: a single-finger upward swipe on
+        a visible notification banner dismisses it; a leftward swipe
+        on a notification in the date-menu list dismisses it. "off"
+        disables both. "auto" enables them only when the system
+        reports tablet mode. "always" enables them regardless of mode.
+      </description>
+    </key>
+
+    <key name="desktop-workspace-switch-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'always'</default>
+      <summary>When to enable single-finger horizontal swipe on the desktop to switch workspaces</summary>
+      <description>
+        Controls whether a single-finger horizontal swipe on the desktop
+        switches workspaces with a 1:1 finger-tracked animation. The swipe
+        is recognized on any visible patch of desktop background — empty
+        desktop, or empty area between/around windows. "off" disables it
+        entirely. "auto" enables it only when the system reports tablet
+        mode. "always" enables it regardless of mode.
+      </description>
+    </key>
+
+    <key name="desktop-vertical-swipe-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'always'</default>
+      <summary>When to enable single-finger vertical swipe on the desktop to open the overview</summary>
+      <description>
+        Controls whether a single-finger upward swipe on the desktop opens
+        the Activities overview, with the same 1:1 finger-tracked animation
+        as the bottom-edge swipe. The gesture is recognized on any visible
+        patch of desktop background. "off" disables it entirely. "auto"
+        enables it only when the system reports tablet mode. "always"
+        enables it regardless of mode. The further step from overview to
+        the app grid is handled by the in-overview vertical swipe.
+      </description>
+    </key>
+
+    <key name="auto-maximize-windows-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'auto'</default>
+      <summary>When to enable Fullscreen Apps mode</summary>
+      <description>
+        Controls whether newly-created normal windows open maximized by
+        default (dialogs, popups and child windows excluded), and
+        whether a two-finger downward swipe inside a maximized window
+        un-maximizes it. Both behaviors share this single key — the
+        swipe is the escape hatch for the auto-maximize behavior.
+        "off" disables both. "auto" enables them only when the system
+        reports tablet mode. "always" enables them regardless of mode.
+        The Quick Settings tile flips between "off" and "always";
+        "auto" can only be set via this prefs UI.
+      </description>
+    </key>
+
+    <key name="auto-maximize-exceptions" type="as">
+      <default>[]</default>
+      <summary>Apps that should not be auto-maximized</summary>
+      <description>
+        List of identifiers (desktop file IDs like
+        "org.gnome.Calculator.desktop", or raw WM_CLASS strings as a
+        fallback) for apps that should be exempted from Fullscreen Apps
+        mode. Their new windows open at the app's default size instead of
+        maximized.
+      </description>
+    </key>
+
+    <key name="auto-maximize-reminder-count" type="i">
+      <default>0</default>
+      <summary>Number of "you can set exceptions" reminders shown</summary>
+      <description>
+        Counts how many times the lightweight "Remember: you can set
+        exceptions for fullscreen apps in settings" notification has
+        been shown. Capped at 2: after that, no further reminders
+        fire. The counter is global across all apps and persists
+        across enable/disable cycles.
+      </description>
+    </key>
+
+    <!-- TODO: remove text-selection-activation in next release. Kept
+         here only so TextActionController._migrateSchemaKey can copy
+         the prior value into text-action-fab-activation on first run
+         after the rename. -->
+    <key name="text-selection-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'auto'</default>
+      <summary>Deprecated; use text-action-fab-activation</summary>
+      <description>
+        Replaced by text-action-fab-activation. Kept for a one-shot
+        value migration on first run after the rename.
+      </description>
+    </key>
+
+    <key name="text-action-fab-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'auto'</default>
+      <summary>When to enable the touch text-action FAB</summary>
+      <description>
+        Controls the floating action button for touch text actions.
+        Tapping the FAB expands a Cut / Copy / Paste / Select All
+        bar; the buttons synthesise Ctrl+X / Ctrl+C / Ctrl+V / Ctrl+A
+        to the focused app. "off" disables the feature. "auto"
+        enables it only in tablet mode. "always" enables it
+        regardless of mode.
+      </description>
+    </key>
+
+    <key name="text-action-fab-show-button" type="b">
+      <default>true</default>
+      <summary>Always show the floating action button</summary>
+      <description>
+        When enabled (default), a translucent FAB is always visible
+        in the corner of the primary monitor; tap it to open the
+        Cut / Copy / Paste / Select All bar. When disabled, the FAB
+        is hidden and a three-finger tap anywhere on the screen
+        summons the bar directly.
+      </description>
+    </key>
+
+    <key name="text-action-fab-x" type="i">
+      <default>-1</default>
+      <summary>Persisted X position of the FAB</summary>
+      <description>
+        Last X coordinate (stage pixels) the user dragged the FAB to.
+        -1 means use the default bottom-right corner position.
+      </description>
+    </key>
+
+    <key name="text-action-fab-y" type="i">
+      <default>-1</default>
+      <summary>Persisted Y position of the FAB</summary>
+      <description>
+        Last Y coordinate (stage pixels) the user dragged the FAB to.
+        -1 means use the default bottom-right corner position.
+      </description>
+    </key>
+
+    <key name="action-bar-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'auto'</default>
+      <summary>When to show the bottom action bar</summary>
+      <description>
+        Controls a thin horizontal strip pinned to the bottom of the
+        primary monitor. A horizontal swipe inside the strip switches
+        workspaces with a 1:1 finger-tracked animation, including over
+        fullscreen apps where no other workspace-switch path is reachable.
+        "off" disables the bar. "auto" shows it only when the system
+        reports tablet mode. "always" shows it regardless of mode.
+      </description>
+    </key>
+
+    <key name="action-bar-distance-percent" type="i">
+      <default>62</default>
+      <range min="30" max="100"/>
+      <summary>How far to swipe on the action bar for one workspace step</summary>
+      <description>
+        Percentage of monitor width that a one-workspace swipe covers
+        on the bottom action bar. Lower values mean less finger travel
+        is required to commit a workspace switch. The default (62)
+        matches a touchup-equivalent feel; values near 100 are close to
+        the native four-finger touchpad swipe (one workspace per full
+        screen width).
+      </description>
+    </key>
+
+    <key name="overview-distance-percent" type="i">
+      <default>60</default>
+      <range min="30" max="100"/>
+      <summary>How far to swipe to open or close the overview</summary>
+      <description>
+        Percentage of monitor height that one overview state step covers
+        for the bottom-edge → overview swipe and the vertical swipes
+        inside the overview (HIDDEN ↔ WINDOWS ↔ APPS). Lower values mean
+        less finger travel is required to commit a state change. The
+        default (60) matches a touchup-equivalent feel.
+      </description>
+    </key>
+
+    <key name="action-bar-exceptions" type="as">
+      <default>[]</default>
+      <summary>Apps the action bar should be hidden for</summary>
+      <description>
+        List of identifiers (desktop file IDs like
+        "org.gnome.Calculator.desktop", or raw WM_CLASS strings as a
+        fallback) for apps that should suppress the action bar entirely
+        when focused — useful for games, presentations, or anything
+        where an accidental swipe at the bottom edge would be costly.
+      </description>
+    </key>
+
+    <key name="window-tiling-flick-activation"
+         enum="org.gnome.shell.extensions.touchshell.activation">
+      <default>'always'</default>
+      <summary>When to enable flick-to-tile during a window drag</summary>
+      <description>
+        Controls whether a fast flick while dragging a window snaps it:
+        flick left or right tiles the window to that half of the screen,
+        flick up maximizes it, flick down minimizes it. Only touch drags
+        trigger it (mouse drags are left alone), and only a fast flick — a
+        normal slow drag-and-drop leaves the window where it lands. "off"
+        disables it
+        entirely. "auto" enables it only when the system reports tablet
+        mode. "always" enables it regardless of mode.
+      </description>
+    </key>
+
+  </schema>
+</schemalist>

@@ -112,6 +112,12 @@ COPY packaging/install-global-menu.sh /tmp/mutsu-install-global-menu.sh
 RUN bash /tmp/mutsu-install-global-menu.sh && \
     rm -rf /tmp/mutsu-global-menu-src /tmp/mutsu-install-global-menu.sh
 
+### TOUCHSHELL (tablet edge swipes and finger-tracked overview)
+COPY extensions/touchshell@touchshell.com /tmp/mutsu-touchshell-src
+COPY packaging/install-touchshell.sh /tmp/mutsu-install-touchshell.sh
+RUN bash /tmp/mutsu-install-touchshell.sh && \
+    rm -rf /tmp/mutsu-touchshell-src /tmp/mutsu-install-touchshell.sh
+
 ### NATIVE MUTSU GNOME SHELL (no per-user first-boot appearance script)
 # Install the real system extension, compose upstream+Mutsu enabled extension
 # defaults, and compile the high-priority user-overridable dconf database.

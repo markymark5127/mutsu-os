@@ -37,5 +37,12 @@ background-opacity=0.88
 transparency-mode='FIXED'
 
 [org/gnome/shell/extensions/mutsu-adaptive]
-enable-experimental-gestures=true
+enable-experimental-gestures=false
+
+[org/gnome/shell/extensions/touchshell]
+bottom-edge-swipe-activation='auto'
+overview-vertical-swipe-activation='auto'
+auto-maximize-windows-activation='auto'
+action-bar-activation='auto'
+panel-auto-hide-activation='auto'
 
