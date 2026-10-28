@@ -15,7 +15,7 @@ import Clutter from 'gi://Clutter';
 // Experimental bottom-edge interception remains disabled by default.
 // Recovery: gnome-extensions disable mutsu-adaptive@mutsu-os
 
-const BOTTOM_EDGE_HEIGHT = 24;
+const BOTTOM_EDGE_HEIGHT = 36;
 const DEBOUNCE_MS = 400;
 const PULL_TRIGGER_PX = 70;
 
@@ -25,6 +25,8 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._inTablet = false;
         this._maximizeHandlerId = 0;
         this._focusHandlerId = 0;
+        this._homeLockId = 0;
+        this._gestureActive = false;
         this._gestureActors = [];
         this._pullActor = null;
         this._overviewShowingId = 0;
@@ -173,8 +175,8 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._installMaximizeOnLaunch();
         this._installAppLayering();
         this._installPullSearch();
-        if (this._settings.get_boolean('enable-experimental-gestures'))
-            this._installBottomGesture();
+        this._installBottomGesture();
+        this._lockHomeWhenEmpty();
         this._syncQsToggle();
         log('Mutsu Adaptive: entered tablet mode');
     }
@@ -186,6 +188,10 @@ export default class MutsuAdaptiveExtension extends Extension {
 
         this._removeMaximizeOnLaunch();
         this._removeAppLayering();
+        if (this._homeLockId) {
+            try { Main.overview.disconnect(this._homeLockId); } catch (e) {}
+            this._homeLockId = 0;
+        }
         this._removeBottomGesture();
         this._removePullSearch();
         this._restoreTabletHome();
@@ -585,6 +591,8 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (this._focusHandlerId) {
             try { global.display.disconnect(this._focusHandlerId); } catch (e) {}
             this._focusHandlerId = 0;
+        this._homeLockId = 0;
+        this._gestureActive = false;
         }
     }
 
@@ -619,6 +627,79 @@ export default class MutsuAdaptiveExtension extends Extension {
         }
     }
 
+    _lockHomeWhenEmpty() {
+        if (this._homeLockId)
+            return;
+        try {
+            this._homeLockId = Main.overview.connect('hiding', () => {
+                if (!this._inTablet || this._gestureActive)
+                    return;
+                if (!this._anyNormalWindows()) {
+                    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                        if (this._inTablet && !this._anyNormalWindows()) {
+                            try { Main.overview.showApps(); } catch (e) {}
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
+                }
+            });
+        } catch (e) {}
+    }
+
+    _windowActor(win) {
+        try {
+            return win?.get_compositor_private?.() ?? null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    _raiseWindowsOverHome() {
+        try {
+            const group = global.window_group;
+            if (group?.get_parent())
+                group.get_parent().set_child_above_sibling(group, null);
+        } catch (e) {}
+    }
+
+    _goHomeAnimated(win) {
+        const actor = this._windowActor(win);
+        this._gestureActive = true;
+        try { Main.overview.showApps(); } catch (e) {}
+        this._raiseWindowsOverHome();
+        if (!actor) {
+            try { win?.minimize?.(); } catch (e) {}
+            this._gestureActive = false;
+            return;
+        }
+        const saved = {
+            scaleX: actor.scale_x,
+            scaleY: actor.scale_y,
+            ty: actor.translation_y,
+        };
+        actor.save_easing_state?.();
+        actor.set_easing_duration(280);
+        actor.set_easing_mode(Clutter.AnimationMode.EASE_OUT_CUBIC);
+        actor.set_pivot_point(0.5, 0.5);
+        actor.scale_x = 0.62;
+        actor.scale_y = 0.62;
+        actor.translation_y = -36;
+        actor.opacity = 220;
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+            try {
+                actor.set_easing_duration(0);
+                actor.scale_x = saved.scaleX || 1;
+                actor.scale_y = saved.scaleY || 1;
+                actor.translation_y = saved.ty || 0;
+                actor.opacity = 255;
+                actor.restore_easing_state?.();
+                win.minimize();
+            } catch (e) {}
+            this._gestureActive = false;
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
     _installBottomGesture() {
         if (this._gestureActors.length)
             return;
@@ -635,34 +716,47 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._gestureActors.push(actor);
 
             let startY = 0;
-            let holding = false;
-            actor.connect('button-press-event', (_a, event) => {
-                if (this._gestureSuppressed())
+            let fired = false;
+            const begin = (event) => {
+                if (this._gestureSuppressed() || !this._inTablet)
                     return Clutter.EVENT_PROPAGATE;
                 const [, y] = event.get_coords();
                 startY = y;
-                holding = false;
+                fired = false;
                 return Clutter.EVENT_PROPAGATE;
-            });
-            actor.connect('motion-event', (_a, event) => {
-                if (!startY || this._gestureSuppressed())
+            };
+            const move = (event) => {
+                if (!startY || fired || this._gestureSuppressed())
                     return Clutter.EVENT_PROPAGATE;
                 const [, y] = event.get_coords();
-                const dy = startY - y;
-                if (dy > 40 && !holding) {
-                    holding = true;
-                    if (dy > 80)
-                        Main.overview.show();
+                if (startY - y > 48) {
+                    fired = true;
+                    const win = global.display.focus_window;
+                    if (win && !win.is_skip_taskbar?.())
+                        this._goHomeAnimated(win);
                     else
-                        Main.overview.showApps();
+                        try { Main.overview.showApps(); } catch (e) {}
                 }
                 return Clutter.EVENT_PROPAGATE;
-            });
-            actor.connect('button-release-event', () => {
+            };
+            const end = () => {
                 startY = 0;
-                holding = false;
+                return Clutter.EVENT_PROPAGATE;
+            };
+            actor.connect('button-press-event', (_a, event) => begin(event));
+            actor.connect('motion-event', (_a, event) => move(event));
+            actor.connect('button-release-event', end);
+            actor.connect('touch-event', (_a, event) => {
+                const type = event.type();
+                if (type === Clutter.EventType.TOUCH_BEGIN)
+                    return begin(event);
+                if (type === Clutter.EventType.TOUCH_UPDATE)
+                    return move(event);
+                if (type === Clutter.EventType.TOUCH_END || type === Clutter.EventType.TOUCH_CANCEL)
+                    return end();
                 return Clutter.EVENT_PROPAGATE;
             });
+            Main.layoutManager.uiGroup.set_child_above_sibling(actor, null);
         } catch (e) {
             log(`Mutsu Adaptive: bottom gesture unavailable (${e})`);
         }
