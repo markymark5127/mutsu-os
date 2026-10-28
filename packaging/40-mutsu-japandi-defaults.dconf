@@ -35,3 +35,7 @@ custom-background-color=true
 background-color='#2F3330'
 background-opacity=0.88
 transparency-mode='FIXED'
+
+[org/gnome/shell/extensions/mutsu-adaptive]
+enable-experimental-gestures=true
+

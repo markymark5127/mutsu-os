@@ -12,7 +12,8 @@ import Clutter from 'gi://Clutter';
 // Manual desktop/tablet modes are available even without a hinge switch.
 // Automatic posture uses the GNOME backend signal when present, plus a
 // sysfs poll of common convertible tablet-mode paths.
-// Experimental bottom-edge interception remains disabled by default.
+// Bottom-edge home gesture is opt-in via enable-experimental-gestures.
+// Mutsu image defaults turn it on; the schema default stays off.
 // Recovery: gnome-extensions disable mutsu-adaptive@mutsu-os
 
 const BOTTOM_EDGE_HEIGHT = 36;
@@ -175,7 +176,8 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._installMaximizeOnLaunch();
         this._installAppLayering();
         this._installPullSearch();
-        this._installBottomGesture();
+        if (this._settings.get_boolean('enable-experimental-gestures'))
+            this._installBottomGesture();
         this._lockHomeWhenEmpty();
         this._syncQsToggle();
         log('Mutsu Adaptive: entered tablet mode');
