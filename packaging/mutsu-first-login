@@ -1,18 +1,38 @@
 #!/usr/bin/env python3
 """Launch Mutsu's welcome wizard until setup is completed or skipped.
 
-The wizard is exec'd so the user unit tracks it. Completion is the saved
-status, not the presence of onboarding.json. Preference saves create that
-file before the user finishes.
+Completion is the saved status, not the presence of onboarding.json.
+Preference saves create that file before the user finishes.
 """
 from __future__ import annotations
+import fcntl
 import os
 import sys
+import time
 
 sys.path.insert(0, "/usr/libexec/mutsu-os/src")
 from aidesktop.onboarding import is_setup_done
 
 if is_setup_done():
     raise SystemExit(0)
+
+lock_path = os.path.join(
+    os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "mutsu-welcome.lock"
+)
+lock = open(lock_path, "w")
+try:
+    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except BlockingIOError:
+    raise SystemExit(0)
+
+# The desktop exports WAYLAND_DISPLAY after the session is up. A unit
+# started from default.target races that and GTK exits immediately.
+for _ in range(30):
+    if os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY"):
+        break
+    time.sleep(1)
+else:
+    print("Mutsu welcome: no display after 30s", file=sys.stderr)
+    raise SystemExit(1)
 
 os.execv("/usr/bin/mutsu-search", ["/usr/bin/mutsu-search", "--setup"])

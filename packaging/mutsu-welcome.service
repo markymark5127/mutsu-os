@@ -9,6 +9,8 @@ PartOf=graphical-session.target
 [Service]
 Type=simple
 ExecStart=/usr/libexec/mutsu-os/mutsu-first-login
+Restart=on-failure
+RestartSec=3
 TimeoutStartSec=10min
 
 [Install]

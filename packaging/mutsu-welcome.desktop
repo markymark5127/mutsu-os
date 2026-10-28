@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Mutsu OS Setup
+Comment=First-login walkthrough
+Exec=/usr/libexec/mutsu-os/mutsu-first-login
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Phase=Applications
