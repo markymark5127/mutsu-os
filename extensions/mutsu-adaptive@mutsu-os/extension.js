@@ -157,6 +157,38 @@ export default class MutsuAdaptiveExtension extends Extension {
         });
     }
 
+
+    _setTouchshell(on) {
+        // Touchshell gestures follow Mutsu tablet mode, not the seat alone.
+        // Off in desktop mode even if the hinge is folded.
+        try {
+            const s = new Gio.Settings({ schema_id: 'org.gnome.shell.extensions.touchshell' });
+            const value = on ? 'always' : 'off';
+            for (const key of [
+                'top-right-swipe-activation',
+                'panel-auto-hide-activation',
+                'bottom-edge-swipe-activation',
+                'top-center-swipe-activation',
+                'flick-to-close-activation',
+                'overview-workspace-switch-activation',
+                'overview-vertical-swipe-activation',
+                'swipe-to-dismiss-notifications-activation',
+                'desktop-workspace-switch-activation',
+                'desktop-vertical-swipe-activation',
+                'auto-maximize-windows-activation',
+                'text-selection-activation',
+                'text-action-fab-activation',
+                'action-bar-activation',
+                'window-tiling-flick-activation',
+            ]) {
+                if (s.settings_schema.has_key(key))
+                    s.set_string(key, value);
+            }
+        } catch (e) {
+            log(`Mutsu Adaptive: Touchshell toggle failed (${e})`);
+        }
+    }
+
     _enterTablet() {
         if (this._inTablet)
             return;
@@ -179,6 +211,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (this._settings.get_boolean('enable-experimental-gestures'))
             this._installBottomGesture();
         this._lockHomeWhenEmpty();
+        this._setTouchshell(true);
         this._syncQsToggle();
         log('Mutsu Adaptive: entered tablet mode');
     }
@@ -199,6 +232,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._restoreTabletHome();
         this._restoreReversibleState();
 
+        this._setTouchshell(false);
         try {
             Main.overview.hide();
         } catch (e) {}
