@@ -124,6 +124,13 @@ RUN bash /tmp/mutsu-install-shell-branding.sh && \
     rm -rf /tmp/mutsu-branding-extension-src /tmp/mutsu-install-shell-branding.sh \
            /tmp/mutsu-configure-native-desktop.py
 
+# Validate the effective GNOME defaults with a clean HOME, *after* system
+# config is compiled. This catches silent fallbacks to Bazzite at build time
+# instead of asking users to discover them after installing the ISO.
+COPY packaging/verify-native-desktop.py /tmp/mutsu-verify-native-desktop.py
+RUN python3 /tmp/mutsu-verify-native-desktop.py && \
+    rm -f /tmp/mutsu-verify-native-desktop.py
+
 ### MUTSU WELCOME ONLY
 # Bazzite Portal (yafti) autostarts on first login. Hide it so Mutsu's
 # welcome unit is the only setup the user sees.
