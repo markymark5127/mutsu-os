@@ -70,6 +70,7 @@ jobs:
           # New desktop defaults are generated inside the OS image, not at
           # user login. Validate the build-only configurator before OCI work.
           python3 -m py_compile packaging/configure-native-desktop.py
+          python3 -m py_compile packaging/verify-native-desktop.py
 
       - name: Check Just Syntax
         shell: bash
