@@ -120,6 +120,15 @@ class ImageIntegrationTests(unittest.TestCase):
         self.assertIn("python3 packaging/check-integration.py", ci)
         self.assertIn("PYTHONPATH=vendor/ai-desktop/src", ci)
 
+    def test_gdm_login_branding(self):
+        branding = read("packaging/install-branding.sh")
+        self.assertIn("/etc/dconf/profile/gdm", branding)
+        self.assertIn("system-db:gdm", branding)
+        self.assertIn("mutsu-japandi-4k.png", branding)
+        self.assertIn("mutsu-login-wordmark.png", branding)
+        self.assertIn("primary-color='#f3efe7'", branding)
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -28,17 +28,15 @@ What first boot now sets:
 - Primary color `#f3efe7`, secondary `#516b5c`
 - GDM login logo = Mutsu wordmark (image build)
 
-What is still required for a complete lock screen:
+GDM login (image build, `packaging/install-branding.sh`):
 
-1. **GDM background** — GDM does not use the user screensaver wallpaper. Set it in `/etc/dconf/db/gdm.d/`:
-   ```
-   [org/gnome/desktop/background]
-   picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
-   picture-options='zoom'
-   ```
-2. **Centered wordmark** on the lock screen. GNOME does not have a simple logo key for the lock screen; this needs a small extension or a custom GDM CSS.
-3. **Clock and user-list styling** in Japandi sage, via GDM CSS (`/etc/gdm/custom.css` or a greeter theme).
-4. **Fallback avatar** if the user has no photo.
+- `/etc/dconf/profile/gdm` reads `system-db:gdm` (created if the base image has none)
+- `/etc/dconf/db/gdm.d/90-mutsu-logo` sets the wordmark, Japandi background, and sage colors
+- `/usr/share/gnome-shell/theme/mutsu/gnome-shell.css` is the greeter wash
+
+The session lock screen uses the same wallpaper and sage colors. GNOME blurs that
+wallpaper on purpose; the clock and unlock controls stay sharp. A centered lock-screen
+logo is not a GNOME setting and is not forced over the unlock UI.
 
 ## Dash to Dock
 

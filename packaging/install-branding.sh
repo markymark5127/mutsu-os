@@ -239,17 +239,58 @@ for release_file in (Path("/etc/system-release"), Path("/etc/fedora-release"), P
         release_file.write_text("Mutsu OS\n", encoding="utf-8")
 PY
 
-# GDM login logo. Use the rendered 280px PNG, not the 1060px SVG.
+# GDM login screen. The user screensaver wallpaper does not apply here.
+# Preserve a distribution profile and make sure it reads the gdm database.
+profile=/etc/dconf/profile/gdm
+if [[ ! -f "$profile" ]]; then
+  printf '%s\n' 'user-db:user' 'system-db:gdm' 'file-db:/usr/share/gdm/greeter-dconf-defaults' > "$profile"
+else
+  grep -qx 'system-db:gdm' "$profile" || printf '%s\n' 'system-db:gdm' >> "$profile"
+fi
+chmod 0644 "$profile"
+
 if command -v dconf >/dev/null 2>&1; then
   install -d -m 0755 /etc/dconf/db/gdm.d
   cat > /etc/dconf/db/gdm.d/90-mutsu-logo <<'DCONF'
 [org/gnome/login-screen]
 logo='/usr/share/pixmaps/mutsu/mutsu-login-wordmark.png'
+banner-message-enable=false
+
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+picture-uri-dark='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+picture-options='zoom'
+primary-color='#f3efe7'
+secondary-color='#516b5c'
+
+[org/gnome/desktop/screensaver]
+picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+primary-color='#f3efe7'
+secondary-color='#516b5c'
+
+[org/gnome/desktop/interface]
+color-scheme='prefer-light'
+accent-color='green'
 DCONF
   dconf update
 else
-  echo >&2 "WARNING: dconf unavailable; Mutsu GDM logo must be configured separately."
+  echo >&2 "WARNING: dconf unavailable; Mutsu GDM branding must be configured separately."
 fi
+
+# Greeter CSS. Keeps the Mutsu mark and clock readable over the Japandi wash.
+# GNOME still blurs the session lock wallpaper; the colors stay in-palette.
+install -d -m 0755 /usr/share/gnome-shell/theme/mutsu
+cat > /usr/share/gnome-shell/theme/mutsu/gnome-shell.css <<'CSS'
+#lockDialogGroup {
+  background-color: #f3efe7;
+  background-image: url("file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png");
+  background-size: cover;
+  background-position: center;
+}
+.login-dialog-logo-bin {
+  padding-bottom: 24px;
+}
+CSS
 
 printf 'Mutsu OS image branding installed: GNOME logo, OS display name, login logo, wallpapers, Anaconda sidebar, and Plymouth theme.\n'
 

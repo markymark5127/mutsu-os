@@ -64,6 +64,21 @@ def verify_source_layout(root: Path) -> list[str]:
     wallpaper = root / REQUIRED_WALLPAPER.removeprefix("file:///")
     if not wallpaper.is_file():
         errors.append("Japandi wallpaper is missing from /usr/share/backgrounds")
+    gdm_profile = root / "etc/dconf/profile/gdm"
+    if not gdm_profile.is_file() or "system-db:gdm" not in gdm_profile.read_text(encoding="utf-8"):
+        errors.append("GDM dconf profile is missing or does not read system-db:gdm")
+    gdm_keys = root / "etc/dconf/db/gdm.d/90-mutsu-logo"
+    if not gdm_keys.is_file():
+        errors.append("GDM Mutsu branding keys are missing")
+    else:
+        body = gdm_keys.read_text(encoding="utf-8")
+        if "mutsu-japandi-4k.png" not in body:
+            errors.append("GDM branding does not set the Japandi login background")
+        if "mutsu-login-wordmark.png" not in body:
+            errors.append("GDM branding does not set the Mutsu login logo")
+    login_logo = root / "usr/share/pixmaps/mutsu/mutsu-login-wordmark.png"
+    if not login_logo.is_file():
+        errors.append("Mutsu login wordmark PNG is missing")
 
     extroot = root / "usr/share/gnome-shell/extensions"
     for uuid in REQUIRED_EXTENSIONS:

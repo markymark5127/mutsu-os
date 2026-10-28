@@ -11,6 +11,8 @@ picture-options='zoom'
 
 [org/gnome/desktop/screensaver]
 picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
+primary-color='#f3efe7'
+secondary-color='#516b5c'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-light'
