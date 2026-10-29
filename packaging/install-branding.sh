@@ -40,6 +40,12 @@ if [[ -s "$brand/icon-theme/MutsuCyberpunk/index.theme" ]]; then
   if [[ -s "$brand/icons/folder-desktop-cyberpunk.svg" ]]; then
     install -Dm0644 "$brand/icons/folder-desktop-cyberpunk.svg" \
       /usr/share/icons/MutsuCyberpunk/scalable/places/folder-desktop.svg
+    install -Dm0644 "$brand/icons/folder-desktop-cyberpunk.svg" \
+      /usr/share/icons/MutsuCyberpunk/scalable/places/user-desktop.svg
+  fi
+  if [[ -s /usr/share/icons/MutsuCyberpunk/scalable/places/folder-home.svg ]]; then
+    install -Dm0644 /usr/share/icons/MutsuCyberpunk/scalable/places/folder-home.svg \
+      /usr/share/icons/MutsuCyberpunk/scalable/places/user-home.svg
   fi
   if [[ -s "$brand/icons/mutsu-updater-cyberpunk.svg" ]]; then
     install -Dm0644 "$brand/icons/mutsu-updater-cyberpunk.svg" \
@@ -72,6 +78,14 @@ install -Dm0644 "$brand/icons/folder-downloads.svg" \
   /usr/share/icons/MutsuJapandi/scalable/places/folder-download.svg
 install -Dm0644 "$brand/icons/folder-downloads.svg" \
   /usr/share/icons/MutsuJapandi/scalable/places/folder-downloads.svg
+# Nautilus looks up the Desktop special directory as user-desktop, not
+# folder-desktop. Home is user-home. Ship both names.
+install -Dm0644 "$brand/icons/folder-desktop.svg" \
+  /usr/share/icons/MutsuJapandi/scalable/places/user-desktop.svg
+if [[ -s "$brand/icons/folder-home.svg" ]]; then
+  install -Dm0644 "$brand/icons/folder-home.svg" \
+    /usr/share/icons/MutsuJapandi/scalable/places/user-home.svg
+fi
 
 for icon in mutsu-portal mutsu-settings mutsu-updater mutsu-docs; do
   if [[ -s "$brand/icons/$icon.svg" ]]; then
@@ -300,6 +314,12 @@ cat > /usr/share/gnome-shell/theme/mutsu/gnome-shell.css <<'CSS'
   padding-bottom: 24px;
 }
 CSS
+
+# Rebuild so Nautilus sees user-desktop without waiting for a manual cache.
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+  gtk-update-icon-cache -f /usr/share/icons/MutsuJapandi || true
+  gtk-update-icon-cache -f /usr/share/icons/MutsuCyberpunk || true
+fi
 
 printf 'Mutsu OS image branding installed: GNOME logo, OS display name, login logo, wallpapers, Anaconda sidebar, and Plymouth theme.\n'
 
