@@ -8,6 +8,15 @@ if [[ ! -d /tmp/mutsu-brand-assets/icons ]] || [[ ! -f /usr/lib/os-release ]]; t
   exit 1
 fi
 
+# The shell prompt uses the hostname, independently of os-release branding.
+# Replace inherited image defaults; keep a builder's explicit custom name.
+image_hostname="$(cat /etc/hostname 2>/dev/null || true)"
+case "$image_hostname" in
+  ''|bazzite|bazzite.localdomain|localhost|localhost.localdomain)
+    printf 'mutsu\n' > /etc/hostname
+    ;;
+esac
+
 brand=/tmp/mutsu-brand-assets
 symbol="$brand/icons/mutsu-logo-symbol.svg"
 wordmark="$brand/icons/mutsu-logo-wordmark.svg"

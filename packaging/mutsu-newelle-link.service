@@ -3,15 +3,13 @@ Description=Pair Mutsu Search with headless Newelle
 Documentation=https://github.com/markymark5127/mutsu-os
 After=graphical-session.target network-online.target
 Wants=network-online.target
-# Marker is written only after the token is stored and the GUI API is set.
-# If Newelle is not installed yet, the script exits without the marker and
-# this unit runs again on the next login.
-ConditionPathExists=!%h/.config/ai-desktop/newelle-linked
+# Recheck on login, including users paired by older images without API
+# dependencies. Existing dependencies and the user's token are reused.
 
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/mutsu-os/setup-newelle-user.sh
-TimeoutStartSec=5min
+TimeoutStartSec=10min
 
 [Install]
 WantedBy=default.target

@@ -90,6 +90,7 @@ RUN bash /tmp/mutsu-install-mac-shortcuts.sh && \
 # The Flatpak is installed into the image. bootc seeds it on first install.
 # A first-boot unit remains only as a fallback. The per-user token is still
 # generated at first login by mutsu-newelle-link.service.
+COPY packaging/build-newelle-dependencies.sh /tmp/mutsu-build-newelle-dependencies.sh
 COPY packaging/install-newelle.sh /tmp/mutsu-install-newelle.sh
 RUN bash /tmp/mutsu-install-newelle.sh && rm -f /tmp/mutsu-install-newelle.sh
 

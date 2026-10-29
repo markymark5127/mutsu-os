@@ -17,6 +17,11 @@ if ! flatpak info --system "$app" >/dev/null 2>&1; then
   flatpak install --system --noninteractive --assumeyes flathub "$app"
 fi
 
+# Store runtime-matched API packages in /usr so every new user can set up
+# Newelle offline; /usr survives independently of bootc's initial /var seed.
+bash /tmp/mutsu-build-newelle-dependencies.sh
+rm -f /tmp/mutsu-build-newelle-dependencies.sh
+
 install -d -m0755 /usr/lib/systemd/user
 cat > /usr/lib/systemd/user/ai-desktop-newelle.service <<'EOF'
 [Unit]
