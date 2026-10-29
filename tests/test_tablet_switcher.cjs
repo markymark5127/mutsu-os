@@ -10,7 +10,7 @@ const Main = {sessionMode: {isLocked: false}, layoutManager: {
 const Switcher = new Function('Clutter','Main', `${source}; return TabletSwitcher;`)(Clutter, Main);
 const state = Object.create(Switcher.prototype);
 let homes = 0, shows = 0, dismissals = 0;
-Object.assign(state, {_root: null, _drag: null, _suppressed: () => false,
+Object.assign(state, {_root: null, _drag: null, _suppressed: () => false, _gesturesEnabled: () => true,
     _home: () => homes++, show: () => shows++, _dismiss: () => dismissals++});
 function event(type, x, y, time, sequence = 1, target = null) {
     return {type: () => type, get_coords: () => [x,y], get_time: () => time,
@@ -19,6 +19,10 @@ function event(type, x, y, time, sequence = 1, target = null) {
 function send(type, x, y, time, sequence = 1, target = null) {
     return state._event(event(type,x,y,time,sequence,target));
 }
+state._gesturesEnabled = () => false;
+assert.equal(send('TOUCH_BEGIN',500,760,0),0, 'edge interception requires opt-in');
+assert.equal(state._drag,null);
+state._gesturesEnabled = () => true;
 send('TOUCH_BEGIN',500,760,0);
 send('TOUCH_UPDATE',500,630,100);
 send('TOUCH_END',500,620,150);

@@ -6,9 +6,10 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 // Kept separate from GNOME's workspace overview: Home can remain an app grid.
 export class TabletSwitcher {
-    constructor(home, suppressed) {
+    constructor(home, suppressed, gesturesEnabled) {
         this._home = home;
         this._suppressed = suppressed;
+        this._gesturesEnabled = gesturesEnabled;
         this._root = null;
         this._grab = null;
         this._drag = null;
@@ -71,7 +72,7 @@ export class TabletSwitcher {
             if (!touch && event.get_button() !== 1)
                 return Clutter.EVENT_PROPAGATE;
             const m = Main.layoutManager.primaryMonitor;
-            const edge = !this.visible && m && x >= m.x && x <= m.x + m.width &&
+            const edge = this._gesturesEnabled() && !this.visible && m && x >= m.x && x <= m.x + m.width &&
                 y >= m.y + m.height - 24 && y <= m.y + m.height;
             const card = this._cards?.find(c => c.actor.contains(event.get_source()));
             if (!edge && !card)

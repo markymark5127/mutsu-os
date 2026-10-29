@@ -79,7 +79,9 @@ class ImageIntegrationTests(unittest.TestCase):
         self.assertEqual(matches[0].findtext("default"), "false")
         source = read("extensions/mutsu-adaptive@mutsu-os/extension.js")
         self.assertIn("get_boolean('enable-experimental-gestures')", source)
-        self.assertIn("this._installBottomGesture();", source)
+        self.assertIn("new TabletSwitcher(", source)
+        switcher = read("extensions/mutsu-adaptive@mutsu-os/tabletSwitcher.js")
+        self.assertIn("const edge = this._gesturesEnabled() &&", switcher)
         self.assertIn("Quick Settings unavailable", source)
 
     def test_extension_metadata_and_schema_are_well_formed(self):

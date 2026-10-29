@@ -22,8 +22,9 @@ The adaptive switcher owns the bottom 24-pixel gesture area. Touchshell's compet
 bottom-edge recognizer is suspended while tablet mode is active. Other Touchshell
 features remain enabled. Previous Touchshell settings and window maximization state
 are restored when leaving tablet mode. Gesture exceptions continue to apply.
-The existing enable-experimental-gestures option applies to the legacy bottom handler;
-the tablet Home indicator and switcher now provide the standard tablet navigation.
+Bottom-edge swipe interception requires enable-experimental-gestures. With it off,
+the Home indicator remains clickable and Recent Apps is available in the panel menu.
+The setting is checked for each gesture, so it takes effect without restarting.
 
 ## Validation
 

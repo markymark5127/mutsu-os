@@ -235,7 +235,8 @@ export default class MutsuAdaptiveExtension extends Extension {
                     win.minimize();
                 Main.overview.showApps();
             },
-            () => this._gestureSuppressed());
+            () => this._gestureSuppressed(),
+            () => this._settings.get_boolean('enable-experimental-gestures'));
         this._lockHomeWhenEmpty();
         this._setTouchshell(true);
         this._syncQsToggle();
