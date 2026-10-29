@@ -3,6 +3,9 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {navigationAction, maximizeWindow} from './tabletGeometry.js';
+import {TabletDockPopup} from './tabletDockPopup.js';
+import {TabletSplitView} from './tabletSplitView.js';
 
 // Kept separate from GNOME's workspace overview: Home can remain an app grid.
 export class TabletSwitcher {
@@ -14,6 +17,8 @@ export class TabletSwitcher {
         this._grab = null;
         this._drag = null;
         this._signals = [];
+        this._split = new TabletSplitView();
+        this._dock = new TabletDockPopup(() => this.show());
         this._bar = new St.Button({style_class: 'mutsu-home-bar',
             accessible_name: 'Home. Swipe up and hold for recent apps',
             child: new St.Widget({style_class: 'mutsu-home-indicator'})});
@@ -21,13 +26,26 @@ export class TabletSwitcher {
         Main.layoutManager.addChrome(this._bar, {affectsInputRegion: true});
         this._monitorId = Main.layoutManager.connect('monitors-changed', () => {
             this.hide();
+            this._dock.hide();
+            this._resetPreview();
             this._positionBar();
         });
         this._positionBar();
         this._sessionId = Main.sessionMode.connect('updated', () => {
-            this._bar.visible = !Main.sessionMode.isLocked && !Main.sessionMode.isGreeter;
+            this._syncBar();
             if (!this._bar.visible)
                 this.hide();
+            this._dock.hide();
+            this._resetPreview();
+        });
+        this._keyboardId = Main.layoutManager.keyboardBox.connect('notify::visible', () => {
+            const visible = Main.layoutManager.keyboardBox.visible;
+            this._syncBar();
+            if (visible) {
+                this._drag = null;
+                this._resetPreview();
+                this._dock.hide();
+            }
         });
         this._windowId = global.display.connect('window-created', (_display, window) => {
             if (this.visible && window.get_transient_for()) {
@@ -37,9 +55,15 @@ export class TabletSwitcher {
         });
         this._eventId = global.stage.connect('captured-event', (_stage, event) =>
             this._event(event));
+        this._syncBar();
     }
 
     get visible() { return this._root !== null; }
+
+    _syncBar() {
+        this._bar.visible = !Main.sessionMode.isLocked && !Main.sessionMode.isGreeter &&
+            !Main.layoutManager.keyboardBox.visible;
+    }
 
     _positionBar() {
         const monitor = Main.layoutManager.primaryMonitor;
@@ -72,13 +96,23 @@ export class TabletSwitcher {
             if (!touch && event.get_button() !== 1)
                 return Clutter.EVENT_PROPAGATE;
             const m = Main.layoutManager.primaryMonitor;
-            const edge = this._gesturesEnabled() && !this.visible && m && x >= m.x && x <= m.x + m.width &&
+            const edge = this._gesturesEnabled() && !this.visible &&
+                !Main.layoutManager.keyboardBox?.visible &&
+                !(Main.modalCount > (Main.overview?.visible ? 1 : 0)) &&
+                m && x >= m.x && x <= m.x + m.width &&
                 y >= m.y + m.height - 24 && y <= m.y + m.height;
             const card = this._cards?.find(c => c.actor.contains(event.get_source()));
+            // Card action buttons retain normal touch and keyboard activation.
+            for (let actor = event.get_source(); actor; actor = actor.get_parent?.()) {
+                if (actor._mutsuCardAction)
+                    return Clutter.EVENT_PROPAGATE;
+            }
             if (!edge && !card)
                 return Clutter.EVENT_PROPAGATE;
             this._drag = {x, y, sequence, card, time: event.get_time(), lastY: y,
                 lastTime: event.get_time(), movedAt: event.get_time()};
+            if (card)
+                this._drag.scroll = this._scrollAdjustment()?.value ?? 0;
             return Clutter.EVENT_STOP;
         }
         const drag = this._drag;
@@ -86,6 +120,7 @@ export class TabletSwitcher {
             return Clutter.EVENT_PROPAGATE;
         if (type === Clutter.EventType.TOUCH_CANCEL) {
             this._resetCard(drag.card);
+            this._resetPreview();
             this._drag = null;
             return Clutter.EVENT_STOP;
         }
@@ -95,8 +130,20 @@ export class TabletSwitcher {
         drag.lastY = y;
         drag.lastTime = event.get_time();
         if (drag.card) {
-            drag.card.actor.translation_y = Math.min(0, dy);
-            drag.card.actor.opacity = Math.max(80, 255 + dy * 0.6);
+            if (Math.abs(x - drag.x) > Math.abs(dy) * 1.2) {
+                const adjustment = this._scrollAdjustment();
+                if (adjustment)
+                    adjustment.value = Math.max(adjustment.lower,
+                        Math.min(adjustment.upper - adjustment.page_size, drag.scroll - (x - drag.x)));
+                this._resetCard(drag.card);
+            } else {
+                drag.card.actor.translation_y = Math.min(0, dy);
+                drag.card.actor.opacity = Math.max(80, 255 + dy * 0.6);
+            }
+        } else {
+            if (!this._preview && Math.max(Math.abs(x - drag.x), Math.abs(dy)) > 8)
+                this._startPreview();
+            this._updatePreview(x - drag.x, dy);
         }
         if (end) {
             this._drag = null;
@@ -107,17 +154,98 @@ export class TabletSwitcher {
                     this._activate(drag.card.window);
                 else
                     this._resetCard(drag.card);
-            } else if (dy < -48) {
-                // A deliberate pause at the top of the swipe opens multitasking.
-                if (event.get_time() - drag.movedAt > 180 || event.get_time() - drag.time > 550)
+            } else {
+                const action = navigationAction(x - drag.x, dy,
+                    event.get_time() - drag.time, event.get_time() - drag.movedAt,
+                    Main.layoutManager.primaryMonitor.height);
+                if (action === 'switcher') {
+                    this._resetPreview();
                     this.show();
-                else
+                } else if (action === 'home') {
                     this._home();
-            } else if (Math.abs(dy) < 12) {
-                this._home();
+                    this._finishPreview();
+                } else if (action === 'dock') {
+                    this._resetPreview();
+                    this._dock.show();
+                } else if (action === 'next' || action === 'previous') {
+                    this._quickSwitch(action === 'next' ? 1 : -1);
+                    this._finishPreview();
+                } else {
+                    this._finishPreview();
+                }
             }
         }
         return Clutter.EVENT_STOP;
+    }
+
+    _scrollAdjustment() {
+        return this._scroll?.hadjustment ?? this._scroll?.get_hscroll_bar?.()?.get_adjustment?.();
+    }
+
+    _startPreview() {
+        this._resetPreview();
+        if (Main.overview.visible)
+            return;
+        const window = global.display.focus_window;
+        const source = window?.get_compositor_private();
+        if (!source || window.is_skip_taskbar())
+            return;
+        const monitor = Main.layoutManager.primaryMonitor;
+        const rect = window.get_frame_rect();
+        this._preview = new St.Widget({style_class: 'mutsu-gesture-backdrop',
+            reactive: false, clip_to_allocation: true});
+        this._preview.set_position(monitor.x, monitor.y);
+        this._preview.set_size(monitor.width, monitor.height);
+        this._previewClone = new Clutter.Clone({source});
+        this._previewClone.set_size(rect.width, rect.height);
+        this._previewClone.set_position(rect.x - monitor.x, rect.y - monitor.y);
+        this._previewClone.set_pivot_point(0.5, 0.5);
+        this._preview.add_child(this._previewClone);
+        Main.layoutManager.uiGroup.add_child(this._preview);
+    }
+
+    _updatePreview(dx, dy) {
+        if (!this._previewClone)
+            return;
+        const progress = Math.min(1, Math.max(0, -dy / 320));
+        const scale = Math.abs(dx) > Math.abs(dy) ? 1 : 1 - progress * 0.35;
+        this._previewClone.set_scale(scale, scale);
+        this._previewClone.translation_y = Math.min(0, dy) * 0.3;
+        this._previewClone.translation_x = dx * 0.7;
+    }
+
+    _resetPreview() {
+        this._preview?.destroy();
+        this._preview = null;
+        this._previewClone = null;
+    }
+
+    _finishPreview() {
+        const preview = this._preview;
+        if (!preview)
+            return;
+        preview.ease({opacity: 0, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => {
+                if (this._preview === preview)
+                    this._resetPreview();
+            }});
+    }
+
+    _quickSwitch(direction) {
+        const windows = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null)
+            .filter(w => !w.is_skip_taskbar() && w.get_window_type() === Meta.WindowType.NORMAL);
+        const current = global.display.focus_window;
+        const now = global.get_current_time();
+        if (!this._ring?.includes(current) || now - this._ringTime > 2500)
+            this._ring = windows;
+        this._ring = this._ring.filter(window => windows.includes(window));
+        if (this._ring.length < 2)
+            return;
+        const index = this._ring.indexOf(current);
+        const target = this._ring[(index + direction + this._ring.length) % this._ring.length];
+        this._ringTime = now;
+        Main.overview.hide();
+        Main.activateWindow(target);
     }
 
     show() {
@@ -126,6 +254,7 @@ export class TabletSwitcher {
         const m = Main.layoutManager.primaryMonitor;
         if (!m)
             return;
+        this._dock.hide();
         const root = new St.Widget({style_class: 'mutsu-switcher', reactive: true,
             can_focus: true, layout_manager: new Clutter.BinLayout()});
         root.set_position(m.x, m.y);
@@ -150,9 +279,11 @@ export class TabletSwitcher {
         home.connect('clicked', () => { this.hide(); this._home(); });
         heading.add_child(home);
         box.add_child(heading);
-        box.add_child(new St.Label({text: 'Swipe up to close · Tap to resume',
-            style_class: 'mutsu-switcher-hint'}));
+        this._hint = new St.Label({text: 'Swipe up to close · Tap to resume · Split for two apps',
+            style_class: 'mutsu-switcher-hint'});
+        box.add_child(this._hint);
         const scroll = new St.ScrollView({x_expand: true, y_expand: true});
+        this._scroll = scroll;
         scroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.NEVER);
         box.add_child(scroll);
         const row = new St.BoxLayout({style_class: 'mutsu-switcher-cards',
@@ -182,6 +313,28 @@ export class TabletSwitcher {
                 preview.add_child(new St.Label({text: window.get_title()}));
             }
             actor.add_child(preview);
+            const actions = new St.BoxLayout({style_class: 'mutsu-card-actions'});
+            for (const [label, callback] of [
+                ['Full screen', () => {
+                    this._splitFirst = null;
+                    this._split.clear();
+                    maximizeWindow(window, Meta);
+                    this._activate(window);
+                }],
+                ['Split View', () => {
+                    for (const card of this._cards)
+                        card.actor.remove_style_class_name('mutsu-split-selected');
+                    this._splitFirst = window;
+                    this._hint.text = 'Tap another app to place it beside this one';
+                    actor.add_style_class_name('mutsu-split-selected');
+                }],
+            ]) {
+                const button = new St.Button({label, style_class: 'mutsu-tablet-button'});
+                button._mutsuCardAction = true;
+                button.connect('clicked', callback);
+                actions.add_child(button);
+            }
+            actor.add_child(actions);
             row.add_child(actor);
             const card = {actor, window};
             actor.connect('key-press-event', (_actor, event) => {
@@ -196,6 +349,10 @@ export class TabletSwitcher {
             });
             this._cards.push(card);
             this._signals.push([window, window.connect('unmanaged', () => {
+                if (this._splitFirst === window) {
+                    this._splitFirst = null;
+                    this._hint.text = 'Swipe up to close · Tap to resume · Split for two apps';
+                }
                 actor.destroy();
                 this._cards = this._cards.filter(c => c !== card);
                 if (this._cards.length === 0) { this.hide(); this._home(); }
@@ -213,6 +370,14 @@ export class TabletSwitcher {
     }
 
     _activate(window) {
+        const first = this._splitFirst;
+        if (first && first !== window) {
+            this.hide();
+            this._split.arrange(first, window);
+            return;
+        }
+        if (first)
+            return;
         this.hide();
         Main.overview.hide();
         Main.activateWindow(window);
@@ -235,6 +400,9 @@ export class TabletSwitcher {
     }
 
     hide() {
+        this._splitFirst = null;
+        this._scroll = null;
+        this._resetPreview();
         this._drag = null;
         for (const [object, id] of this._signals)
             object.disconnect(id);
@@ -249,10 +417,13 @@ export class TabletSwitcher {
 
     destroy() {
         this.hide();
+        this._dock.destroy();
+        this._split.destroy();
         global.stage.disconnect(this._eventId);
         global.display.disconnect(this._windowId);
         Main.sessionMode.disconnect(this._sessionId);
         Main.layoutManager.disconnect(this._monitorId);
+        Main.layoutManager.keyboardBox.disconnect(this._keyboardId);
         Main.layoutManager.removeChrome(this._bar);
         this._bar.destroy();
     }

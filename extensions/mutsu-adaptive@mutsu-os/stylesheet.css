@@ -13,7 +13,8 @@
   min-height: 0;
 }
 
-.mutsu-tablet-home .app-grid { padding: 24px 32px; }
+.mutsu-tablet-home .app-grid { padding: 180px 32px 24px; }
+.mutsu-tablet-home.mutsu-home-no-widgets .app-grid { padding-top: 24px; }
 .mutsu-tablet-home .overview-icon { border-radius: 22px; }
 .mutsu-tablet-home .dash-background {
   background-color: rgba(235, 240, 255, 0.22);
@@ -51,3 +52,36 @@
 .mutsu-tablet-button:focus, .mutsu-tablet-button:hover {
   background-color: rgba(255, 255, 255, 0.28);
 }
+.mutsu-gesture-backdrop { background-color: rgba(19, 24, 43, 0.96); }
+.mutsu-touch-dock {
+  spacing: 8px;
+  padding: 8px 12px;
+  border-radius: 28px;
+  background-color: rgba(40, 48, 67, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.mutsu-dock-app { min-width: 52px; min-height: 52px; padding: 6px; border-radius: 18px; }
+.mutsu-dock-app:hover, .mutsu-dock-app:focus { background-color: rgba(255, 255, 255, 0.18); }
+.mutsu-card-actions { spacing: 8px; }
+.mutsu-card-actions .mutsu-tablet-button { padding: 10px 12px; font-size: 13px; }
+.mutsu-split-selected { border: 2px solid #a4c9b2; }
+.mutsu-split-divider {
+  background-color: rgba(40, 48, 67, 0.92);
+  border-radius: 14px;
+  color: white;
+  font-size: 24px;
+}
+.mutsu-home-widgets {
+  background-color: rgba(32, 42, 50, 0.86);
+  border-radius: 24px;
+  padding: 12px 16px;
+  spacing: 12px;
+  color: white;
+}
+.mutsu-home-clock { font-size: 20px; font-weight: bold; }
+.mutsu-home-tools { spacing: 8px; }
+.mutsu-home-tools .mutsu-tablet-button { padding: 12px; }
+.mutsu-tablet-controls .quick-toggle,
+.mutsu-tablet-controls .message,
+.mutsu-tablet-controls .button { min-height: 44px; }
+.mutsu-tablet-controls .slider { height: 32px; }

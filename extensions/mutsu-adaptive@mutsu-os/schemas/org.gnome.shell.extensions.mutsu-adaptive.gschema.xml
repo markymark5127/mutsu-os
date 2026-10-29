@@ -21,6 +21,16 @@
       <summary>Open app grid on tablet transition</summary>
       <description>When entering tablet mode, show the Show Applications grid as Home.</description>
     </key>
+    <key name="home-widgets" type="b">
+      <default>true</default>
+      <summary>Show Home clock and touch shortcuts</summary>
+      <description>Show a local clock/date widget and Search, Controls, Notifications and Keyboard buttons on tablet Home.</description>
+    </key>
+    <key name="automatic-keyboard" type="b">
+      <default>true</default>
+      <summary>Enable the on-screen keyboard in tablet mode</summary>
+      <description>Use GNOME's native text-field keyboard handling while in tablet mode. Restore the previous accessibility setting on exit.</description>
+    </key>
     <key name="touch-text-scale" type="d">
       <default>1.15</default>
       <summary>Temporary text scale factor while in tablet mode</summary>

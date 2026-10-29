@@ -9,6 +9,8 @@ import Meta from 'gi://Meta';
 import Clutter from 'gi://Clutter';
 import {TabletSwitcher} from './tabletSwitcher.js';
 import {applyTabletDock} from './tabletDock.js';
+import {TabletSession} from './tabletSession.js';
+import {maximizeWindow, unmaximizeWindow} from './tabletGeometry.js';
 
 // Installed and enabled by default for new Mutsu OS users.
 // Manual desktop/tablet modes are available even without a hinge switch.
@@ -195,7 +197,6 @@ export default class MutsuAdaptiveExtension extends Extension {
                 'auto-maximize-windows-activation',
                 'text-selection-activation',
                 'text-action-fab-activation',
-                'action-bar-activation',
                 'window-tiling-flick-activation',
             ]) {
                 if (s.settings_schema.has_key(key)) {
@@ -203,6 +204,13 @@ export default class MutsuAdaptiveExtension extends Extension {
                         this._touchshellSaved.set(key, s.get_string(key));
                     s.set_string(key, value);
                 }
+            }
+            // Mutsu owns the bottom indicator and app navigation. Keep
+            // Touchshell's workspace-swipe bar from competing for the edge.
+            if (s.settings_schema.has_key('action-bar-activation')) {
+                if (on)
+                    this._touchshellSaved.set('action-bar-activation', s.get_string('action-bar-activation'));
+                s.set_string('action-bar-activation', 'off');
             }
         } catch (e) {
             log(`Mutsu Adaptive: Touchshell toggle failed (${e})`);
@@ -227,7 +235,9 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._applyTouchVisuals();
         this._installMaximizeOnLaunch();
         this._installAppLayering();
-        this._installPullSearch();
+        // A Home search button replaces the old transparent pull-down
+        // catcher, which intercepted app-grid long presses and folder drags.
+        this._tabletSession = new TabletSession(() => this._openSpotlight(), this._settings);
         // TabletSwitcher owns the bottom edge to avoid competing recognizers.
         this._tabletSwitcher = new TabletSwitcher(
             () => {
@@ -250,6 +260,8 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._inTablet = false;
         this._tabletSwitcher?.destroy();
         this._tabletSwitcher = null;
+        this._tabletSession?.destroy();
+        this._tabletSession = null;
 
         this._removeMaximizeOnLaunch();
         this._removeAppLayering();
@@ -471,6 +483,8 @@ export default class MutsuAdaptiveExtension extends Extension {
             try {
                 const iface = new Gio.Settings({ schema_id: 'org.gnome.settings-daemon.peripherals.touchscreen' });
                 if (iface.settings_schema.has_key('orientation-lock'))
+                    this._saved.rotationLock = iface.get_user_value('orientation-lock');
+                if (iface.settings_schema.has_key('orientation-lock'))
                     iface.set_boolean('orientation-lock', true);
             } catch (e) {}
         }
@@ -484,6 +498,15 @@ export default class MutsuAdaptiveExtension extends Extension {
     }
 
     _restoreReversibleState() {
+        if (this._saved.rotationLock !== undefined) {
+            try {
+                const touchscreen = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.peripherals.touchscreen'});
+                if (this._saved.rotationLock === null)
+                    touchscreen.reset('orientation-lock');
+                else
+                    touchscreen.set_value('orientation-lock', this._saved.rotationLock);
+            } catch (e) {}
+        }
         if (this._saved.textScaling !== null && !this._saved.hadCustomScale) {
             try {
                 const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
@@ -665,8 +688,8 @@ export default class MutsuAdaptiveExtension extends Extension {
             if (win.get_window_type() !== Meta.WindowType.NORMAL || win.is_skip_taskbar())
                 return;
             if (!this._tabletWindowState.has(win))
-                this._tabletWindowState.set(win, win.get_maximized());
-            win.maximize(Meta.MaximizeFlags.BOTH);
+                this._tabletWindowState.set(win, win.get_maximized?.() ?? win.is_maximized?.());
+            maximizeWindow(win, Meta);
         };
         for (const win of global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null))
             maximize(win);
@@ -692,9 +715,13 @@ export default class MutsuAdaptiveExtension extends Extension {
     _removeMaximizeOnLaunch() {
         for (const [win, flags] of this._tabletWindowState ?? []) {
             try {
-                win.unmaximize(Meta.MaximizeFlags.BOTH);
-                if (flags)
-                    win.maximize(flags);
+                unmaximizeWindow(win, Meta);
+                if (flags) {
+                    if (Meta.MaximizeFlags)
+                        win.maximize(flags);
+                    else
+                        maximizeWindow(win, Meta);
+                }
             } catch (e) { /* Window may have closed in tablet mode. */ }
         }
         this._tabletWindowState = null;

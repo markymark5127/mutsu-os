@@ -29,9 +29,11 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
         const behavior = new Adw.PreferencesGroup({title: 'When in tablet mode'});
         page.add(behavior);
         this._switch(behavior, settings, 'open-home-on-tablet', 'Open the app grid', 'Show Applications becomes Home');
-        this._switch(behavior, settings, 'enable-experimental-gestures', 'Bottom swipe gestures', 'Swipe up for Home, hold for all windows');
+        this._switch(behavior, settings, 'enable-experimental-gestures', 'Bottom swipe gestures', 'Short pull: Dock · Long swipe: Home · Hold: Recent Apps · Sideways: switch apps');
         this._switch(behavior, settings, 'collapse-dock-in-tablet', 'Hide the dock', 'Autohide Dash to Dock while folded');
         this._switch(behavior, settings, 'rotation-lock', 'Lock rotation', 'Stop auto-rotate while in tablet mode');
+        this._switch(behavior, settings, 'home-widgets', 'Home widgets', 'Clock, date and touch shortcuts');
+        this._switch(behavior, settings, 'automatic-keyboard', 'On-screen keyboard', 'Show the native keyboard for text fields in tablet mode');
     }
 
     _switch(group, settings, key, title, subtitle) {

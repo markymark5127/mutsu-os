@@ -1,41 +1,64 @@
-# Mutsu Adaptive Desktop
+# Mutsu tablet experience
 
-Mutsu's tablet layout builds on the bundled Touchshell GNOME extension.
-Touchshell supplies panel auto-hide, top-edge controls, text-selection tools,
-notification dismissal, window tiling, auto-maximization and GNOME overview gestures.
-Adaptive supplies posture switching, the Home app grid and a dedicated Recent Apps view.
+Mutsu builds on the bundled Touchshell and native GNOME app grid, keyboard,
+Quick Settings and notification system. Desktop settings are restored on exit.
 
-## Tablet controls
+## Navigation
 
-- Switch to Always Tablet from Quick Settings or the Mutsu panel menu.
-- Existing and newly opened normal app windows maximize to the display work area.
-- Tap the bottom Home indicator or swipe up quickly to return to the app grid.
-- Swipe up slowly, or swipe up and pause before releasing, to open Recent Apps.
-- Recent Apps is also available from the Mutsu panel menu.
-- Scroll horizontally through window cards; tap a card to resume it.
-- Swipe a card up at least 90 pixels to request a normal close. Remaining cards stay available.
-- Tab through cards, Enter to resume, Delete to close, Escape or Done to dismiss the switcher.
-- Home returns to the app grid. Closing the last card also returns Home.
-- Unsaved-work dialogs are allowed to take focus; this never force-kills an application.
+Enable **Bottom swipe gestures** in Adaptive Desktop preferences. The opt-in
+remains off by default; Home and Recent Apps also have accessible buttons/menus.
 
-The adaptive switcher owns the bottom 24-pixel gesture area. Touchshell's competing
-bottom-edge recognizer is suspended while tablet mode is active. Other Touchshell
-features remain enabled. Previous Touchshell settings and window maximization state
-are restored when leaving tablet mode. Gesture exceptions continue to apply.
-Bottom-edge swipe interception requires enable-experimental-gestures. With it off,
-the Home indicator remains clickable and Recent Apps is available in the panel menu.
-The setting is checked for each gesture, so it takes effect without restarting.
+- Short pull from the bottom edge: reveal a temporary dock with favorite and running apps.
+- Longer upward swipe: Home. The current app preview follows the finger and fades into Home.
+- Longer upward swipe and pause: Recent Apps.
+- Horizontal swipe along the bottom edge: previous/next recent app. Consecutive swipes cycle through the recent-app list.
+- The temporary dock dismisses after an app selection, an outside tap, focus change or five seconds.
+- Tap the Home indicator to return Home.
+- Search is available from the Home widget and the existing global shortcut.
 
-## Validation
+Recent Apps supports finger-tracked vertical dismissal, horizontal card scrolling,
+keyboard navigation and ordinary application close requests (including unsaved-work prompts).
 
-Run `node tests/test_tablet_switcher.cjs extensions/mutsu-adaptive@mutsu-os/tabletSwitcher.js`
-for gesture routing checks and `python -m unittest discover -s tests` for image contracts.
-JavaScript syntax checks and these tests do not verify GNOME rendering.
+## Two-app layouts
 
-Before shipping, boot the image in GNOME and check both portrait and landscape:
-Home, app launch, horizontal card scrolling, swipe dismissal, an unsaved document,
-multiple fingers, rotation, screen locking, the on-screen keyboard and mode restoration.
-Live card rendering and GNOME Shell 46–50 compatibility require runtime verification.
-Automatic hardware posture detection also needs convertible-device testing.
+Open Recent Apps, tap **Split View** on one card, then tap another card.
+A wide divider resizes the pair within a 30–70% range. Tap the divider to maximize
+the active app, or use **Full screen** on a card. Closing one app expands its companion.
+Rotation reflows the pair; the layout accounts for the on-screen keyboard on its monitor.
+Fixed-size apps cannot use this layout. Applications can enforce minimum sizes;
+small portrait screens may not fit two desktop applications comfortably.
+
+## Home, keyboard and controls
+
+- Native GNOME app-grid pagination, icon long-press menus, folder creation and rearrangement are retained.
+  The former invisible pull-down search catcher has been removed so it cannot steal icon gestures.
+- An optional local clock/date widget and Search, Controls, Notifications and Keyboard buttons appear on Home.
+  The widget rearranges for portrait and respects the system's 12/24-hour clock setting.
+- Quick Settings and notifications use Touchshell's top-edge gestures, with larger touch targets.
+- Native GNOME text-field keyboard handling is enabled temporarily, with a preference to turn this off.
+  The bottom gesture indicator is hidden while the keyboard is visible.
+- Dock auto-hide, keyboard accessibility, rotation lock and Touchshell settings restore on leaving tablet mode.
+- The default desktop auto-maximizer skips the compact Mutsu Search surface.
+
+The widget is a clock/date and shortcut strip, not a general third-party widget platform.
+Native app support determines how well text entry, folders and window resizing behave.
+
+## Verification
+
+Run the Python suite and these Node checks from the repository root:
+
+```
+python3 -m unittest discover -s tests
+node tests/test_tablet_switcher.cjs extensions/mutsu-adaptive@mutsu-os/tabletSwitcher.js
+node tests/test_tablet_layout.cjs extensions/mutsu-adaptive@mutsu-os
+node tests/test_tablet_dock.cjs extensions/mutsu-adaptive@mutsu-os/tabletDock.js
+```
+
+CI runs gesture, layout, settings-restoration and JavaScript syntax checks.
+These use simulated shell objects and do not prove live rendering or hardware behavior.
+Before shipping, boot GNOME and test touchscreen navigation, cancelled gestures,
+text fields in GTK and non-GTK apps, portrait/landscape rotation, two-app minimum sizes,
+lock/unlock, notifications, icon long presses/folders, and repeated mode changes.
+Automatic fold detection and GNOME Shell 46–50 compatibility need real-device validation.
 
 Recovery: `gnome-extensions disable mutsu-adaptive@mutsu-os`.
