@@ -23,7 +23,8 @@ concurrency:
 jobs:
   build_push:
     name: Build and push image
-    runs-on: ubuntu-26.04
+    # Match the privileged disk-image job's tested runner generation.
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: read
@@ -49,6 +50,13 @@ jobs:
           python3 packaging/check-integration.py
           python3 packaging/check-branding-assets.py
           python3 -m unittest discover -s tests -p 'test_*.py' -v
+          node tests/test_tablet_switcher.cjs extensions/mutsu-adaptive@mutsu-os/tabletSwitcher.js
+          node tests/test_tablet_layout.cjs extensions/mutsu-adaptive@mutsu-os
+          node tests/test_tablet_dock.cjs extensions/mutsu-adaptive@mutsu-os/tabletDock.js
+          node tests/test_search_integration.cjs extensions/mutsu-branding@mutsu-os/searchIntegration.js
+          for script in extensions/mutsu-adaptive@mutsu-os/*.js; do
+            node --check "$script"
+          done
           PYTHONPATH=vendor/ai-desktop/src python3 -m unittest discover -s vendor/ai-desktop/tests -p 'test_*.py' -v
           # Record exactly which reviewed desktop code this immutable image uses.
           cat packaging/desktop-source.env
@@ -59,6 +67,8 @@ jobs:
           bash -n packaging/verify-upstream-initramfs.sh
           bash -n packaging/rebuild-mutsu-initramfs.sh
           bash -n packaging/install-newelle.sh
+          bash -n packaging/build-newelle-dependencies.sh
+          bash -n packaging/setup-newelle-user.sh
           # Catch installer, keyd and branding script errors BEFORE OCI building.
           for script in build_files/build.sh \
                         packaging/install-branding.sh \
@@ -98,12 +108,32 @@ jobs:
           echo "IMAGE_NAME=${IMAGE_NAME,,}" >> ${GITHUB_ENV}
 
       # This actually builds the container image
+      - name: Allow nested Flatpak namespaces on the ephemeral build runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Ubuntu restricts unprivileged userns independently of Podman's
+          # seccomp profile. Limit this change to this disposable CI job.
+          policy=/proc/sys/kernel/apparmor_restrict_unprivileged_userns
+          if [[ -r "$policy" ]]; then
+            echo "MUTSU_PREVIOUS_USERNS_POLICY=$(cat "$policy")" >> "$GITHUB_ENV"
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
       - name: Build Image
         id: build-image
         run: |
           just build \
             ${IMAGE_NAME} \
             ${DEFAULT_TAG}
+
+      - name: Restore runner namespace policy
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${MUTSU_PREVIOUS_USERNS_POLICY:-}" ]]; then
+            sudo sysctl -w "kernel.apparmor_restrict_unprivileged_userns=${MUTSU_PREVIOUS_USERNS_POLICY}"
+          fi
 
       # This is optional, this provides smaller delta updates
       - name: Rechunk with rpm-ostree

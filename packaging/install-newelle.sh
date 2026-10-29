@@ -11,6 +11,12 @@ command -v flatpak >/dev/null || {
 }
 
 app=io.github.qwersyk.Newelle
+# Fail before downloading gigabytes if the caller used a confined builder.
+# Flatpak also invokes bubblewrap while deploying runtimes for ldconfig.
+if ! bwrap --unshare-user --unshare-pid --ro-bind / / --proc /proc --dev /dev /usr/bin/true; then
+  echo >&2 'The image builder blocks Flatpak namespaces. Use just build with its nested-namespace options; on Ubuntu, the build runner must also permit unprivileged user namespaces.'
+  exit 1
+fi
 flatpak remote-add --system --if-not-exists flathub \
   https://dl.flathub.org/repo/flathub.flatpakrepo
 if ! flatpak info --system "$app" >/dev/null 2>&1; then
