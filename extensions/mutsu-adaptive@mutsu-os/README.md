@@ -1,45 +1,40 @@
 # Mutsu Adaptive Desktop
 
-GNOME Shell extension that turns Mutsu OS into a MacBook-like desktop when open and an iPad-like tablet when a 2-in-1 is folded.
+Mutsu's tablet layout builds on the bundled Touchshell GNOME extension.
+Touchshell supplies panel auto-hide, top-edge controls, text-selection tools,
+notification dismissal, window tiling, auto-maximization and GNOME overview gestures.
+Adaptive supplies posture switching, the Home app grid and a dedicated Recent Apps view.
 
-## Current status (Phases 1–4)
+## Tablet controls
 
-### Phase 1 (done)
-- Panel menu + Quick Settings toggle for Automatic / Always Desktop / Always Tablet.
-- Debounced, idempotent enter/leave transitions.
-- On tablet mode: opens the Show Applications grid as Home.
-- Maximize-on-launch for ordinary windows while in tablet mode.
-- Posture watcher scaffold (hardware signal not yet connected).
+- Switch to Always Tablet from Quick Settings or the Mutsu panel menu.
+- Existing and newly opened normal app windows maximize to the display work area.
+- Tap the bottom Home indicator or swipe up quickly to return to the app grid.
+- Swipe up slowly, or swipe up and pause before releasing, to open Recent Apps.
+- Recent Apps is also available from the Mutsu panel menu.
+- Scroll horizontally through window cards; tap a card to resume it.
+- Swipe a card up at least 90 pixels to request a normal close. Remaining cards stay available.
+- Tab through cards, Enter to resume, Delete to close, Escape or Done to dismiss the switcher.
+- Home returns to the app grid. Closing the last card also returns Home.
+- Unsaved-work dialogs are allowed to take focus; this never force-kills an application.
 
-### Phase 2 (gestures)
-- Experimental bottom-edge swipe (short → Home, longer → Overview), gated behind `enable-experimental-gestures` (default off).
-- Gesture suppression for listed fullscreen/game windows (`gesture-exceptions`).
-- Intentionally thin actor so it can coexist with the OSK bottom-edge gesture.
+The adaptive switcher owns the bottom 24-pixel gesture area. Touchshell's competing
+bottom-edge recognizer is suspended while tablet mode is active. Other Touchshell
+features remain enabled. Previous Touchshell settings and window maximization state
+are restored when leaving tablet mode. Gesture exceptions continue to apply.
+The existing enable-experimental-gestures option applies to the legacy bottom handler;
+the tablet Home indicator and switcher now provide the standard tablet navigation.
 
-### Phase 3 (touch-first visuals)
-- Temporary text scaling while in tablet mode (only if the user has not already customized text scaling; restored on exit).
-- Best-effort dock autohide in tablet mode (Dash to Dock) and restore on exit.
-- Optional rotation lock while in tablet mode.
+## Validation
 
-### Phase 4 (polish)
-- Reversible save/restore of the settings the extension changes.
-- Gesture exception list for games/fullscreen apps.
-- Clear recovery path: `gnome-extensions disable mutsu-adaptive@mutsu-os`.
-- Extension remains disabled by default in the image until hardware QA is complete.
+Run `node tests/test_tablet_switcher.cjs extensions/mutsu-adaptive@mutsu-os/tabletSwitcher.js`
+for gesture routing checks and `python -m unittest discover -s tests` for image contracts.
+JavaScript syntax checks and these tests do not verify GNOME rendering.
 
-## Still needed (hardware)
+Before shipping, boot the image in GNOME and check both portrait and landscape:
+Home, app launch, horizontal card scrolling, swipe dismissal, an unsaved document,
+multiple fingers, rotation, screen locking, the on-screen keyboard and mode restoration.
+Live card rendering and GNOME Shell 46–50 compatibility require runtime verification.
+Automatic hardware posture detection also needs convertible-device testing.
 
-- Wire Automatic mode to the real `SW_TABLET_MODE` / Mutter tablet-mode signal.
-- Verify gestures do not fight the OSK, notification shade, or lock screen on real hardware.
-- Confirm text scaling and dock changes are fully reversible and do not clobber accessibility settings.
-- Real Yoga-class + second 2-in-1 QA (see product definition of done).
-
-## Testing
-
-1. Enable the extension in a disposable VM.
-2. Switch to Always Tablet via Quick Settings or the panel menu.
-3. Confirm app grid opens, new windows maximize, and (if enabled) bottom swipes work.
-4. Switch back to Always Desktop and confirm text scaling / dock state are restored.
-5. Add a game WM_CLASS to `gesture-exceptions` and confirm gestures are suppressed for that window.
-
-See the ai-desktop `docs/ADAPTIVE_DESKTOP.md` for the full product specification.
+Recovery: `gnome-extensions disable mutsu-adaptive@mutsu-os`.
