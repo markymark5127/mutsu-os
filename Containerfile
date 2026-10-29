@@ -86,9 +86,10 @@ COPY packaging/install-mac-shortcuts.sh /tmp/mutsu-install-mac-shortcuts.sh
 RUN bash /tmp/mutsu-install-mac-shortcuts.sh && \
     rm -f /tmp/mutsu-keyd.conf /tmp/mutsu-install-mac-shortcuts.sh
 
-### NEWELLE (preinstalled, no API key)
-# The Flatpak is installed once after first boot has network. The matching
-# GUI API token is generated per user by mutsu-newelle-link.service.
+### NEWELLE (baked in, no API key)
+# The Flatpak is installed into the image. bootc seeds it on first install.
+# A first-boot unit remains only as a fallback. The per-user token is still
+# generated at first login by mutsu-newelle-link.service.
 COPY packaging/install-newelle.sh /tmp/mutsu-install-newelle.sh
 RUN bash /tmp/mutsu-install-newelle.sh && rm -f /tmp/mutsu-install-newelle.sh
 

@@ -84,8 +84,8 @@ class CleanInstallTests(TestCase):
         self.assertIn("After=network-online.target", script)
         self.assertIn("ConditionPathExists=!/var/lib/mutsu-os/newelle-preinstall-complete", script)
         self.assertNotIn("--no-deploy", script)
-        self.assertNotIn("flatpak preinstall", script.split("cat > /usr/libexec/mutsu-os")[1])
-        self.assertNotIn("flatpak install --system", script.split("cat > /usr/libexec/mutsu-os")[0])
+        self.assertIn("flatpak install --system --noninteractive --assumeyes flathub", script.split("cat > /usr/libexec/mutsu-os")[0])
+        self.assertIn("/usr/lib/systemd/user/ai-desktop-newelle.service", script)
 
     def _load_native_desktop(self):
         path = ROOT / "packaging/configure-native-desktop.py"

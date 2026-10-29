@@ -95,27 +95,10 @@ if ollama.returncode == 0:
         gsettings(["set", schema, "language-model", "ollama"])
 
 # model_sharing is a user choice; do not force it.
+PY
 
-unit_dir="$config_root/systemd/user"
-mkdir -p "$unit_dir"
-unit="$unit_dir/ai-desktop-newelle.service"
-if [[ ! -e "$unit" ]]; then
-  cat > "$unit" <<'EOF'
-[Unit]
-Description=Headless Newelle backend for Mutsu OS
-After=graphical-session.target
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/flatpak run io.github.qwersyk.Newelle --interface gui-api
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-EOF
-fi
-
+# The unit ships in the image. First login only enables it after the token
+# is written, so Newelle does not start before it can authenticate.
 started=0
 if command -v systemctl >/dev/null; then
   systemctl --user daemon-reload || true
