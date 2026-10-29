@@ -456,6 +456,11 @@ export class AutoMaximizeWindows {
     _shouldMaximize(win) {
         if (!win)
             return false;
+        // Mutsu Search is a transient system-search surface, not an app page.
+        // Keep the separate setup wizard subject to normal window behavior.
+        if (win.get_gtk_application_id?.() === 'io.github.markymark5127.AIDesktop' &&
+            win.get_title?.() === 'Mutsu OS Search')
+            return false;
         if (win.window_type !== Meta.WindowType.NORMAL)
             return false;
         if (typeof win.is_override_redirect === 'function' && win.is_override_redirect())

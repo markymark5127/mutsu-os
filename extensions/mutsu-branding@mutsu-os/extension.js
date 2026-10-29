@@ -8,6 +8,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
+import {SearchIntegration} from './searchIntegration.js';
 
 const BASE = '/usr/share/mutsu-os/branding/shell';
 const JAPANDI_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-japandi.svg';
@@ -15,6 +16,7 @@ const DARK_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-symbolic-whit
 
 export default class MutsuBrandingExtension extends Extension {
     enable() {
+        this._searchIntegration = new SearchIntegration();
         this._activeStylesheet = null;
         this._settings = this.getSettings();
         this._activitiesWasVisible = null;
@@ -327,6 +329,8 @@ export default class MutsuBrandingExtension extends Extension {
     }
 
     disable() {
+        this._searchIntegration?.destroy();
+        this._searchIntegration = null;
         this._unloadStyle();
         if (this._changedId) {
             this._settings.disconnect(this._changedId);

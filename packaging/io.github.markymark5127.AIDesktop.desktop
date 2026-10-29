@@ -9,3 +9,4 @@ Terminal=false
 Categories=Utility;System;
 Keywords=Mutsu;Search;Spotlight;Files;AI;
 StartupNotify=true
+NoDisplay=true

@@ -8,6 +8,7 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Clutter from 'gi://Clutter';
 import {TabletSwitcher} from './tabletSwitcher.js';
+import {applyTabletDock} from './tabletDock.js';
 
 // Installed and enabled by default for new Mutsu OS users.
 // Manual desktop/tablet modes are available even without a hinge switch.
@@ -453,7 +454,6 @@ export default class MutsuAdaptiveExtension extends Extension {
         } catch (e) {
             this._saved.textScaling = null;
         }
-        this._saved.dockCollapsed = false;
     }
 
     _applyTouchVisuals() {
@@ -478,8 +478,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (this._settings.get_boolean('collapse-dock-in-tablet')) {
             try {
                 const dock = new Gio.Settings({ schema_id: 'org.gnome.shell.extensions.dash-to-dock' });
-                this._saved.dockAutohide = dock.get_boolean('autohide');
-                dock.set_boolean('autohide', true);
+                this._restoreTabletDock = applyTabletDock(dock);
             } catch (e) {}
         }
     }
@@ -491,12 +490,8 @@ export default class MutsuAdaptiveExtension extends Extension {
                 iface.set_double('text-scaling-factor', this._saved.textScaling);
             } catch (e) {}
         }
-        if (this._saved.dockAutohide !== undefined) {
-            try {
-                const dock = new Gio.Settings({ schema_id: 'org.gnome.shell.extensions.dash-to-dock' });
-                dock.set_boolean('autohide', this._saved.dockAutohide);
-            } catch (e) {}
-        }
+        this._restoreTabletDock?.();
+        this._restoreTabletDock = null;
         this._saved = {};
     }
 
@@ -664,6 +659,9 @@ export default class MutsuAdaptiveExtension extends Extension {
             return;
         this._tabletWindowState = new Map();
         const maximize = win => {
+            if (win.get_gtk_application_id() === 'io.github.markymark5127.AIDesktop' &&
+                win.get_title() === 'Mutsu OS Search')
+                return;
             if (win.get_window_type() !== Meta.WindowType.NORMAL || win.is_skip_taskbar())
                 return;
             if (!this._tabletWindowState.has(win))
