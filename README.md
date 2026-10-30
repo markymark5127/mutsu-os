@@ -23,7 +23,7 @@ This repository is the **bootc image build**. The related [ai-desktop](https://g
 - The Mutsu AI result displays the installed emblem if no separate AI SVG exists. The assistant is opt-in and off by default for model requests.
 - Optional Newelle user-service and key-configuration scripts are installed in `/usr/share/mutsu-os/scripts`.
 
-**Alpha status:** Mutsu logo, wallpaper, top-bar extension source, branded Anaconda ISO and Plymouth script theme are packaged. A guarded generic initramfs rebuild is proposed to embed the Mutsu Plymouth splash while explicitly preserving OSTree root-pivot modules. It is still **unverified in a fresh VM**, and should not be considered a working boot splash until that test passes. Newelle is installed through a network-dependent, **one-time first-boot** Flatpak service (retry on a later boot if offline, and no forced reinstallation after user removal) (the AI model, account and credentials are intentionally not bundled). System-wide GTK/Qt appearance, native GNOME Spotlight, a custom icon pack, dock/overview polish and automatic tablet posture are not finished. **Bootable-media and fresh-install tests remain outstanding**; see [clean-install QA](docs/INITIAL_INSTALL_QA.md). These are separate milestones.
+**Alpha status:** Mutsu logo, wallpaper, top-bar extension source, branded Anaconda ISO and Plymouth script theme are packaged. A guarded generic initramfs rebuild is proposed to embed the Mutsu Plymouth splash while explicitly preserving OSTree root-pivot modules. It is still **unverified in a fresh VM**, and should not be considered a working boot splash until that test passes. Newelle, its GUI API dependencies and Qwen 3.5 9B through Ollama are packaged for offline first boot, with automatic per-user connection and private credentials created locally. The complete image and fresh offline boot still need validation; see [offline AI packaging](docs/NEWELLE_OFFLINE_BUILD.md). System-wide GTK/Qt appearance, native GNOME Spotlight, a custom icon pack, dock/overview polish and automatic tablet posture are not finished. **Bootable-media and fresh-install tests remain outstanding**; see [clean-install QA](docs/INITIAL_INSTALL_QA.md). These are separate milestones.
 
 ## Adaptive Desktop (planned)
 
@@ -73,11 +73,11 @@ command -v mutsu-search
 mutsu-search --search files
 ```
 
-Log into GNOME as a new user: the first-run wizard should appear once. Closing or completing the wizard should not lose the user's app preferences. Use **Show Applications → Mutsu OS Search** to open Spotlight. The appearance selector switches wallpaper; System can restore a previously set user wallpaper. Newelle should be installed system-wide once the first online boot completes, but a model/provider and private credentials must still be configured before the inference backend can answer.
+Log into GNOME as a new user: the first-run wizard should appear once. Closing or completing the wizard should not lose the user's app preferences. Use **Show Applications → Mutsu OS Search** to open Spotlight. The appearance selector switches wallpaper; System can restore a previously set user wallpaper. Newelle should be installed system-wide with the bundled Qwen 3.5 9B model and automatically connected at graphical login, including when offline.
 
 ### Newelle (opt-in)
 
-Newelle is a Flatpak, and its model/API authentication is **personal**. Do not bake an API token into a publicly distributed image. After installing Newelle, configure its local authenticated GUI API and model, then follow:
+Newelle is a Flatpak, and its model/API authentication is **personal**. Do not bake an API token into a publicly distributed image. The image configures its local authenticated GUI API and bundled model automatically. For manual repair, follow:
 
 ```bash
 bash /usr/share/mutsu-os/scripts/configure-newelle-key.sh

@@ -1,143 +1,43 @@
 #!/usr/bin/env bash
-# First login: pair Mutsu Search with headless Newelle using one generated token,
-# then point Newelle at a local model if one is already on the machine.
+# Automatic per-user connection; app, runtime, SDKs and model ship in the OS.
 set -euo pipefail
-
 config_root="${XDG_CONFIG_HOME:-$HOME/.config}"
 config_dir="$config_root/ai-desktop"
 token_file="$config_dir/newelle-token"
 marker="$config_dir/newelle-linked"
 app=io.github.qwersyk.Newelle
 port=8081
-
-# A previous pairing marker is not proof that the API is still running.
-# Reuse the token, but allow the Portal pairing button to repair startup.
-
-if ! command -v flatpak >/dev/null; then
-  exit 0
+if ! command -v flatpak >/dev/null || ! flatpak info "$app" >/dev/null 2>&1; then
+  echo >&2 'Bundled Newelle is not installed. Check mutsu-newelle-preinstall.service.'
+  exit 1
 fi
-if ! flatpak info "$app" >/dev/null 2>&1; then
-  echo "Newelle is not installed yet; will retry next login." >&2
-  exit 0
-fi
-
 umask 077
-mkdir -p -m 700 "$config_dir"
+mkdir -p -m700 "$config_dir"
 chmod 700 "$config_dir"
-
-# Flatpak cannot directly mount a host /usr subtree over its own runtime.
-# Stage the immutable bundle in our private config directory, then grant
-# this one setup process read-only access to that exact directory.
-bundle=/usr/share/mutsu-os/newelle-gui-api
-local_bundle="$config_dir/newelle-offline-bundle"
-if [[ ! -s "$bundle/runtime.json" || ! -d "$bundle/packages" ]]; then
-  echo >&2 "The offline Newelle dependency bundle is missing from this image."
-  exit 1
-fi
-mkdir -p "$local_bundle"
-cp -a "$bundle/runtime.json" "$bundle/packages" "$local_bundle/"
-echo "Preparing bundled Newelle GUI API dependencies…"
-if ! flatpak run --filesystem="$local_bundle:ro" --command=python3 "$app" - "$local_bundle" <<'NEWELLE_DEPS'
-import importlib
-import json
-from pathlib import Path
-import platform
-import shutil
-import sys
-
-
-def prepare_dependencies(bundle, target):
-    metadata = json.loads((bundle / "runtime.json").read_text(encoding="utf-8"))
-    if metadata.get("python") != list(sys.version_info[:2]) or metadata.get("machine") != platform.machine():
-        raise RuntimeError("Newelle runtime changed; a matching Mutsu dependency bundle is required")
-    # Copy into the same directory used by Newelle's Interfaces installer.
-    shutil.copytree(bundle / "packages", target, dirs_exist_ok=True)
-    sys.path.insert(0, str(target))
-    importlib.invalidate_caches()
-    for name in ("fastapi", "uvicorn", "multipart"):
-        importlib.import_module(name)
-
-
-if __name__ == "__main__":
-    from gi.repository import GLib
-    prepare_dependencies(Path(sys.argv[1]), Path(GLib.get_user_config_dir()) / "pip")
-    print("Newelle GUI API dependencies are ready (offline).")
-NEWELLE_DEPS
-then
-  echo >&2 "Bundled Newelle dependencies could not be prepared; pairing is incomplete."
-  exit 1
-fi
-
+# Serialize the automatic session service and the Portal's repair button.
+exec 9>"$config_dir/newelle-setup.lock"
+flock -w 120 9
+rm -f "$marker"
 if [[ ! -s "$token_file" ]]; then
-  token="$(python3 - <<'PY'
-import secrets
-print(secrets.token_hex(24))
-PY
-)"
+  token="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
   tmp="$(mktemp "$config_dir/.newelle-token.XXXXXXXX")"
   printf '%s\n' "$token" > "$tmp"
   chmod 600 "$tmp"
   mv -f "$tmp" "$token_file"
-else
-  token="$(tr -d '\r\n' < "$token_file")"
 fi
-
-python3 - "$token" "$port" <<'PY'
-import json, subprocess, sys
-token, port = sys.argv[1], int(sys.argv[2])
-schema = "io.github.qwersyk.Newelle"
-
-def gsettings(args):
-    return subprocess.run(
-        ["flatpak", "run", "--command=gsettings", schema, *args],
-        check=False, capture_output=True, text=True,
-    )
-
-def get_json(key):
-    result = gsettings(["get", schema, key])
-    if result.returncode != 0:
-        return {}
-    raw = result.stdout.strip()
-    if raw.startswith("'"):
-        raw = raw[1:-1]
-    try:
-        value = json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-    return value if isinstance(value, dict) else {}
-
-def set_json(key, value):
-    payload = json.dumps(value, separators=(",", ":"))
-    result = gsettings(["set", schema, key, payload])
-    if result.returncode != 0:
-        raise SystemExit(result.stderr.strip() or f"could not set {key}")
-
-interfaces = get_json("interfaces-settings")
-gui = interfaces.get("gui-api") if isinstance(interfaces.get("gui-api"), dict) else {}
-gui.update({"api_key": token, "host": "127.0.0.1", "port": port})
-interfaces["gui-api"] = gui
-set_json("interfaces-settings", interfaces)
-
-# Prefer a local model already on the machine. Do not download one here.
-ollama = subprocess.run(
-    ["curl", "-fsS", "--max-time", "2", "http://127.0.0.1:11434/api/tags"],
-    check=False, capture_output=True, text=True,
-)
-if ollama.returncode == 0:
-    try:
-        names = [item.get("name") for item in json.loads(ollama.stdout).get("models", []) if item.get("name")]
-    except json.JSONDecodeError:
-        names = []
-    if names:
-        llm = get_json("llm-settings")
-        ollama_settings = llm.get("ollama") if isinstance(llm.get("ollama"), dict) else {}
-        ollama_settings.update({"endpoint": "http://127.0.0.1:11434", "model": names[0]})
-        llm["ollama"] = ollama_settings
-        set_json("llm-settings", llm)
-        gsettings(["set", schema, "language-model", "ollama"])
-
-# model_sharing is a user choice; do not force it.
-PY
+bundle=/usr/share/mutsu-os/newelle-gui-api
+local_bundle="$config_dir/newelle-offline-bundle"
+test -s "$bundle/runtime.json"
+mkdir -p "$local_bundle"
+cp -a "$bundle/runtime.json" "$bundle/packages" "$local_bundle/"
+cp /usr/share/mutsu-os/local-ai/bundled-model.json "$config_dir/bundled-model.json"
+# Confirm the packaged model is listed before selecting it. This performs no
+# inference and never sends a user's question or device information anywhere.
+python3 /usr/libexec/mutsu-os/wait-local-model.py
+# Gio.Settings writes native values directly; do not parse/quote GVariant
+# JSON strings through separate gsettings processes during session startup.
+flatpak run --filesystem="$config_dir:ro" --command=python3 "$app" - "$config_dir" \
+  < /usr/libexec/mutsu-os/configure-newelle.py
 
 # The unit ships in the image. First login only enables it after the token
 # is written, so Newelle does not start before it can authenticate.

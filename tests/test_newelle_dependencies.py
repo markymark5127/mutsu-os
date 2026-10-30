@@ -12,11 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class NewelleDependencyTests(unittest.TestCase):
     def setUp(self):
-        source = (ROOT / 'packaging/setup-newelle-user.sh').read_text(encoding='utf-8')
-        code = source.split("<<'NEWELLE_DEPS'\n", 1)[1].split('\nNEWELLE_DEPS', 1)[0]
-        scope = {'__name__': 'dependency_test'}
-        exec(compile(code, 'newelle-dependencies', 'exec'), scope)
-        self.prepare = scope['prepare_dependencies']
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('newelle_config', ROOT / 'packaging/configure-newelle.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.prepare = module.prepare_dependencies
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.bundle = Path(self.temp.name) / 'bundle'
@@ -36,7 +36,7 @@ class NewelleDependencyTests(unittest.TestCase):
         with patch('importlib.import_module') as load:
             self.prepare(self.bundle, self.target)
         self.assertTrue((self.target / 'example.py').is_file())
-        self.assertEqual([call.args[0] for call in load.call_args_list], ['fastapi', 'uvicorn', 'multipart'])
+        self.assertEqual([call.args[0] for call in load.call_args_list], ['fastapi', 'uvicorn', 'multipart', 'openai', 'ollama'])
 
     def test_preserves_unrelated_user_dependencies(self):
         self.target.mkdir()

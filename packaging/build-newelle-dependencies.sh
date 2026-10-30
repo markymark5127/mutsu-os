@@ -28,11 +28,13 @@ if importlib.util.find_spec("pip") is None:
     os.environ["PYTHONPATH"] = str(tooling) + os.pathsep + os.environ.get("PYTHONPATH", "")
 subprocess.run([sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
                 "--no-cache-dir", "--only-binary=:all:", "--target", str(target),
-                "fastapi", "uvicorn", "python-multipart"], check=True)
+                "fastapi", "uvicorn", "python-multipart", "openai", "ollama"], check=True)
 sys.path.insert(0, str(target))
 import fastapi
 import uvicorn
 import multipart
+import openai
+import ollama
 metadata = {"python": list(sys.version_info[:2]), "machine": platform.machine()}
 (root / "runtime.json").write_text(json.dumps(metadata), encoding="utf-8")
 PY

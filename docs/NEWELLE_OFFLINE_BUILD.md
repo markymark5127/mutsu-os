@@ -1,42 +1,15 @@
-# Offline Newelle packaging
+# Offline Newelle and Ollama packaging
 
-Newelle, its GNOME Flatpak runtime and its GUI API Python dependencies are
-prepared on the Linux build host. OCI RUN instructions do not invoke
-Flatpak or bubblewrap, and do not need extra container capabilities.
+The Linux build host prepares Newelle, its GNOME Flatpak runtime, GUI API dependencies, and Qwen 3.5 9B through Ollama. No personal models, credentials, chats or settings are copied from the build host.
 
-On a Linux host with Flatpak, a session bus, Python, curl, tar and zstd:
+Run `dbus-run-session -- bash packaging/prepare-newelle.sh` and `just build` on a Linux build host. The build recipe also runs `packaging/prepare-local-model.sh`. GitHub Actions prepares both bundles automatically before restoring its temporary host namespace policy. OCI deployment imports OSTree objects and copies prepared Flatpak deployments without launching a Flatpak sandbox.
 
-```
-dbus-run-session -- bash packaging/prepare-newelle.sh
-just build
-```
+Newelle is installed into the image during the build. Its compressed archive remains available for first-boot recovery. The first-boot completion marker is recorded only after checking the installed app, and prevents reinstalling an app that the user subsequently removes.
 
-GitHub Actions installs these tools and runs preparation automatically.
-Ubuntu's temporary namespace-policy adjustment applies only to the host
-preparation step and is restored before the container build starts.
+The offline model is pinned as `qwen3.5:9b`, with a verified manifest and every layer checked against its SHA-256 digest. The official Ollama CPU runtime is pinned and checksum verified. Model and runtime licenses are included. Ignored `vendor/local-ai/` contains the generated payload; weights are not committed to Git. The model layers occupy approximately 6.6 GB, in addition to the runtime and OS. A tablet with 16 GB RAM is recommended.
 
-Preparation uses a dedicated temporary Flatpak installation. Only that
-installation, its public Flathub signing information and the downloaded
-API packages are staged in ignored `vendor/newelle/`. User credentials,
-models, chats, settings and personal Flatpaks are not included.
-Full Flatpak references and commit IDs are recorded in
-`/usr/share/mutsu-os/build-info/newelle-source.txt` in the image.
+`mutsu-local-model.service` seeds writable model storage from the image and starts Ollama at `127.0.0.1:11435`, with cloud features disabled. Existing Ollama installations on port 11434 can continue to run. Boot readiness checks inspect model metadata without sending prompts. Host preparation additionally requires a successful generic inference smoke test before marking the payload complete.
 
-The image stores a compressed archive under `/usr/share/mutsu-os/newelle/`.
-Before the first login, a system service imports its OSTree objects and
-copies the already-prepared deployments into the system installation.
-Other apps and remote configuration are retained. No download is required.
-The completion marker is written only after `flatpak info` confirms the app;
-it also prevents reinstalling an app that the user later removes.
+At graphical login, automatic per-user setup installs bundled Python dependencies, configures Newelle through its native settings API, creates a private API token, starts its headless GUI API and checks authenticated readiness before recording successful pairing. Failures retry. Fresh users and the online Newelle demo default to the bundled Qwen model. Custom providers, other models and remote Ollama endpoints are retained. No first-boot internet access, model download or manual Pair action is needed for this path.
 
-The GUI API bundle remains in `/usr/share/mutsu-os/newelle-gui-api/`.
-Per-user setup copies those packages locally and checks the authenticated
-API before reporting successful pairing. Models remain separately configured.
-
-The staged payload is reused only when its completion marker matches both
-preparation scripts. Move `vendor/newelle/` aside to refresh the payload or
-after an interrupted preparation; the scripts never delete an existing payload.
-
-Source tests simulate offline deployment and failed imports. A successful
-host preparation, image build and fresh offline VM boot are still required
-to validate the complete installation path.
+Prepared payloads are reused only when their completion fingerprint matches the preparation sources. Move a stale vendor payload aside to refresh it. Source tests cover configuration, dependency compatibility, readiness, and model integrity. A successful Linux preparation, image build and fresh offline VM boot are still required to verify the complete installed experience.

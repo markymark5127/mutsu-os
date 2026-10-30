@@ -102,6 +102,7 @@ build $target_image=image_name $tag=default_tag:
     # another repository during an immutable OS build.
     bash packaging/prepare-desktop.sh
     bash packaging/prepare-newelle.sh
+    bash packaging/prepare-local-model.sh
     python3 packaging/check-integration.py
     PYTHONPATH=vendor/ai-desktop/src python3 -m compileall -q vendor/ai-desktop/src
 

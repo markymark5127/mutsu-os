@@ -9,16 +9,17 @@ install -d -m0755 /usr/lib/systemd/user
 cat > /usr/lib/systemd/user/ai-desktop-newelle.service <<'EOF'
 [Unit]
 Description=Headless Newelle backend for Mutsu OS
-After=graphical-session.target
+After=graphical-session-pre.target
+PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/flatpak run io.github.qwersyk.Newelle --interface gui-api
+ExecStart=/usr/bin/flatpak run --env=PYTHONUNBUFFERED=1 io.github.qwersyk.Newelle --interface gui-api
 Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target
 EOF
 chmod 0644 /usr/lib/systemd/user/ai-desktop-newelle.service
 
@@ -35,6 +36,8 @@ app=io.github.qwersyk.Newelle
 command -v flatpak >/dev/null || exit 1
 
 if flatpak info --system "$app" >/dev/null 2>&1; then
+  if [[ "${MUTSU_IMAGE_BUILD:-0}" == 1 ]]; then exit 0; fi
+  if command -v restorecon >/dev/null; then restorecon -RF /var/lib/flatpak; fi
   install -d -m0755 /var/lib/mutsu-os
   printf 'Existing Newelle installation retained.\n' > "$marker"
   chmod 0644 "$marker"
@@ -79,12 +82,13 @@ for directory in app runtime exports; do
     chown -R 0:0 "/var/lib/flatpak/$directory"
   fi
 done
-if command -v restorecon >/dev/null; then
+if [[ "${MUTSU_IMAGE_BUILD:-0}" != 1 ]] && command -v restorecon >/dev/null; then
   restorecon -RF /var/lib/flatpak
 fi
 touch /var/lib/flatpak/.changed
 flatpak info --system "$app" >/dev/null
 
+if [[ "${MUTSU_IMAGE_BUILD:-0}" == 1 ]]; then exit 0; fi
 install -d -m0755 /var/lib/mutsu-os
 printf 'Newelle installed from the offline OS payload; user may uninstall it.\n' > "$marker"
 chmod 0644 "$marker"
@@ -108,4 +112,7 @@ WantedBy=multi-user.target
 EOF
 chmod 0644 /usr/lib/systemd/system/mutsu-newelle-preinstall.service
 systemctl enable mutsu-newelle-preinstall.service
-echo 'Offline Newelle payload packaged; deployment runs before first login.'
+# Safe in OCI: the worker imports already-prepared files; no Flatpak sandbox
+# is launched. Leave the completion marker for the actual installed boot.
+MUTSU_IMAGE_BUILD=1 /usr/libexec/mutsu-os/install-newelle-once
+echo 'Newelle installed in the image; the local archive remains an offline recovery source.'

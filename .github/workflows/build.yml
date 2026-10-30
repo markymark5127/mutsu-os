@@ -70,6 +70,8 @@ jobs:
           bash -n packaging/install-newelle.sh
           bash -n packaging/build-newelle-dependencies.sh
           bash -n packaging/prepare-newelle.sh
+          bash -n packaging/prepare-local-model.sh
+          bash -n packaging/seed-local-model.sh
           bash -n packaging/setup-newelle-user.sh
           # Catch installer, keyd and branding script errors BEFORE OCI building.
           for script in build_files/build.sh \
@@ -129,6 +131,7 @@ jobs:
       - name: Prepare offline Newelle on the host
         run: |
           dbus-run-session -- bash packaging/prepare-newelle.sh
+          bash packaging/prepare-local-model.sh
 
       - name: Restore runner namespace policy
         if: always()

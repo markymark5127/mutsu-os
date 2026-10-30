@@ -85,7 +85,7 @@ class CleanInstallTests(TestCase):
         self.assertIn("pull-local", script)
         self.assertNotIn("network-online.target", script)
         self.assertNotIn("flatpak install --", script)
-        self.assertNotIn("flatpak run --", script)
+        self.assertIn("MUTSU_IMAGE_BUILD=1 /usr/libexec/mutsu-os/install-newelle-once", script)
         self.assertIn("/usr/lib/systemd/user/ai-desktop-newelle.service", script)
 
     def _load_native_desktop(self):

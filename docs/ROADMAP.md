@@ -54,7 +54,7 @@ This is the canonical **release roadmap**, with executable work tracked as GitHu
 | P2 | [#22 GSConnect + capability-aware iPhone/Android pairing](https://github.com/markymark5127/mutsu-os/issues/22) | QR / docs references | Functional pairing + capability detection |
 | P1 | [#23 Steam, Proton and GPU qualification](https://github.com/markymark5127/mutsu-os/issues/23) | Gaming base preserved | Hardware matrix verification |
 
-**Current source:** Newelle API client, setup wizard, and user-service scripts exist in the pinned ai-desktop. A preconfigured Newelle Flatpak/model/account does **not** ship in the image. Never bake user credentials or opt-in consent into an immutable OS.
+**Current source:** Newelle API client, setup wizard, and user-service scripts exist in the pinned ai-desktop. The image now packages Newelle, its API dependencies and Qwen 3.5 9B through Ollama, with automatic local per-user configuration; fresh offline VM validation remains outstanding. Never bake user credentials or opt-in consent into an immutable OS.
 
 ## Milestone M3 — Distributable public beta
 

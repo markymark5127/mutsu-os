@@ -1,7 +1,10 @@
 [Unit]
 Description=Pair Mutsu Search with headless Newelle
 Documentation=https://github.com/markymark5127/mutsu-os
-After=graphical-session.target
+After=graphical-session-pre.target
+PartOf=graphical-session.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 # Recheck on login, including users paired by older images without API
 # dependencies. Existing dependencies and the user's token are reused.
 
@@ -9,6 +12,8 @@ After=graphical-session.target
 Type=oneshot
 ExecStart=/usr/libexec/mutsu-os/setup-newelle-user.sh
 TimeoutStartSec=10min
+Restart=on-failure
+RestartSec=10
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

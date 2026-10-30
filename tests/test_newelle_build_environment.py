@@ -65,6 +65,13 @@ esac
         self.assertEqual((other / 'keep').read_text(), 'unchanged')
         self.assertTrue((self.folder / 'state/newelle-preinstall-complete').is_file())
 
+    def test_image_build_preinstalls_without_consuming_first_boot_marker(self):
+        self.env['MUTSU_IMAGE_BUILD'] = '1'
+        result = self.run_worker()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.folder / 'system/app/io.github.qwersyk.Newelle/installed').is_file())
+        self.assertFalse((self.folder / 'state/newelle-preinstall-complete').exists())
+
     def test_import_failure_does_not_mark_install_complete(self):
         self.env['MUTSU_TEST_OSTREE_RESULT'] = '1'
         result = self.run_worker()

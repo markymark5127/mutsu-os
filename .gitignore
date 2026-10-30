@@ -14,3 +14,5 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .coverage
+
+/vendor/local-ai/

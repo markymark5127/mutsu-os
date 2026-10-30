@@ -1,0 +1,32 @@
+[Unit]
+Description=Mutsu bundled Qwen 3.5 9B through Ollama
+After=local-fs.target
+Before=systemd-user-sessions.service
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=mutsu-ollama
+Environment=HOME=/var/lib/mutsu-ollama
+Environment=OLLAMA_HOST=127.0.0.1:11435
+Environment=OLLAMA_MODELS=/var/lib/mutsu-ollama/models
+Environment=OLLAMA_NO_CLOUD=1
+Environment=OLLAMA_CONTEXT_LENGTH=4096
+Environment=OLLAMA_NUM_PARALLEL=1
+Environment=OLLAMA_MAX_LOADED_MODELS=1
+ExecStartPre=/usr/libexec/mutsu-os/seed-local-model.sh
+ExecStart=/usr/libexec/mutsu-os/ollama/bin/ollama serve
+ExecStartPost=/usr/bin/python3 /usr/libexec/mutsu-os/wait-local-model.py
+TimeoutStartSec=5min
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+[Install]
+WantedBy=multi-user.target

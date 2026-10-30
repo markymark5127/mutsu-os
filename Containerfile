@@ -54,6 +54,8 @@ COPY vendor/ai-desktop/src/ /usr/libexec/mutsu-os/src/
 COPY packaging/mutsu-search /usr/bin/mutsu-search
 COPY packaging/mutsu-first-login /usr/libexec/mutsu-os/mutsu-first-login
 COPY packaging/setup-newelle-user.sh /usr/libexec/mutsu-os/setup-newelle-user.sh
+COPY packaging/configure-newelle.py /usr/libexec/mutsu-os/configure-newelle.py
+COPY packaging/wait-local-model.py /usr/libexec/mutsu-os/wait-local-model.py
 COPY packaging/mutsu-welcome.service /usr/lib/systemd/user/mutsu-welcome.service
 COPY packaging/mutsu-welcome.desktop /etc/xdg/autostart/mutsu-welcome.desktop
 COPY packaging/mutsu-newelle-link.service /usr/lib/systemd/user/mutsu-newelle-link.service
@@ -70,7 +72,7 @@ COPY vendor/ai-desktop/scripts/install-newelle-service.sh /usr/share/mutsu-os/sc
 RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login /usr/libexec/mutsu-os/setup-newelle-user.sh && \
     install -d /etc/systemd/user/default.target.wants /etc/systemd/user/graphical-session.target.wants /etc/xdg/autostart && \
     ln -sfn /usr/lib/systemd/user/mutsu-welcome.service /etc/systemd/user/graphical-session.target.wants/mutsu-welcome.service && \
-    ln -sfn /usr/lib/systemd/user/mutsu-newelle-link.service /etc/systemd/user/default.target.wants/mutsu-newelle-link.service && \
+    ln -sfn /usr/lib/systemd/user/mutsu-newelle-link.service /etc/systemd/user/graphical-session.target.wants/mutsu-newelle-link.service && \
     rm -f /etc/xdg/autostart/mutsu-first-login.desktop && \
     python3 -m compileall -q /usr/libexec/mutsu-os/src && \
     glib-compile-schemas /usr/share/glib-2.0/schemas && \
@@ -95,6 +97,19 @@ COPY vendor/newelle/gui-api/ /usr/share/mutsu-os/newelle-gui-api/
 COPY packaging/install-newelle.sh /tmp/mutsu-install-newelle.sh
 RUN dnf5 install -y ostree zstd && \
     bash /tmp/mutsu-install-newelle.sh && rm -f /tmp/mutsu-install-newelle.sh
+
+# Fully local, pinned Qwen 3.5 9B through Ollama. No first-boot model pull.
+COPY vendor/local-ai/runtime/ /usr/libexec/mutsu-os/ollama/
+COPY vendor/local-ai/models/ /usr/share/mutsu-os/local-ai/models/
+COPY vendor/local-ai/licenses/ /usr/share/licenses/mutsu-local-ai/
+COPY vendor/local-ai/source.env /usr/share/mutsu-os/local-ai/source.env
+COPY packaging/bundled-model.json /usr/share/mutsu-os/local-ai/bundled-model.json
+COPY packaging/seed-local-model.sh /usr/libexec/mutsu-os/seed-local-model.sh
+COPY packaging/mutsu-local-model.service /usr/lib/systemd/system/mutsu-local-model.service
+RUN dnf5 install -y libgomp numactl-libs && \
+    chmod 0755 /usr/libexec/mutsu-os/seed-local-model.sh && \
+    test -x /usr/libexec/mutsu-os/ollama/bin/ollama && \
+    systemctl enable mutsu-local-model.service
 
 ### ADAPTIVE DESKTOP
 COPY extensions/mutsu-adaptive@mutsu-os /tmp/mutsu-adaptive-src
