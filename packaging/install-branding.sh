@@ -101,6 +101,7 @@ done
 # Install without deleting Fedora/Bazzite icons or renaming RPMs/services.
 install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/apps/mutsu-os-logo.svg
 install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/apps/io.github.markymark5127.AIDesktop.svg
+install -Dm0644 "$brand/icons/mutsu-ai.svg" /usr/share/icons/hicolor/scalable/apps/mutsu-ai.svg
 install -Dm0644 "$symbol" /usr/share/pixmaps/mutsu/mutsu-logo-symbol.svg
 install -Dm0644 "$wordmark" /usr/share/pixmaps/mutsu/mutsu-logo-wordmark.svg
 if [[ -s "$brand/icons/mutsu-logo-symbolic.svg" ]]; then

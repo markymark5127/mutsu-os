@@ -1,12 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=Mutsu OS Search
-GenericName=Application, File and AI Search
-Comment=Search apps, files and get help with Mutsu AI
+Name=Mutsu Mechanic
+GenericName=Mutsu OS assistant
+Comment=Ask Mutsu Mechanic for help, search, and approved repairs
 Exec=/usr/bin/mutsu-search
-Icon=mutsu-os-logo
+Icon=mutsu-ai
 Terminal=false
 Categories=Utility;System;
-Keywords=Mutsu;Search;Spotlight;Files;AI;
+Keywords=Mutsu;Mechanic;Search;Spotlight;AI;Repair;
 StartupNotify=true
-NoDisplay=true
