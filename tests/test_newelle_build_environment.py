@@ -32,7 +32,17 @@ case "$1" in
   *) echo "Unexpected Flatpak command: $*" >&2; exit 93 ;;
 esac
 ''')
-        self.command('ostree', 'echo "$*" >> ./ostree.log\ncase "$*" in\n*pull-local*) exit "${MUTSU_TEST_OSTREE_RESULT:-0}" ;;\nesac\n')
+        self.command('ostree', """
+echo "$*" >> ./ostree.log
+case "$2" in
+  refs) case "$3" in --list) printf '%s\n' 'flathub:runtime/org.freedesktop.Platform.GL.default/x86_64/25.08' ;; esac ;;
+  rev-parse) printf '%064d\n' 1 ;;
+  pull-local)
+    test "$#" -eq 4 || { echo 'Implicit ref import is unsafe' >&2; exit 91; }
+    case "$4" in *:*) exit 92 ;; esac
+    exit "${MUTSU_TEST_OSTREE_RESULT:-0}" ;;
+esac
+""")
         self.command('chown', 'exit 0\n')
         self.command('restorecon', 'exit 0\n')
         self.command('tar', 'for target; do :; done\ncp -a ./seed/. "$target/"\n')
@@ -64,6 +74,13 @@ esac
         self.assertTrue((self.folder / 'system/app/io.github.qwersyk.Newelle/installed').is_file())
         self.assertEqual((other / 'keep').read_text(), 'unchanged')
         self.assertTrue((self.folder / 'state/newelle-preinstall-complete').is_file())
+
+    def test_remote_ref_is_restored_after_commit_import(self):
+        result = self.run_worker()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        commands = (self.folder / 'ostree.log').read_text()
+        self.assertIn('pull-local ', commands)
+        self.assertIn('refs --force --create=flathub:runtime/org.freedesktop.Platform.GL.default/x86_64/25.08', commands)
 
     def test_image_build_preinstalls_without_consuming_first_boot_marker(self):
         self.env['MUTSU_IMAGE_BUILD'] = '1'
@@ -106,3 +123,34 @@ esac
         script = (ROOT / 'packaging/prepare-newelle.sh').read_text(encoding='utf-8')
         self.assertIn('export FLATPAK_USER_DIR="$staging/flatpak"', script)
         self.assertIn('-C "$staging" flatpak flathub.flatpakrepo', script)
+
+
+@unittest.skipUnless(shutil.which('ostree') and sys.platform == 'linux', 'Requires Linux OSTree')
+class RealOstreeImportTests(unittest.TestCase):
+    def test_remote_refs_and_objects_survive_offline_import(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            seed = root / 'seed'
+            target = root / 'target'
+            tree = root / 'tree'
+            seed.mkdir()
+            tree.mkdir()
+            (tree / 'payload').write_text('offline fixture')
+            def ostree(repo, *args):
+                return subprocess.check_output(['ostree', '--repo=' + str(repo), *args], text=True).strip()
+            ostree(seed / 'repo', 'init', '--mode=bare-user-only')
+            ostree(target, 'init', '--mode=bare-user-only')
+            commit = ostree(seed / 'repo', 'commit', '--branch=fixture', '--subject=fixture', '--tree=dir=' + str(tree))
+            refs = ['flathub:runtime/org.freedesktop.Platform.GL.default/x86_64/25.08',
+                    'flathub:app/io.github.qwersyk.Newelle/x86_64/stable']
+            for ref in refs:
+                ostree(seed / 'repo', 'refs', '--create=' + ref, commit)
+            ostree(seed / 'repo', 'refs', '--delete', 'fixture')
+            source = (ROOT / 'packaging/install-newelle.sh').read_text()
+            block = source.split('# BEGIN OFFLINE REF IMPORT\n', 1)[1].split('# END OFFLINE REF IMPORT', 1)[0]
+            block = block.replace('/var/lib/flatpak/repo', str(target))
+            script = 'set -euo pipefail\nseed=' + shlex.quote(str(seed)) + '\nstaging=' + shlex.quote(str(root)) + '\n' + block
+            subprocess.run(['bash', '-c', script], check=True, capture_output=True, text=True)
+            for ref in refs:
+                self.assertEqual(ostree(target, 'rev-parse', ref), commit)
+            self.assertEqual(ostree(target, 'cat', commit, '/payload'), 'offline fixture')

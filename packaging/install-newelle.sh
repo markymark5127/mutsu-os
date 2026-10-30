@@ -74,7 +74,19 @@ ostree --repo=/var/lib/flatpak/repo remote add --if-not-exists \
 # Import objects/refs into the existing system repository, retaining its
 # configuration, other remotes and apps. Deployment checkouts are already
 # complete: do not run flatpak install or regenerate ldconfig in OCI.
-ostree --repo=/var/lib/flatpak/repo pull-local "$seed/repo"
+# BEGIN OFFLINE REF IMPORT
+# pull-local's implicit enumeration passes remote-qualified refspecs as plain
+# branches, which rejects the colon in flathub:runtime/.... Pull immutable
+# commits instead, then restore their full refspecs using the refs command.
+ostree --repo="$seed/repo" refs --list > "$staging/refs.txt"
+test -s "$staging/refs.txt"
+while IFS= read -r refspec; do
+  commit="$(ostree --repo="$seed/repo" rev-parse "$refspec")"
+  [[ "$commit" =~ ^[0-9a-f]{64}$ ]] || { echo >&2 "Invalid commit for $refspec"; exit 1; }
+  ostree --repo=/var/lib/flatpak/repo pull-local "$seed/repo" "$commit"
+  ostree --repo=/var/lib/flatpak/repo refs --force --create="$refspec" "$commit"
+done < "$staging/refs.txt"
+# END OFFLINE REF IMPORT
 for directory in app runtime exports; do
   if [[ -d "$seed/$directory" ]]; then
     install -d -m0755 "/var/lib/flatpak/$directory"
