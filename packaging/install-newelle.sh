@@ -1,32 +1,9 @@
 #!/usr/bin/env bash
-# Bake Newelle into the image, and keep a first-boot fallback.
-# bootc seeds /var from the image on first install, so a system Flatpak
-# installed here is present without a download. The oneshot only runs if
-# that seed is missing. No model or API credential is baked in.
+# Package offline first-boot deployment. Never run Flatpak/bwrap in OCI RUN.
 set -euo pipefail
 
-command -v flatpak >/dev/null || {
-  echo >&2 'Flatpak missing from the Mutsu base image'
-  exit 1
-}
-
-app=io.github.qwersyk.Newelle
-# Fail before downloading gigabytes if the caller used a confined builder.
-# Flatpak also invokes bubblewrap while deploying runtimes for ldconfig.
-if ! bwrap --unshare-user --unshare-pid --ro-bind / / --proc /proc --dev /dev /usr/bin/true; then
-  echo >&2 'The image builder blocks Flatpak namespaces. Use just build with its nested-namespace options; on Ubuntu, the build runner must also permit unprivileged user namespaces.'
-  exit 1
-fi
-flatpak remote-add --system --if-not-exists flathub \
-  https://dl.flathub.org/repo/flathub.flatpakrepo
-if ! flatpak info --system "$app" >/dev/null 2>&1; then
-  flatpak install --system --noninteractive --assumeyes flathub "$app"
-fi
-
-# Store runtime-matched API packages in /usr so every new user can set up
-# Newelle offline; /usr survives independently of bootc's initial /var seed.
-bash /tmp/mutsu-build-newelle-dependencies.sh
-rm -f /tmp/mutsu-build-newelle-dependencies.sh
+test -s /usr/share/mutsu-os/newelle/flatpak.tar.zst
+test -s /usr/share/mutsu-os/newelle-gui-api/runtime.json
 
 install -d -m0755 /usr/lib/systemd/user
 cat > /usr/lib/systemd/user/ai-desktop-newelle.service <<'EOF'
@@ -48,8 +25,8 @@ chmod 0644 /usr/lib/systemd/user/ai-desktop-newelle.service
 install -d -m0755 /usr/libexec/mutsu-os /usr/lib/systemd/system
 cat > /usr/libexec/mutsu-os/install-newelle-once <<'EOF'
 #!/usr/bin/env bash
-# Fallback only. The image already contains Newelle. This runs if the
-# bootc /var seed did not include it.
+# Deploy the host-prepared Flatpak from immutable local files, without
+# network access. An existing marker respects a user's later uninstall.
 set -euo pipefail
 marker=/var/lib/mutsu-os/newelle-preinstall-complete
 app=io.github.qwersyk.Newelle
@@ -59,26 +36,63 @@ command -v flatpak >/dev/null || exit 1
 
 if flatpak info --system "$app" >/dev/null 2>&1; then
   install -d -m0755 /var/lib/mutsu-os
-  printf 'Newelle was baked into the image.\n' > "$marker"
+  printf 'Existing Newelle installation retained.\n' > "$marker"
   chmod 0644 "$marker"
   exit 0
 fi
 
-flatpak remote-add --system --if-not-exists flathub \
-  https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak install --system --noninteractive --assumeyes flathub "$app"
+staging="$(mktemp -d /var/tmp/mutsu-newelle-install.XXXXXXXX)"
+trap 'rm -rf -- "$staging"' EXIT
+tar --zstd -xf /usr/share/mutsu-os/newelle/flatpak.tar.zst -C "$staging"
+seed="$staging/flatpak"
+test -d "$seed/repo/objects"
+test -d "$seed/app/$app"
+# Configure the public remote directly with OSTree, so first boot does not
+# refresh an online Flatpak summary. Its signing key is in the local payload.
+python3 - "$staging" <<'FLATHUB_REMOTE'
+import base64
+import configparser
+from pathlib import Path
+import sys
+root = Path(sys.argv[1])
+config = configparser.ConfigParser(interpolation=None)
+config.read(root / "flathub.flatpakrepo", encoding="utf-8")
+remote = config["Flatpak Repo"]
+(root / "flathub.gpg").write_bytes(base64.b64decode(remote["GPGKey"], validate=True))
+(root / "flathub.url").write_text(remote["Url"], encoding="utf-8")
+FLATHUB_REMOTE
+install -d -m0755 /var/lib/flatpak/repo
+if [[ ! -f /var/lib/flatpak/repo/config ]]; then
+  ostree --repo=/var/lib/flatpak/repo init --mode=bare-user-only
+fi
+ostree --repo=/var/lib/flatpak/repo remote add --if-not-exists \
+  --set=xa.title=Flathub --gpg-import="$staging/flathub.gpg" \
+  flathub "$(cat "$staging/flathub.url")"
+# Import objects/refs into the existing system repository, retaining its
+# configuration, other remotes and apps. Deployment checkouts are already
+# complete: do not run flatpak install or regenerate ldconfig in OCI.
+ostree --repo=/var/lib/flatpak/repo pull-local "$seed/repo"
+for directory in app runtime exports; do
+  if [[ -d "$seed/$directory" ]]; then
+    install -d -m0755 "/var/lib/flatpak/$directory"
+    cp -a "$seed/$directory/." "/var/lib/flatpak/$directory/"
+    chown -R 0:0 "/var/lib/flatpak/$directory"
+  fi
+done
+touch /var/lib/flatpak/.changed
+flatpak info --system "$app" >/dev/null
 
 install -d -m0755 /var/lib/mutsu-os
-printf 'Newelle installed by fallback; user may uninstall it.\n' > "$marker"
+printf 'Newelle installed from the offline OS payload; user may uninstall it.\n' > "$marker"
 chmod 0644 "$marker"
 EOF
 chmod 0755 /usr/libexec/mutsu-os/install-newelle-once
 
 cat > /usr/lib/systemd/system/mutsu-newelle-preinstall.service <<'EOF'
 [Unit]
-Description=Confirm baked Newelle, or install it once if the image seed is missing
-Wants=network-online.target
-After=network-online.target
+Description=Install bundled Newelle offline before the first login
+After=local-fs.target
+Before=systemd-user-sessions.service
 ConditionPathExists=!/var/lib/mutsu-os/newelle-preinstall-complete
 
 [Service]
@@ -91,4 +105,4 @@ WantedBy=multi-user.target
 EOF
 chmod 0644 /usr/lib/systemd/system/mutsu-newelle-preinstall.service
 systemctl enable mutsu-newelle-preinstall.service
-echo 'Newelle baked into the image. First-boot unit is a fallback only.'
+echo 'Offline Newelle payload packaged; deployment runs before first login.'

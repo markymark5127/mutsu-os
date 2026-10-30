@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Build-time only: resolve binary dependencies using Newelle's own runtime.
+# Build HOST only: resolve dependencies using the staged Newelle runtime.
 set -euo pipefail
 app=io.github.qwersyk.Newelle
-bundle=/usr/share/mutsu-os/newelle-gui-api
+bundle="${1:?Pass the host output directory for the offline API bundle}"
 staging="$(mktemp -d /var/tmp/mutsu-newelle-deps.XXXXXXXX)"
 trap 'rm -rf -- "$staging"' EXIT
 
-flatpak run --filesystem="$staging:rw" --command=python3 "$app" - "$staging" <<'PY'
+flatpak run --user --filesystem="$staging:rw" --command=python3 "$app" - "$staging" <<'PY'
 import importlib.util
 import json
 from pathlib import Path

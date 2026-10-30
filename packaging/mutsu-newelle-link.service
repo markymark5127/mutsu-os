@@ -1,8 +1,7 @@
 [Unit]
 Description=Pair Mutsu Search with headless Newelle
 Documentation=https://github.com/markymark5127/mutsu-os
-After=graphical-session.target network-online.target
-Wants=network-online.target
+After=graphical-session.target
 # Recheck on login, including users paired by older images without API
 # dependencies. Existing dependencies and the user's token are reused.
 

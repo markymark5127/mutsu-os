@@ -1,46 +1,93 @@
-"""Regression checks for Flatpak namespaces during OCI image builds."""
+"""Test offline deployment with fake Flatpak/OSTree and an isolated filesystem."""
 from pathlib import Path
 import os
 import shutil
 import subprocess
 import tempfile
-import textwrap
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@unittest.skipUnless(shutil.which('bash'), 'Requires a Linux/Bash build host')
+@unittest.skipUnless(shutil.which('bash'), 'Requires Bash')
 class NewelleBuildEnvironmentTests(unittest.TestCase):
-    def _preflight(self, result):
-        with tempfile.TemporaryDirectory() as directory:
-            folder = Path(directory)
-            for name, code in [('flatpak', 0), ('bwrap', result)]:
-                command = folder / name
-                command.write_text(f'#!/bin/sh\nexit {code}\n', encoding='utf-8')
-                command.chmod(0o755)
-            script = (ROOT / 'packaging/install-newelle.sh').read_text(encoding='utf-8')
-            # Only exercise the read-only preflight, never image installation.
-            preflight = script.split('flatpak remote-add --system', 1)[0]
-            environment = dict(os.environ, PATH=str(folder) + os.pathsep + os.environ['PATH'])
-            return subprocess.run(['bash', '-c', preflight], env=environment,
-                                  capture_output=True, text=True, check=False)
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.folder = Path(self.temp.name)
+        (self.folder / 'bin').mkdir()
+        seed = self.folder / 'seed'
+        (seed / 'flatpak/repo/objects').mkdir(parents=True)
+        app = seed / 'flatpak/app/io.github.qwersyk.Newelle'
+        app.mkdir(parents=True)
+        (app / 'installed').write_text('app checkout', encoding='utf-8')
+        (seed / 'flathub.flatpakrepo').write_text(
+            '[Flatpak Repo]\nUrl=https://dl.flathub.org/repo/\nGPGKey=dGVzdA==\n', encoding='utf-8')
+        self.command('flatpak', '''
+case "$1" in
+  info) test -f ./system/app/io.github.qwersyk.Newelle/installed ;;
+  remote-add) exit 0 ;;
+  *) echo "Unexpected Flatpak command: $*" >&2; exit 93 ;;
+esac
+''')
+        self.command('ostree', 'echo "$*" >> ./ostree.log\nexit "${MUTSU_TEST_OSTREE_RESULT:-0}"\n')
+        self.command('chown', 'exit 0\n')
+        self.command('tar', 'for target; do :; done\ncp -a ./seed/. "$target/"\n')
+        self.env = dict(os.environ, PATH=str(self.folder / 'bin') + os.pathsep + os.environ['PATH'])
 
-    def test_blocked_namespaces_fail_before_downloading(self):
-        result = self._preflight(1)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('builder blocks Flatpak namespaces', result.stderr)
+    def command(self, name, content):
+        path = self.folder / 'bin' / name
+        path.write_text('#!/bin/sh\n' + content, encoding='utf-8')
+        path.chmod(0o755)
 
-    def test_supported_namespaces_pass_preflight(self):
-        result = self._preflight(0)
+    def run_worker(self):
+        source = (ROOT / 'packaging/install-newelle.sh').read_text(encoding='utf-8')
+        worker = source.split("cat > /usr/libexec/mutsu-os/install-newelle-once <<'EOF'\n", 1)[1].split('\nEOF', 1)[0]
+        worker = worker.replace('/var/lib/mutsu-os', './state').replace('/var/lib/flatpak', './system')
+        worker = worker.replace('/var/tmp/mutsu-newelle-install.', './install.')
+        return subprocess.run(['bash', '-c', worker], cwd=self.folder, env=self.env,
+                              capture_output=True, text=True, check=False)
+
+    def test_offline_deploy_preserves_other_system_apps(self):
+        other = self.folder / 'system/app/other'
+        other.mkdir(parents=True)
+        (other / 'keep').write_text('unchanged', encoding='utf-8')
+        result = self.run_worker()
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.folder / 'system/app/io.github.qwersyk.Newelle/installed').is_file())
+        self.assertEqual((other / 'keep').read_text(), 'unchanged')
+        self.assertTrue((self.folder / 'state/newelle-preinstall-complete').is_file())
 
-    def test_build_arguments_enable_nested_namespaces(self):
-        source = (ROOT / 'Justfile').read_text(encoding='utf-8')
-        block = source.split('    # Flatpak deployment', 1)[1].split('    LABELS=()', 1)[0]
-        result = subprocess.run(['bash', '-c', textwrap.dedent('# Flatpak deployment' + block) +
-                                 '\nprintf "%s\\n" "${BUILD_ARGS[@]}"'],
-                                capture_output=True, text=True, check=True)
-        args = result.stdout.splitlines()
-        self.assertIn('SYS_ADMIN', args)
-        self.assertIn('seccomp=unconfined', args)
+    def test_import_failure_does_not_mark_install_complete(self):
+        self.env['MUTSU_TEST_OSTREE_RESULT'] = '1'
+        result = self.run_worker()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.folder / 'state/newelle-preinstall-complete').exists())
+
+    def test_marker_respects_later_user_uninstall(self):
+        (self.folder / 'state').mkdir()
+        (self.folder / 'state/newelle-preinstall-complete').touch()
+        result = self.run_worker()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.folder / 'ostree.log').exists())
+        self.assertFalse((self.folder / 'system').exists())
+
+    def test_oci_build_never_runs_flatpak(self):
+        install = (ROOT / 'packaging/install-newelle.sh').read_text(encoding='utf-8')
+        preamble = install.split("cat > /usr/lib/systemd/user/ai-desktop-newelle.service", 1)[0]
+        self.assertNotIn('flatpak ', preamble.lower().replace('#', ''))
+        self.assertNotIn('bwrap --', preamble)
+        image = (ROOT / 'Containerfile').read_text(encoding='utf-8')
+        self.assertIn('COPY vendor/newelle/flatpak.tar.zst', image)
+        self.assertNotIn('COPY packaging/build-newelle-dependencies.sh', image)
+        just = (ROOT / 'Justfile').read_text(encoding='utf-8')
+        self.assertIn('bash packaging/prepare-newelle.sh', just)
+        self.assertNotIn('--cap-add SYS_ADMIN', just)
+
+    def test_host_preparation_runs_before_confined_build(self):
+        workflow = (ROOT / '.github/workflows/build.yml').read_text(encoding='utf-8')
+        self.assertLess(workflow.index('dbus-run-session -- bash packaging/prepare-newelle.sh'),
+                        workflow.index('id: build-image'))
+        script = (ROOT / 'packaging/prepare-newelle.sh').read_text(encoding='utf-8')
+        self.assertIn('export FLATPAK_USER_DIR="$staging/flatpak"', script)
+        self.assertIn('-C "$staging" flatpak flathub.flatpakrepo', script)

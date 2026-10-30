@@ -87,12 +87,14 @@ RUN bash /tmp/mutsu-install-mac-shortcuts.sh && \
     rm -f /tmp/mutsu-keyd.conf /tmp/mutsu-install-mac-shortcuts.sh
 
 ### NEWELLE (baked in, no API key)
-# The Flatpak is installed into the image. bootc seeds it on first install.
-# A first-boot unit remains only as a fallback. The per-user token is still
-# generated at first login by mutsu-newelle-link.service.
-COPY packaging/build-newelle-dependencies.sh /tmp/mutsu-build-newelle-dependencies.sh
+# Prepare on the Linux host with packaging/prepare-newelle.sh. No Flatpak
+# deployment or nested bubblewrap runs inside this container build.
+COPY vendor/newelle/flatpak.tar.zst /usr/share/mutsu-os/newelle/flatpak.tar.zst
+COPY vendor/newelle/source.txt /usr/share/mutsu-os/build-info/newelle-source.txt
+COPY vendor/newelle/gui-api/ /usr/share/mutsu-os/newelle-gui-api/
 COPY packaging/install-newelle.sh /tmp/mutsu-install-newelle.sh
-RUN bash /tmp/mutsu-install-newelle.sh && rm -f /tmp/mutsu-install-newelle.sh
+RUN dnf5 install -y ostree zstd && \
+    bash /tmp/mutsu-install-newelle.sh && rm -f /tmp/mutsu-install-newelle.sh
 
 ### ADAPTIVE DESKTOP
 COPY extensions/mutsu-adaptive@mutsu-os /tmp/mutsu-adaptive-src

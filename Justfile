@@ -101,17 +101,11 @@ build $target_image=image_name $tag=default_tag:
     # Pin Mutsu Search to a known ai-desktop commit rather than using HEAD of
     # another repository during an immutable OS build.
     bash packaging/prepare-desktop.sh
+    bash packaging/prepare-newelle.sh
     python3 packaging/check-integration.py
     PYTHONPATH=vendor/ai-desktop/src python3 -m compileall -q vendor/ai-desktop/src
 
-    # Flatpak deployment (ldconfig) and the offline GUI API bundle use
-    # bubblewrap inside this build container. Permit its nested namespaces.
-    # These options apply to RUN processes only, never to the installed OS.
-    BUILD_ARGS=(--cap-add SYS_ADMIN --security-opt seccomp=unconfined)
-    if [[ -r /sys/module/apparmor/parameters/enabled ]] && \
-       [[ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]]; then
-        BUILD_ARGS+=(--security-opt apparmor=unconfined)
-    fi
+    BUILD_ARGS=()
     LABELS=()
     if [[ -z "$(git status -s)" ]]; then
         GIT_SHA=$(git rev-parse --short HEAD)
