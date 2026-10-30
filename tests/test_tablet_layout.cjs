@@ -132,10 +132,10 @@ Main.overview._overview=new Box();
 Main.layoutManager.primaryMonitor={x:0,y:0,width:768,height:1024};
 const sessionSource=fs.readFileSync(path.join(folder,'tabletSession.js'),'utf8')
     .replace(/^import .*;\r?\n/gm,'').replace('export ','');
-const Session=new Function('Clutter','Gio','GLib','St','Main',`${sessionSource};return TabletSession;`)(
+const Session=new Function('Clutter','Gio','GLib','St','Main','TabletKeyboard',`${sessionSource};return TabletSession;`)(
     Clutter,{Settings},{DateTime:{new_now_local:()=>({format:()=> '10:00 AM\nThursday'})},
         PRIORITY_DEFAULT:0,SOURCE_CONTINUE:true,timeout_add_seconds:()=>1,source_remove(){}},
-    {BoxLayout:Box,Label:Box,Button:Box},Main);
+    {BoxLayout:Box,Label:Box,Button:Box},Main,class {destroy(){}});
 const session=new Session(()=>{},preferences);
 assert.equal(keyboardOverride.value,true,'tablet enables native text-field keyboard');
 Main.overview.visible=true;Main.overview.emit('showing');

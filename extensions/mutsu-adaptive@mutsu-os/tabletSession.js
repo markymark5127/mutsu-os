@@ -3,6 +3,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {TabletKeyboard} from './tabletKeyboard.js';
 
 // Home widgets and native GNOME input/controls. No network-backed widgets.
 export class TabletSession {
@@ -11,6 +12,7 @@ export class TabletSession {
         this._settings = settings;
         this._keyboard = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.applications'});
         this._keyboardSaved = this._keyboard.get_user_value('screen-keyboard-enabled');
+        this._keyboardLayout = new TabletKeyboard();
         this._syncKeyboard();
         this._controls = Main.panel.statusArea.quickSettings?.menu.actor;
         this._notifications = Main.panel.statusArea.dateMenu?.menu.actor;
@@ -83,6 +85,7 @@ export class TabletSession {
     }
 
     destroy() {
+        this._keyboardLayout.destroy();
         Main.overview._overview?.remove_style_class_name('mutsu-home-no-widgets');
         GLib.source_remove(this._timer);
         for (const [object, id] of this._signals)

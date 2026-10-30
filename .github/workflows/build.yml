@@ -52,6 +52,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_*.py' -v
           node tests/test_tablet_switcher.cjs extensions/mutsu-adaptive@mutsu-os/tabletSwitcher.js
           node tests/test_tablet_layout.cjs extensions/mutsu-adaptive@mutsu-os
+          node tests/test_tablet_keyboard.cjs extensions/mutsu-adaptive@mutsu-os/tabletKeyboard.js
           node tests/test_tablet_dock.cjs extensions/mutsu-adaptive@mutsu-os/tabletDock.js
           node tests/test_search_integration.cjs extensions/mutsu-branding@mutsu-os/searchIntegration.js
           for script in extensions/mutsu-adaptive@mutsu-os/*.js; do

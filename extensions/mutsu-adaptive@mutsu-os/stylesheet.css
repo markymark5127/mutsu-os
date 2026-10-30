@@ -85,3 +85,19 @@
 .mutsu-tablet-controls .message,
 .mutsu-tablet-controls .button { min-height: 44px; }
 .mutsu-tablet-controls .slider { height: 32px; }
+
+/* A full-width docked GNOME keyboard while tablet mode is active. Keep
+ * native key actions and theme colors; enlarge the actual input targets. */
+#keyboard.mutsu-tablet-keyboard {
+  padding: 8px;
+  spacing: 6px;
+}
+#keyboard.mutsu-tablet-keyboard .key-container { padding: 4px; }
+#keyboard.mutsu-tablet-keyboard .keyboard-key {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border-radius: 10px;
+  font-size: 1.25em;
+}
+#keyboard.mutsu-tablet-keyboard .keyboard-key StIcon { icon-size: 1.25em; }

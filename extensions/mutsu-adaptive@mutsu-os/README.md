@@ -36,7 +36,10 @@ small portrait screens may not fit two desktop applications comfortably.
   The widget rearranges for portrait and respects the system's 12/24-hour clock setting.
 - Quick Settings and notifications use Touchshell's top-edge gestures, with larger touch targets.
 - Native GNOME text-field keyboard handling is enabled temporarily, with a preference to turn this off.
-  The bottom gesture indicator is hidden while the keyboard is visible.
+  In tablet mode, the native keyboard spans the active display width with larger
+  rectangular key targets. Its height adapts to portrait/landscape orientation,
+  and desktop sizing is restored on exit. The bottom gesture indicator is hidden
+  while the keyboard is visible.
 - Dock auto-hide, keyboard accessibility, rotation lock and Touchshell settings restore on leaving tablet mode.
 - The default desktop auto-maximizer skips the compact Mutsu Search surface.
 
@@ -51,6 +54,7 @@ Run the Python suite and these Node checks from the repository root:
 python3 -m unittest discover -s tests
 node tests/test_tablet_switcher.cjs extensions/mutsu-adaptive@mutsu-os/tabletSwitcher.js
 node tests/test_tablet_layout.cjs extensions/mutsu-adaptive@mutsu-os
+node tests/test_tablet_keyboard.cjs extensions/mutsu-adaptive@mutsu-os/tabletKeyboard.js
 node tests/test_tablet_dock.cjs extensions/mutsu-adaptive@mutsu-os/tabletDock.js
 ```
 
