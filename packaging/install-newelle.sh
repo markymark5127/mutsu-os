@@ -79,6 +79,9 @@ for directory in app runtime exports; do
     chown -R 0:0 "/var/lib/flatpak/$directory"
   fi
 done
+if command -v restorecon >/dev/null; then
+  restorecon -RF /var/lib/flatpak
+fi
 touch /var/lib/flatpak/.changed
 flatpak info --system "$app" >/dev/null
 

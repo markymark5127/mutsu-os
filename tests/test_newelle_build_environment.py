@@ -2,7 +2,9 @@
 from pathlib import Path
 import os
 import shutil
+import shlex
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -30,9 +32,11 @@ case "$1" in
   *) echo "Unexpected Flatpak command: $*" >&2; exit 93 ;;
 esac
 ''')
-        self.command('ostree', 'echo "$*" >> ./ostree.log\nexit "${MUTSU_TEST_OSTREE_RESULT:-0}"\n')
+        self.command('ostree', 'echo "$*" >> ./ostree.log\ncase "$*" in\n*pull-local*) exit "${MUTSU_TEST_OSTREE_RESULT:-0}" ;;\nesac\n')
         self.command('chown', 'exit 0\n')
+        self.command('restorecon', 'exit 0\n')
         self.command('tar', 'for target; do :; done\ncp -a ./seed/. "$target/"\n')
+        self.command('python3', 'exec ' + shlex.quote(sys.executable.replace('\\', '/')) + ' "$@"\n')
         self.env = dict(os.environ, PATH=str(self.folder / 'bin') + os.pathsep + os.environ['PATH'])
 
     def command(self, name, content):
@@ -45,6 +49,9 @@ esac
         worker = source.split("cat > /usr/libexec/mutsu-os/install-newelle-once <<'EOF'\n", 1)[1].split('\nEOF', 1)[0]
         worker = worker.replace('/var/lib/mutsu-os', './state').replace('/var/lib/flatpak', './system')
         worker = worker.replace('/var/tmp/mutsu-newelle-install.', './install.')
+        # Git Bash prepends its own bin directory on Windows; explicitly put
+        # the fixture commands first inside Bash as well as in the environment.
+        worker = 'export PATH="$(pwd)/bin:$PATH"\n' + worker
         return subprocess.run(['bash', '-c', worker], cwd=self.folder, env=self.env,
                               capture_output=True, text=True, check=False)
 
@@ -62,6 +69,7 @@ esac
         self.env['MUTSU_TEST_OSTREE_RESULT'] = '1'
         result = self.run_worker()
         self.assertNotEqual(result.returncode, 0)
+        self.assertIn('pull-local', (self.folder / 'ostree.log').read_text())
         self.assertFalse((self.folder / 'state/newelle-preinstall-complete').exists())
 
     def test_marker_respects_later_user_uninstall(self):

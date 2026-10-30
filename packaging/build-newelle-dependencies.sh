@@ -11,6 +11,7 @@ import importlib.util
 import json
 from pathlib import Path
 import platform
+import os
 import subprocess
 import sys
 from urllib.request import urlopen
@@ -22,9 +23,11 @@ target.mkdir()
 if importlib.util.find_spec("pip") is None:
     with urlopen("https://bootstrap.pypa.io/get-pip.py", timeout=60) as response:
         bootstrap = response.read()
-    subprocess.run([sys.executable, "-", "--user"], input=bootstrap, check=True)
+    tooling = root / "build-tools"
+    subprocess.run([sys.executable, "-", "--target", str(tooling)], input=bootstrap, check=True)
+    os.environ["PYTHONPATH"] = str(tooling) + os.pathsep + os.environ.get("PYTHONPATH", "")
 subprocess.run([sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
-                "--only-binary=:all:", "--target", str(target),
+                "--no-cache-dir", "--only-binary=:all:", "--target", str(target),
                 "fastapi", "uvicorn", "python-multipart"], check=True)
 sys.path.insert(0, str(target))
 import fastapi
