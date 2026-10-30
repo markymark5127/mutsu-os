@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import re
 import sys
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 REGISTRY = 'https://registry.ollama.ai/v2/library/qwen3.5'
@@ -27,6 +28,8 @@ def verified_download(url, path, digest, expected_size=None):
         if hasher.hexdigest() != expected or (expected_size is not None and size != expected_size):
             raise ValueError('Downloaded model checksum or size did not match its pinned manifest')
         temporary.replace(path)
+    except HTTPError as error:
+        raise RuntimeError(f'Model download failed: HTTP {error.code} for {url}') from error
     finally:
         temporary.unlink(missing_ok=True)
 
@@ -34,7 +37,9 @@ def verified_download(url, path, digest, expected_size=None):
 def fetch_model(destination, manifest_digest):
     destination.mkdir(parents=True, exist_ok=True)
     manifest = destination / 'manifest.json'
-    verified_download(REGISTRY + '/manifests/' + manifest_digest, manifest, manifest_digest)
+    # This registry serves manifests by tag; digest URLs return 404. Verify
+    # the tag response against the immutable pin before fetching any layers.
+    verified_download(REGISTRY + '/manifests/9b', manifest, manifest_digest)
     data = json.loads(manifest.read_text(encoding='utf-8'))
     store = destination / 'models'
     blobs = store / 'blobs'

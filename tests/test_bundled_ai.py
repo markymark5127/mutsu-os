@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -154,6 +154,24 @@ class ModelIntegrityTests(unittest.TestCase):
                 self.module.verified_download('https://example.test/blob', target, 'a' * 64)
         self.assertFalse(target.exists())
         self.assertFalse(target.with_suffix('.partial').exists())
+
+    def test_manifest_uses_tag_and_rejects_changed_content_before_layers(self):
+        raw = b'{"changed":true}'
+        with patch.object(self.module, 'urlopen', return_value=io.BytesIO(raw)) as request:
+            with self.assertRaisesRegex(ValueError, 'checksum'):
+                self.module.fetch_model(self.folder, 'sha256:' + 'a' * 64)
+        self.assertEqual(request.call_count, 1)
+        self.assertEqual(request.call_args.args[0].full_url,
+                         self.module.REGISTRY + '/manifests/9b')
+        self.assertFalse((self.folder / 'models').exists())
+        self.assertFalse((self.folder / 'manifest.json').exists())
+
+    def test_http_failure_identifies_the_failed_asset(self):
+        url = self.module.REGISTRY + '/manifests/9b'
+        with patch.object(self.module, 'urlopen', side_effect=HTTPError(url, 404, 'Not Found', {}, None)):
+            with self.assertRaisesRegex(RuntimeError, 'HTTP 404 for ' + url):
+                self.module.verified_download(url, self.folder / 'manifest.json', 'a' * 64)
+        self.assertFalse((self.folder / 'manifest.partial').exists())
 
     def test_complete_model_store_includes_license_and_verified_manifest(self):
         config, weights, license = b'{}', b'fixture weights', b'fixture model license'
