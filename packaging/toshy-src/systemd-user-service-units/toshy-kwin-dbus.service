@@ -1,0 +1,16 @@
+[Unit]
+Description=Toshy KWin D-Bus Service
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+SyslogIdentifier=toshy-kwin-dbus
+ExecStartPre=/usr/bin/env bash -c 'if [ -z "$XDG_SESSION_TYPE" ]; then sleep 3; exit 1; fi'
+# ExecStart=/bin/bash -c 'env TERM=xterm $HOME/.config/toshy/scripts/bin/toshy-kwin-dbus-service.sh'
+Environment=TERM=xterm
+ExecStart=%h/.config/toshy/scripts/bin/toshy-kwin-dbus-service.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

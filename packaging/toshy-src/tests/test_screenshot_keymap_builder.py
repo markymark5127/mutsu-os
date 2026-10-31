@@ -1,0 +1,262 @@
+#!/usr/bin/env python3
+"""
+tests/test_screenshot_keymap_builder.py
+
+Focused tests for setup_screenshot_keymaps() using fake injected
+config-API callables (no xwaykeyz involvement) and a KDE fixture file so
+resolution is deterministic.
+
+Runnable standalone (accumulates a score in main) and collectable by
+pytest (bool-returning test functions).
+"""
+__version__ = '20260803'
+
+
+import os
+import sys
+import types
+import tempfile
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+
+# Stub out proc_launcher BEFORE package imports: it pulls in the xwaykeyz
+# logger at module level, and stubbing also lets tests record launch
+# attempts instead of spawning processes.
+_launch_calls_lst = []
+
+
+def _fake_launch_detached(args, **kwargs):
+    _launch_calls_lst.append(list(args))
+    return False        # simulate command not found on PATH
+
+
+_fake_proc_launcher = types.ModuleType('toshy_common.proc_launcher')
+_fake_proc_launcher.launch_detached = _fake_launch_detached
+sys.modules['toshy_common.proc_launcher'] = _fake_proc_launcher
+_fake_logger = types.ModuleType('toshy_common.logger')
+_fake_logger.debug = lambda *args, **kwargs: None
+_fake_logger.error = lambda *args, **kwargs: None
+_fake_logger.VERBOSE = False
+sys.modules['toshy_common.logger'] = _fake_logger
+
+from toshy_common.screenshots.sshot_defaults import (
+    SLOT_AREA_TO_FILE,
+    SLOT_FULLSCREEN_TO_FILE,
+)
+from toshy_common.screenshots.sshot_keymaps import setup_screenshot_keymaps
+
+
+# Full Spectacle section so every file slot resolves from "live" data.
+_FIXTURE_FULL_SECTION = '''[org.kde.spectacle.desktop]
+_launch=Print,Print,Launch Spectacle
+FullScreenScreenShot=Shift+Print,Shift+Print,Capture Entire Desktop
+RectangularRegionScreenShot=Meta+Shift+Print,Meta+Shift+Print,Capture Rectangular Region
+WindowUnderCursorScreenShot=Meta+Ctrl+Print,Meta+Ctrl+Print,Capture Window Under Cursor
+'''
+
+
+class _FakeAPI:
+    """Records keymap registrations; C() wraps combo strings in a tuple
+    so mapping keys stay hashable and inspectable."""
+
+    def __init__(self):
+        self.registered_lst = []
+        self.immediately = object()
+
+    def C(self, combo_str):
+        return ('COMBO', combo_str)
+
+    def sleep(self, sec):
+        return ('SLEEP', sec)
+
+    def keymap(self, name_str, mappings_dct, when=None):
+        record_dct = {'name': name_str, 'mappings': mappings_dct, 'when': when}
+        self.registered_lst.append(record_dct)
+        return record_dct
+
+    def namespace(self, **extra_dct) -> dict:
+        """Mimic the config file's globals() as the injection carrier."""
+        ns_dct = {
+            'keymap':       self.keymap,
+            'C':            self.C,
+            'immediately':  self.immediately,
+            'sleep':        self.sleep,
+            'DESKTOP_ENV':  'kde',
+            'DE_MAJ_VER':   None,
+        }
+        ns_dct.update(extra_dct)
+        return ns_dct
+
+
+def _with_fixture_config(fixture_str: str, test_fn) -> bool:
+    saved_xdg = os.environ.get('XDG_CONFIG_HOME')
+    with tempfile.TemporaryDirectory() as temp_dir:
+        os.environ['XDG_CONFIG_HOME'] = temp_dir
+        file_path = os.path.join(temp_dir, 'kglobalshortcutsrc')
+        with open(file_path, 'w', encoding='utf-8') as file_obj:
+            file_obj.write(fixture_str)
+        try:
+            return test_fn()
+        finally:
+            if saved_xdg is None:
+                os.environ.pop('XDG_CONFIG_HOME', None)
+            else:
+                os.environ['XDG_CONFIG_HOME'] = saved_xdg
+
+
+def _check(label_str: str, condition: bool) -> bool:
+    marker = 'ok  ' if condition else 'FAIL'
+    print(f'  [{marker}] {label_str}')
+    return condition
+
+
+def test_builder_registers_keymaps() -> bool:
+
+    def inner() -> bool:
+        api = _FakeAPI()
+        when_marker = lambda ctx: True
+        registered_lst = setup_screenshot_keymaps(api.namespace(), when=when_marker)
+
+        names_lst = [record['name'] for record in api.registered_lst]
+        all_ok = True
+        all_ok &= _check('window-shift keymap registered for area_to_file',
+            any(SLOT_AREA_TO_FILE in name for name in names_lst))
+        all_ok &= _check('flat detected-shortcuts keymap registered',
+            any(name == 'Screenshots: detected shortcuts' for name in names_lst))
+        all_ok &= _check("'when' condition passed through to every keymap",
+            all(record['when'] is when_marker for record in api.registered_lst))
+        all_ok &= _check('return value matches registrations',
+            registered_lst == api.registered_lst)
+        return all_ok
+
+    print('\n--- Builder registration ---')
+    return _with_fixture_config(_FIXTURE_FULL_SECTION, inner)
+
+
+def test_nested_keymap_shape() -> bool:
+
+    def inner() -> bool:
+        api = _FakeAPI()
+        setup_screenshot_keymaps(api.namespace())
+
+        shift_record = next(record for record in api.registered_lst
+                            if SLOT_AREA_TO_FILE in record['name'])
+        trigger_combo = ('COMBO', 'Shift-RC-4')
+        nested_dct = shift_record['mappings'][trigger_combo]
+
+        expected_macro_lst = [('COMBO', 'Esc'), ('SLEEP', 0.2), ('COMBO', 'C-Super-Print')]
+        all_ok = True
+        all_ok &= _check('immediately entry emits area combo',
+            nested_dct[api.immediately] == ('COMBO', 'Shift-Super-Print'))
+        all_ok &= _check('Space continuation is Esc-first macro (KDE auto)',
+            nested_dct[('COMBO', 'Space')] == expected_macro_lst)
+        all_ok &= _check('trigger-derived held-chord Space variant bound',
+            nested_dct[('COMBO', 'Shift-RC-Space')] == expected_macro_lst)
+
+        clip_record = next(record for record in api.registered_lst
+                            if 'area_to_clipboard' in record['name'])
+        gui_trigger     = ('COMBO', 'Shift-Super-RC-4')
+        terms_trigger   = ('COMBO', 'Shift-LC-RC-4')
+        all_ok &= _check('clipboard shift keymap has cohabiting GUI+terms triggers',
+            gui_trigger in clip_record['mappings']
+            and terms_trigger in clip_record['mappings']
+            and clip_record['mappings'][gui_trigger]
+                is not clip_record['mappings'][terms_trigger])
+        all_ok &= _check('each trigger gets its own derived held-chord variant',
+            ('COMBO', 'Shift-Super-RC-Space') in clip_record['mappings'][gui_trigger]
+            and ('COMBO', 'Shift-LC-RC-Space') in clip_record['mappings'][terms_trigger])
+        all_ok &= _check('Esc outlet passes through',
+            nested_dct[('COMBO', 'Esc')] == ('COMBO', 'Esc'))
+        all_ok &= _check('Enter outlet passes through',
+            nested_dct[('COMBO', 'Enter')] == ('COMBO', 'Enter'))
+        return all_ok
+
+    print('\n--- Nested keymap shape ---')
+    return _with_fixture_config(_FIXTURE_FULL_SECTION, inner)
+
+
+def test_flat_keymap_exclusions_and_guards() -> bool:
+
+    def inner() -> bool:
+        api = _FakeAPI()
+        setup_screenshot_keymaps(api.namespace())
+
+        flat_record = next(record for record in api.registered_lst
+                            if record['name'] == 'Screenshots: detected shortcuts')
+        flat_keys_lst = list(flat_record['mappings'].keys())
+
+        all_ok = True
+        all_ok &= _check('area trigger excluded from flat keymap (owned by nested)',
+            ('COMBO', 'Shift-RC-4') not in flat_keys_lst)
+        all_ok &= _check('fullscreen entry present in flat keymap',
+            flat_record['mappings'].get(('COMBO', 'Shift-RC-3')) == ('COMBO', 'Shift-Print'))
+        return all_ok
+
+    def inner_missing_api() -> bool:
+        api = _FakeAPI()
+        bad_ns_dct = api.namespace()
+        del bad_ns_dct['keymap']
+        del bad_ns_dct['immediately']
+        try:
+            setup_screenshot_keymaps(bad_ns_dct)
+        except ValueError as err:
+            names_named = 'keymap' in str(err) and 'immediately' in str(err)
+            return _check('missing names raise ValueError naming them', names_named)
+        return _check('missing names raise ValueError naming them', False)
+
+    print('\n--- Flat keymap exclusions and guards ---')
+    all_ok = True
+    all_ok &= _with_fixture_config(_FIXTURE_FULL_SECTION, inner)
+    all_ok &= inner_missing_api()
+    return all_ok
+
+
+def test_cinnamon_command_fallback() -> bool:
+    api = _FakeAPI()
+    ns_dct = api.namespace(DESKTOP_ENV='cinnamon')
+    setup_screenshot_keymaps(ns_dct)
+
+    flat_record = next(record for record in api.registered_lst
+                        if record['name'] == 'Screenshots: detected shortcuts')
+    fallback_fn = flat_record['mappings'].get(('COMBO', 'Shift-RC-5'))
+
+    all_ok = True
+    all_ok &= _check('interactive_ui bound to a command-fallback callable',
+        callable(fallback_fn))
+
+    if callable(fallback_fn):
+        _launch_calls_lst.clear()
+        result = fallback_fn(None)
+        all_ok &= _check('callable returns None and tries candidates in order',
+            result is None
+            and _launch_calls_lst == [['cinnamon-screenshot', '-i'],
+                                        ['gnome-screenshot', '-i']])
+
+    api2 = _FakeAPI()
+    setup_screenshot_keymaps(api2.namespace(DESKTOP_ENV='cinnamon'),
+                                enable_command_fallbacks=False)
+    flat_record2 = next(record for record in api2.registered_lst
+                        if record['name'] == 'Screenshots: detected shortcuts')
+    all_ok &= _check('kill switch removes the fallback binding',
+        ('COMBO', 'Shift-RC-5') not in flat_record2['mappings'])
+
+    print('\n--- Cinnamon command fallback ---')
+    return all_ok
+
+
+def main():
+    results_lst = [
+        test_builder_registers_keymaps(),
+        test_nested_keymap_shape(),
+        test_flat_keymap_exclusions_and_guards(),
+        test_cinnamon_command_fallback(),
+    ]
+    passed_cnt = sum(1 for result in results_lst if result)
+    print(f'\nScore: {passed_cnt}/{len(results_lst)} test groups passed')
+    return 0 if passed_cnt == len(results_lst) else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
+
+# End of file #

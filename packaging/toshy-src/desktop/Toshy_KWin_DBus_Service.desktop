@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Toshy KWin D-Bus Service
+GenericName=Toshy KWin D-Bus Service
+# autostart the D-Bus service to get window focus notifications from KWin script
+Exec=/bin/sh -c 'exec env $HOME/.local/bin/toshy-kwin-dbus-service'
+Terminal=false
+NoDisplay=false
+# Icon must be copied to ~/.local/share/icons
+Icon=toshy_app_icon_rainbow
+Comment=Environment importer for Toshy services
+Categories=Utility;

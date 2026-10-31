@@ -1,0 +1,73 @@
+###############################################################################
+# WARNING: This is just a sample 'requirements.txt' file for Toshy. 
+# This is NOT actually meant to be used manually!
+# 
+# The main purpose of making this file is for GitHub to be able to show dependencies.
+# Native package installs are used to provide additional Python modules not named here, 
+# (for supporting the Python-based keymapper that Toshy installs/works with),
+# and prep build/compile dependencies for some of these pip packages. 
+# The 'setup_toshy.py' script handles native package installs and all these pip 
+# package installs automatically. 
+# It also installs all pip packages in a 'venv' Python virtual environment, 
+# to be more compatible with "managed" Python environments where 'pip' usage
+# is restricted. 
+
+# The Toshy installer upgrades these first, to avoid showing error messages in the log.
+pip
+wheel
+setuptools
+pillow
+
+# Setup script pins pygobject to 3.44.1 (or earlier) to ensure 
+# compatibility with RHEL 8.x and its clones, and CentOS Stream 8, CentOS 7, etc.
+# Newer pinning requirement: pygobject >=3.51.0 needs GLib >=2.80
+# Setup script tests for GLib version and available girepository 2.0 packages.
+pygobject
+
+# Standard packages required for the application.
+lockfile
+dbus-python
+systemd-python
+tk
+sv_ttk
+watchdog
+psutil
+# Version 1.5 of xkbcommon introduced breaking API changes.
+# Pinning to less than v1.1 on advice of repo maintainer/owner.
+# See https://github.com/sde1000/python-xkbcommon/issues/23
+xkbcommon<1.1
+
+# Installing 'pywlroots' requires native package 'libxkbcommon-devel' on Fedora.
+# pywlroots
+
+# All dependencies below here are to smooth out the installation of the 
+# keymapper needed to make Toshy work.
+# Will leave these exposed here even if they are not technically 
+# direct dependencies of Toshy, since Toshy functionality 
+# depends entirely on `xwaykeyz` (forked from `keyszer`).
+
+anyascii
+appdirs
+evdev
+hyprpy
+i3ipc
+inotify-simple
+ordered-set
+pywayland
+six       # not a direct dependency? 
+
+# TODO: Check on 'python-xlib' project periodically for a bug fix related to:
+# [AttributeError: 'BadRRModeError' object has no attribute 'sequence_number']
+# If the bug is fixed, consider updating the version pinning.
+python-xlib==0.31
+
+# Migrating to using a new fork of `keyszer` called `xwaykeyz`
+# Not available via `pip` yet!
+# https://github.com/RedBearAK/xwaykeyz/
+# No way to 'pin' a version range in this syntax, but window context method
+# for KDE Plasma changed, and requires >=1.2.0 for `xwaykeyz` to be talking
+# to the correct D-Bus interface/object path. (org.toshy.Plasma)
+# New required minimum version for xwaykeyz >=1.12.0 (matchProps moved to config_api)
+# New required minimum version for xwaykeyz >=1.17.1 (Combo repeats, other changes)
+# New required minimum version for xwaykeyz >=1.23.1 (layout and symbol correction API)
+git+https://github.com/RedBearAK/xwaykeyz.git@main#egg=xwaykeyz

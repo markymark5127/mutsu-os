@@ -1,0 +1,19 @@
+[Unit]
+Description=Toshy Session Monitor
+After=default.target
+
+[Service]
+SyslogIdentifier=toshy-sessmon
+# Switch back to the non-DBus version of the session monitor if there are any problems. (There were problems.)
+# ExecStart=/bin/bash -c 'env TERM=xterm $HOME/.config/toshy/scripts/toshy-service-session-monitor-dbus.sh'
+# ExecStart=/bin/bash -c 'env TERM=xterm $HOME/.config/toshy/scripts/toshy-service-session-monitor.sh'
+Environment=TERM=xterm
+# still no recovery from logging out/in
+# ExecStart=%h/.config/toshy/scripts/toshy-service-session-monitor-dbus.sh
+# ExecStart=%h/.config/toshy/scripts/toshy-service-session-monitor.sh
+ExecStart=%h/.config/toshy/scripts/tshysvc-sessmon
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
