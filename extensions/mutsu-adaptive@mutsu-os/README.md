@@ -5,8 +5,7 @@ Quick Settings and notification system. Desktop settings are restored on exit.
 
 ## Navigation
 
-Enable **Bottom swipe gestures** in Adaptive Desktop preferences. The opt-in
-remains off by default; Home and Recent Apps also have accessible buttons/menus.
+Bottom and top swipe gestures are on by default in tablet mode. Home and Recent Apps also have accessible buttons.
 
 - Short pull from the bottom edge: reveal a temporary dock with favorite and running apps.
 - Longer upward swipe: Home. The current app preview follows the finger and fades into Home.

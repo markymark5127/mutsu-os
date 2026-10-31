@@ -12,9 +12,9 @@
       <description>automatic: follow hardware tablet switch when present; always-desktop / always-tablet: force the mode.</description>
     </key>
     <key name="enable-experimental-gestures" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Enable tablet edge gestures</summary>
-      <description>Experimental swipe-up and overview edge gestures. Disabled until deliberately opted into in Adaptive Desktop settings.</description>
+      <description>iPad-style bottom and top edge gestures. On by default in tablet mode.</description>
     </key>
     <key name="open-home-on-tablet" type="b">
       <default>true</default>

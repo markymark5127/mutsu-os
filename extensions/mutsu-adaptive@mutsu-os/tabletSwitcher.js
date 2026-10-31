@@ -55,6 +55,10 @@ export class TabletSwitcher {
         });
         this._eventId = global.stage.connect('captured-event', (_stage, event) =>
             this._event(event));
+        this._homeDockId = Main.overview.connect('showing', () => {
+            if (this._gesturesEnabled() && !this.visible)
+                this._dock.show();
+        });
         this._syncBar();
     }
 
@@ -163,7 +167,7 @@ export class TabletSwitcher {
                     this.show();
                 } else if (action === 'home') {
                     this._home();
-                    this._finishPreview();
+                    this._shrinkIntoHome();
                 } else if (action === 'dock') {
                     this._resetPreview();
                     this._dock.show();
@@ -218,6 +222,26 @@ export class TabletSwitcher {
         this._preview?.destroy();
         this._preview = null;
         this._previewClone = null;
+    }
+
+    _shrinkIntoHome() {
+        const clone = this._previewClone;
+        const preview = this._preview;
+        if (!clone || !preview) {
+            this._finishPreview();
+            return;
+        }
+        clone.set_pivot_point(0.5, 0.5);
+        clone.ease({
+            scale_x: 0.18, scale_y: 0.18,
+            translation_y: 80, opacity: 0,
+            duration: 280, mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+            onComplete: () => {
+                if (this._preview === preview)
+                    this._resetPreview();
+            },
+        });
+        preview.ease({opacity: 0, duration: 280, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
     }
 
     _finishPreview() {
@@ -321,6 +345,7 @@ export class TabletSwitcher {
                     maximizeWindow(window, Meta);
                     this._activate(window);
                 }],
+                ['Slide Over', () => { this.hide(); this._split.slideOver(window); }],
                 ['Split View', () => {
                     for (const card of this._cards)
                         card.actor.remove_style_class_name('mutsu-split-selected');
@@ -419,6 +444,7 @@ export class TabletSwitcher {
         this.hide();
         this._dock.destroy();
         this._split.destroy();
+        Main.overview.disconnect(this._homeDockId);
         global.stage.disconnect(this._eventId);
         global.display.disconnect(this._windowId);
         Main.sessionMode.disconnect(this._sessionId);

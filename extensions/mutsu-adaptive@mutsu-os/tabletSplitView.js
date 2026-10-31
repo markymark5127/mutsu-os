@@ -128,6 +128,26 @@ export class TabletSplitView {
         return Clutter.EVENT_STOP;
     }
 
+    slideOver(window) {
+        if (!window || window.is_skip_taskbar())
+            return;
+        this.clear();
+        const monitor = Main.layoutManager.primaryMonitor;
+        if (!monitor)
+            return;
+        const width = Math.round(monitor.width * 0.38);
+        const actor = window.get_compositor_private();
+        window.move_resize_frame(false,
+            monitor.x + monitor.width - width - 16,
+            monitor.y + 48,
+            width,
+            monitor.height - 96);
+        window.unmaximize(Meta.MaximizeFlags.BOTH);
+        actor?.add_style_class_name?.('mutsu-slideover');
+        Main.activateWindow(window);
+        this._slide = window;
+    }
+
     fullscreen(window) {
         const target = this._pair?.includes(window) ? window : this._pair?.[0];
         this.clear();

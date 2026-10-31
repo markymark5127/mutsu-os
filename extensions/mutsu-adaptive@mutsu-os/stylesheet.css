@@ -101,3 +101,49 @@
   font-size: 1.25em;
 }
 #keyboard.mutsu-tablet-keyboard .keyboard-key StIcon { icon-size: 1.25em; }
+
+/* iPad-like Springboard and tablet chrome */
+.mutsu-tablet-home .app-well-app .overview-icon,
+.mutsu-tablet-home .app-folder-icon {
+  icon-size: 72px;
+  border-radius: 22px;
+}
+.mutsu-tablet-home .app-well-app {
+  padding: 8px;
+}
+.mutsu-tablet-home .overview-icon {
+  border-radius: 22px;
+}
+.mutsu-tablet-home .app-well-app .overview-icon StLabel,
+.mutsu-tablet-home .app-folder-icon StLabel {
+  font-size: 13px;
+  margin-top: 6px;
+}
+.mutsu-status-slim #panel {
+  height: 28px;
+  background-color: transparent;
+}
+.mutsu-slideover {
+  background-color: rgba(32, 42, 50, 0.94);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.mutsu-app-library {
+  background-color: rgba(19, 24, 43, 0.96);
+  border-radius: 28px;
+  padding: 20px;
+  spacing: 12px;
+  color: white;
+}
+.mutsu-library-group { spacing: 8px; }
+.mutsu-home-widget-card {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 12px 16px;
+  min-width: 120px;
+}
+.mutsu-touch-dock {
+  background-color: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}

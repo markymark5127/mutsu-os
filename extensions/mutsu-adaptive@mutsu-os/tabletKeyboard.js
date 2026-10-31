@@ -1,3 +1,4 @@
+import Clutter from 'gi://Clutter';
 import {InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {Keyboard} from 'resource:///org/gnome/shell/ui/keyboard.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -30,6 +31,8 @@ export class TabletKeyboard {
         }
         this._connect(Main.layoutManager, 'monitors-changed', () => this._sync());
         this._connect(Main.keyboard, 'visibility-changed', () => this._sync());
+        this._kbDrag = null;
+        this._kbEvent = global.stage.connect('captured-event', (_s, event) => this._keyboardSwipe(event));
         this._sync();
     }
 
@@ -41,6 +44,11 @@ export class TabletKeyboard {
         const keyboard = Main.keyboard.keyboardActor ?? Main.keyboard._keyboard;
         if (keyboard)
             keyboard._relayout?.();
+            const box = Main.layoutManager.keyboardBox;
+            if (box?.visible) {
+                box.translation_y = 40;
+                box.ease({translation_y: 0, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+            }
     }
 
     _apply(keyboard) {
@@ -76,7 +84,31 @@ export class TabletKeyboard {
         }
     }
 
+    _keyboardSwipe(event) {
+        const box = Main.layoutManager.keyboardBox;
+        if (!box?.visible)
+            return Clutter.EVENT_PROPAGATE;
+        const type = event.type();
+        const begin = type === Clutter.EventType.TOUCH_BEGIN || type === Clutter.EventType.BUTTON_PRESS;
+        const end = type === Clutter.EventType.TOUCH_END || type === Clutter.EventType.BUTTON_RELEASE;
+        const [, y] = event.get_coords();
+        if (begin && y >= box.y && y <= box.y + 36) {
+            this._kbDrag = y;
+            return Clutter.EVENT_STOP;
+        }
+        if (this._kbDrag == null || !end)
+            return Clutter.EVENT_PROPAGATE;
+        const dismiss = y - this._kbDrag > 40;
+        this._kbDrag = null;
+        if (dismiss)
+            Main.keyboard.close();
+        return Clutter.EVENT_STOP;
+    }
+
     destroy() {
+        if (this._kbEvent)
+            global.stage.disconnect(this._kbEvent);
+
         this._injections.clear();
         for (const [object, id] of this._signals)
             object.disconnect(id);
@@ -91,6 +123,11 @@ export class TabletKeyboard {
             else
                 keyboard._aspectContainer._ratio = state.ratio;
             keyboard._relayout?.();
+            const box = Main.layoutManager.keyboardBox;
+            if (box?.visible) {
+                box.translation_y = 40;
+                box.ease({translation_y: 0, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+            }
         }
         this._states.clear();
     }

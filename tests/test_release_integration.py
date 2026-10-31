@@ -76,7 +76,7 @@ class ImageIntegrationTests(unittest.TestCase):
             if k.attrib.get("name") == "enable-experimental-gestures"
         ]
         self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].findtext("default"), "false")
+        self.assertEqual(matches[0].findtext("default"), "true")
         source = read("extensions/mutsu-adaptive@mutsu-os/extension.js")
         self.assertIn("get_boolean('enable-experimental-gestures')", source)
         self.assertIn("new TabletSwitcher(", source)

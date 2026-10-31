@@ -249,6 +249,9 @@ export default class MutsuAdaptiveExtension extends Extension {
             () => this._gestureSuppressed(),
             () => this._settings.get_boolean('enable-experimental-gestures'));
         this._lockHomeWhenEmpty();
+        this._slimStatusBar(true);
+        this._installTopGestures();
+
         this._setTouchshell(true);
         this._syncQsToggle();
         log('Mutsu Adaptive: entered tablet mode');
@@ -279,7 +282,64 @@ export default class MutsuAdaptiveExtension extends Extension {
             Main.overview.hide();
         } catch (e) {}
         this._syncQsToggle();
-        log('Mutsu Adaptive: left tablet mode');
+        this._slimStatusBar(false);
+        this._removeTopGestures();
+                log('Mutsu Adaptive: left tablet mode');
+    }
+
+
+    _slimStatusBar(on) {
+        const panel = Main.panel;
+        if (!panel)
+            return;
+        panel.add_style_class_name?.(on ? 'mutsu-status-slim' : '');
+        if (!on)
+            panel.remove_style_class_name?.('mutsu-status-slim');
+        const left = panel._leftBox ?? panel.statusArea?.activities?.get_parent?.();
+        if (left)
+            left.visible = !on;
+    }
+
+    _installTopGestures() {
+        if (this._topActor)
+            return;
+        const actor = new St.Widget({reactive: true, style: 'background-color: transparent;'});
+        const monitor = Main.layoutManager.primaryMonitor;
+        if (!monitor)
+            return;
+        actor.set_position(monitor.x, monitor.y);
+        actor.set_size(monitor.width, 28);
+        Main.layoutManager.addChrome(actor, {affectsStruts: false});
+        let start = null;
+        actor.connect('event', (_a, event) => {
+            const type = event.type();
+            if (type === Clutter.EventType.TOUCH_BEGIN || type === Clutter.EventType.BUTTON_PRESS) {
+                start = event.get_coords();
+                return Clutter.EVENT_PROPAGATE;
+            }
+            if (!start || (type !== Clutter.EventType.TOUCH_END && type !== Clutter.EventType.BUTTON_RELEASE))
+                return Clutter.EVENT_PROPAGATE;
+            const [x, y] = event.get_coords();
+            const [sx, sy] = start;
+            start = null;
+            if (y - sy < 24)
+                return Clutter.EVENT_PROPAGATE;
+            const right = x > monitor.x + monitor.width * 0.66;
+            if (right)
+                Main.panel.statusArea.quickSettings?.menu.open();
+            else
+                Main.panel.statusArea.dateMenu?.menu.open();
+            return Clutter.EVENT_STOP;
+        });
+        this._topActor = actor;
+    }
+
+    _removeTopGestures() {
+        if (!this._topActor)
+            return;
+        Main.layoutManager.removeChrome(this._topActor);
+        this._topActor.destroy();
+        this._topActor = null;
     }
 
     _overviewActor() {
@@ -332,8 +392,6 @@ export default class MutsuAdaptiveExtension extends Extension {
                 controls.showApps();
         } catch (e) {}
         const actors = [
-            controls._searchEntry,
-            controls._searchEntryBin,
             controls._thumbnailsBox,
             controls._thumbnailsSlider,
             controls._workspacesDisplay,
