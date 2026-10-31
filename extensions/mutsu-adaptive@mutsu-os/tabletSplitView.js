@@ -132,20 +132,71 @@ export class TabletSplitView {
         if (!window || window.is_skip_taskbar())
             return;
         this.clear();
+        this._dismissSlide();
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
             return;
-        const width = Math.round(monitor.width * 0.38);
-        const actor = window.get_compositor_private();
-        window.move_resize_frame(false,
-            monitor.x + monitor.width - width - 16,
-            monitor.y + 48,
-            width,
-            monitor.height - 96);
+        const width = Math.round(monitor.width * 0.4);
+        const x = monitor.x + monitor.width - width - 12;
+        const y = monitor.y + 40;
+        const height = monitor.height - 80;
         window.unmaximize(Meta.MaximizeFlags.BOTH);
-        actor?.add_style_class_name?.('mutsu-slideover');
+        window.move_resize_frame(false, x, y, width, height);
         Main.activateWindow(window);
-        this._slide = window;
+        const card = new St.Widget({style_class: 'mutsu-slideover', reactive: true});
+        card.set_position(x - 4, y - 4);
+        card.set_size(width + 8, height + 8);
+        const handle = new St.Button({
+            style_class: 'mutsu-slideover-handle',
+            accessible_name: 'Dismiss Slide Over',
+            label: '⋯',
+        });
+        handle.connect('clicked', () => this._dismissSlide());
+        card.add_child(handle);
+        Main.layoutManager.addChrome(card, {affectsStruts: false});
+        this._slide = {window, card, x};
+        let start = null;
+        card.connect('event', (_a, event) => {
+            const type = event.type();
+            if (type === Clutter.EventType.TOUCH_BEGIN || type === Clutter.EventType.BUTTON_PRESS) {
+                start = event.get_coords()[0];
+                return Clutter.EVENT_STOP;
+            }
+            if (start == null)
+                return Clutter.EVENT_PROPAGATE;
+            if (type === Clutter.EventType.TOUCH_UPDATE || type === Clutter.EventType.MOTION) {
+                const dx = event.get_coords()[0] - start;
+                if (dx > 0)
+                    card.translation_x = dx;
+                return Clutter.EVENT_STOP;
+            }
+            if (type === Clutter.EventType.TOUCH_END || type === Clutter.EventType.BUTTON_RELEASE) {
+                const dx = event.get_coords()[0] - start;
+                start = null;
+                if (dx > 80)
+                    this._dismissSlide();
+                else
+                    card.ease({translation_x: 0, duration: 140, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    _dismissSlide() {
+        if (!this._slide)
+            return;
+        const {window, card} = this._slide;
+        this._slide = null;
+        card.ease({
+            translation_x: 280, opacity: 0, duration: 160,
+            mode: Clutter.AnimationMode.EASE_IN_QUAD,
+            onComplete: () => {
+                Main.layoutManager.removeChrome(card);
+                card.destroy();
+            },
+        });
+        try { window.minimize(); } catch (e) {}
     }
 
     fullscreen(window) {
@@ -164,6 +215,7 @@ export class TabletSplitView {
         this._closeSignals = [];
         this._pair = null;
         this._divider.hide();
+        this._dismissSlide();
     }
 
     destroy() {

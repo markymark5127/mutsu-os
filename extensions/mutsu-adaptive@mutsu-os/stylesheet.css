@@ -147,3 +147,44 @@
   border: 1px solid rgba(255, 255, 255, 0.28);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
+
+.mutsu-springboard {
+  background-color: rgba(18, 22, 32, 0.97);
+  color: white;
+}
+.mutsu-springboard-column { padding: 28px 20px 16px; spacing: 12px; }
+.mutsu-springboard-search {
+  min-width: 280px;
+  border-radius: 18px;
+  background-color: rgba(255, 255, 255, 0.14);
+  padding: 8px 14px;
+}
+.mutsu-springboard-grid { spacing: 8px; }
+.mutsu-springboard-icon { spacing: 6px; padding: 8px; }
+.mutsu-springboard-button {
+  border-radius: 22px;
+  padding: 6px;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.mutsu-springboard-label { font-size: 12px; text-align: center; }
+.mutsu-springboard-dots { spacing: 8px; }
+.mutsu-springboard-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.35);
+}
+.mutsu-springboard-dot-active { background-color: white; }
+.mutsu-springboard-dock { margin-bottom: 18px; }
+.mutsu-slideover-handle {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  min-width: 44px;
+  min-height: 28px;
+  margin: 8px;
+}
+.mutsu-status-slim {
+  height: 28px;
+  background-color: rgba(0, 0, 0, 0.28);
+  font-size: 13px;
+}

@@ -1,4 +1,5 @@
 import Clutter from 'gi://Clutter';
+import Meta from 'gi://Meta';
 import {InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {Keyboard} from 'resource:///org/gnome/shell/ui/keyboard.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -42,13 +43,39 @@ export class TabletKeyboard {
 
     _sync() {
         const keyboard = Main.keyboard.keyboardActor ?? Main.keyboard._keyboard;
+        const box = Main.layoutManager.keyboardBox;
         if (keyboard)
             keyboard._relayout?.();
-            const box = Main.layoutManager.keyboardBox;
-            if (box?.visible) {
-                box.translation_y = 40;
-                box.ease({translation_y: 0, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
-            }
+        if (box?.visible) {
+            box.translation_y = 40;
+            box.ease({translation_y: 0, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+            this._liftApp(box.height || keyboard?.height || 280);
+        } else {
+            this._restoreApp();
+        }
+    }
+
+    _liftApp(height) {
+        const window = global.display.focus_window;
+        if (!window || window.is_skip_taskbar())
+            return;
+        if (!this._lifted || this._lifted.window !== window)
+            this._lifted = {window, rect: window.get_frame_rect()};
+        const rect = this._lifted.rect;
+        const next = Math.max(160, rect.height - height);
+        window.unmaximize(Meta.MaximizeFlags.BOTH);
+        window.move_resize_frame(false, rect.x, rect.y, rect.width, next);
+    }
+
+    _restoreApp() {
+        if (!this._lifted)
+            return;
+        const {window, rect} = this._lifted;
+        this._lifted = null;
+        try {
+            window.move_resize_frame(false, rect.x, rect.y, rect.width, rect.height);
+            window.maximize(Meta.MaximizeFlags.BOTH);
+        } catch (e) {}
     }
 
     _apply(keyboard) {
@@ -100,8 +127,10 @@ export class TabletKeyboard {
             return Clutter.EVENT_PROPAGATE;
         const dismiss = y - this._kbDrag > 40;
         this._kbDrag = null;
-        if (dismiss)
+        if (dismiss) {
+            this._restoreApp();
             Main.keyboard.close();
+        }
         return Clutter.EVENT_STOP;
     }
 

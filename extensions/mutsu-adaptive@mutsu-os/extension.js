@@ -8,6 +8,7 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Clutter from 'gi://Clutter';
 import {TabletSwitcher} from './tabletSwitcher.js';
+import {TabletSpringboard} from './tabletSpringboard.js';
 import {applyTabletDock} from './tabletDock.js';
 import {TabletSession} from './tabletSession.js';
 import {maximizeWindow, unmaximizeWindow} from './tabletGeometry.js';
@@ -223,13 +224,9 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._inTablet = true;
         this._saveReversibleState();
 
-        if (this._settings.get_boolean('open-home-on-tablet')) {
-            try {
-                Main.overview.showApps();
-            } catch (e) {
-                log(`Mutsu Adaptive: showApps failed (${e})`);
-            }
-        }
+        this._springboard = new TabletSpringboard(() => Main.overview.hide());
+        if (this._settings.get_boolean('open-home-on-tablet'))
+            this._springboard.show();
 
         this._applyTabletHome();
         this._applyTouchVisuals();
@@ -244,7 +241,7 @@ export default class MutsuAdaptiveExtension extends Extension {
                 const win = global.display.focus_window;
                 if (win && !win.is_skip_taskbar())
                     win.minimize();
-                Main.overview.showApps();
+                this._springboard?.show();
             },
             () => this._gestureSuppressed(),
             () => this._settings.get_boolean('enable-experimental-gestures'));
@@ -261,6 +258,8 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (!this._inTablet)
             return;
         this._inTablet = false;
+        this._springboard?.destroy();
+        this._springboard = null;
         this._tabletSwitcher?.destroy();
         this._tabletSwitcher = null;
         this._tabletSession?.destroy();
@@ -292,12 +291,23 @@ export default class MutsuAdaptiveExtension extends Extension {
         const panel = Main.panel;
         if (!panel)
             return;
-        panel.add_style_class_name?.(on ? 'mutsu-status-slim' : '');
-        if (!on)
-            panel.remove_style_class_name?.('mutsu-status-slim');
-        const left = panel._leftBox ?? panel.statusArea?.activities?.get_parent?.();
-        if (left)
-            left.visible = !on;
+        if (on)
+            panel.add_style_class_name('mutsu-status-slim');
+        else
+            panel.remove_style_class_name('mutsu-status-slim');
+        const hide = [
+            panel.statusArea?.activities,
+            panel.statusArea?.appMenu,
+            panel._leftBox,
+        ];
+        for (const actor of hide) {
+            if (!actor)
+                continue;
+            if (on && actor._mutsuSavedVisible === undefined)
+                actor._mutsuSavedVisible = actor.visible;
+            actor.visible = on ? false : actor._mutsuSavedVisible !== false;
+        }
+        try { panel.height = on ? 28 : -1; } catch (e) {}
     }
 
     _installTopGestures() {
@@ -800,9 +810,8 @@ export default class MutsuAdaptiveExtension extends Extension {
                     return;
                 if (!this._anyNormalWindows()) {
                     GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-                        if (this._inTablet && !this._anyNormalWindows()) {
-                            try { Main.overview.showApps(); } catch (e) {}
-                        }
+                        if (this._inTablet && !this._anyNormalWindows())
+                            this._springboard?.show();
                         return GLib.SOURCE_REMOVE;
                     });
                 }
@@ -829,7 +838,7 @@ export default class MutsuAdaptiveExtension extends Extension {
     _goHomeAnimated(win) {
         const actor = this._windowActor(win);
         this._gestureActive = true;
-        try { Main.overview.showApps(); } catch (e) {}
+        this._springboard?.show();
         this._raiseWindowsOverHome();
         if (!actor) {
             try { win?.minimize?.(); } catch (e) {}
