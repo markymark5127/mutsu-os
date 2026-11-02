@@ -33,7 +33,11 @@ export class TabletKeyboard {
         this._connect(Main.layoutManager, 'monitors-changed', () => this._sync());
         this._connect(Main.keyboard, 'visibility-changed', () => this._sync());
         this._kbDrag = null;
-        this._kbEvent = global.stage.connect('captured-event', (_s, event) => this._keyboardSwipe(event));
+        this._kbEvent = 0;
+        if (globalThis.global?.stage?.connect) {
+            this._kbEvent = global.stage.connect('captured-event',
+                (_s, event) => this._keyboardSwipe(event));
+        }
         this._sync();
     }
 
@@ -135,7 +139,7 @@ export class TabletKeyboard {
     }
 
     destroy() {
-        if (this._kbEvent)
+        if (this._kbEvent && globalThis.global?.stage?.disconnect)
             global.stage.disconnect(this._kbEvent);
 
         this._injections.clear();
