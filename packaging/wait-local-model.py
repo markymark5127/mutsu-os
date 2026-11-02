@@ -10,7 +10,7 @@ MODEL = 'qwen3.5:9b'
 DIGEST = '56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90'
 
 
-def wait_ready(base, attempts=120, smoke=False):
+def wait_ready(base, attempts=600, smoke=False):
     opener = build_opener(ProxyHandler({}))
     for attempt in range(attempts):
         try:
@@ -23,7 +23,9 @@ def wait_ready(base, attempts=120, smoke=False):
             break
         except (URLError, OSError, ValueError):
             if attempt + 1 == attempts:
-                raise RuntimeError('Bundled Ollama model did not become ready')
+                raise RuntimeError('Bundled Ollama model did not become ready after 10 minutes')
+            if attempt in (0, 30, 60, 120, 300):
+                print(f'Waiting for bundled Qwen model ({attempt + 1}/{attempts})', flush=True)
             time.sleep(1)
     if smoke:
         request = Request(base + '/api/chat', data=json.dumps({

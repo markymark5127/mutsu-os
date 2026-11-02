@@ -16,7 +16,7 @@ mkdir -p -m700 "$config_dir"
 chmod 700 "$config_dir"
 # Serialize the automatic session service and the Portal's repair button.
 exec 9>"$config_dir/newelle-setup.lock"
-flock -w 120 9
+flock -w 600 9
 rm -f "$marker"
 if [[ ! -s "$token_file" ]]; then
   token="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
@@ -62,7 +62,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler, Request, build_opener
 
 
-def wait_for_api(token_file, port, attempts=20):
+def wait_for_api(token_file, port, attempts=90):
     token = Path(token_file).read_text(encoding="utf-8").strip()
     request = Request(f"http://127.0.0.1:{int(port)}/v1/models",
                       headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})

@@ -11,7 +11,7 @@ StartLimitBurst=5
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/mutsu-os/setup-newelle-user.sh
-TimeoutStartSec=10min
+TimeoutStartSec=15min
 Restart=on-failure
 RestartSec=10
 
