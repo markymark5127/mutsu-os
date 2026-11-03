@@ -120,6 +120,7 @@ COPY packaging/seed-local-model.sh /usr/libexec/mutsu-os/seed-local-model.sh
 COPY packaging/mutsu-local-model.service /usr/lib/systemd/system/mutsu-local-model.service
 RUN dnf5 install -y libgomp numactl-libs && \
     chmod 0755 /usr/libexec/mutsu-os/seed-local-model.sh && \
+    chmod -R a+rX /usr/share/mutsu-os/local-ai && \
     test -x /usr/libexec/mutsu-os/ollama/bin/ollama && \
     systemctl enable mutsu-local-model.service
 
