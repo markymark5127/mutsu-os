@@ -16,8 +16,7 @@ Environment=OLLAMA_NUM_PARALLEL=1
 Environment=OLLAMA_MAX_LOADED_MODELS=1
 ExecStartPre=/usr/libexec/mutsu-os/seed-local-model.sh
 ExecStart=/usr/libexec/mutsu-os/ollama/bin/ollama serve
-ExecStartPost=/usr/bin/python3 /usr/libexec/mutsu-os/wait-local-model.py
-TimeoutStartSec=5min
+TimeoutStartSec=15min
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=yes

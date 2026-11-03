@@ -33,7 +33,15 @@ cp -a "$bundle/runtime.json" "$bundle/packages" "$local_bundle/"
 cp /usr/share/mutsu-os/local-ai/bundled-model.json "$config_dir/bundled-model.json"
 # Confirm the packaged model is listed before selecting it. This performs no
 # inference and never sends a user's question or device information anywhere.
-python3 /usr/libexec/mutsu-os/wait-local-model.py
+if command -v systemctl >/dev/null; then
+  systemctl start mutsu-local-model.service || true
+fi
+if ! python3 /usr/libexec/mutsu-os/wait-local-model.py; then
+  echo >&2 "The bundled model is not listening on 127.0.0.1:11435."
+  systemctl status mutsu-local-model.service --no-pager >&2 || true
+  journalctl -u mutsu-local-model.service -b -n 40 --no-pager >&2 || true
+  exit 1
+fi
 # Gio.Settings writes native values directly; do not parse/quote GVariant
 # JSON strings through separate gsettings processes during session startup.
 flatpak run --filesystem="$config_dir:ro" --command=python3 "$app" - "$config_dir" \
