@@ -40,7 +40,7 @@ def configure(settings, token, bundled_model=None):
     gui = interfaces.get('gui-api', {})
     if not isinstance(gui, dict):
         gui = {}
-    gui.update({'api_key': token, 'host': '127.0.0.1', 'port': 8081})
+    gui.update({'api_key': token, 'host': '127.0.0.1', 'port': 8081, 'enabled': True})
     interfaces['gui-api'] = gui
     write_json('interfaces-settings', interfaces)
     selected = settings.get_string('language-model')

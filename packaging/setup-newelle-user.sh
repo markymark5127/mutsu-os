@@ -44,8 +44,17 @@ flatpak run --filesystem="$config_dir:ro" --command=python3 "$app" - "$config_di
 started=0
 if command -v systemctl >/dev/null; then
   systemctl --user daemon-reload || true
-  if systemctl --user enable ai-desktop-newelle.service &&
-     systemctl --user restart ai-desktop-newelle.service; then
+  systemctl --user enable ai-desktop-newelle.service || true
+  if systemctl --user restart ai-desktop-newelle.service; then
+    started=1
+  fi
+fi
+# The unit is the normal path. If it is not ready, start the headless
+# GUI API directly so the user never has to open Newelle.
+if [[ "$started" -ne 1 ]] || ! ss -ltn 2>/dev/null | grep -q ':8081'; then
+  if ! ss -ltn 2>/dev/null | grep -q ':8081'; then
+    flatpak run --env=PYTHONUNBUFFERED=1 "$app" --interface gui-api >/tmp/mutsu-newelle-gui-api.log 2>&1 &
+    echo $! > "$config_dir/newelle-gui-api.pid"
     started=1
   fi
 fi

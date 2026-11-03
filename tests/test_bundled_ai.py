@@ -52,6 +52,7 @@ class NewelleDefaultsTests(unittest.TestCase):
         self.assertEqual(interfaces['gui-api']['api_key'], 'test-token')
         self.assertEqual(interfaces['gui-api']['host'], '127.0.0.1')
         self.assertEqual(interfaces['gui-api']['port'], 8081)
+        self.assertTrue(interfaces['gui-api']['enabled'])
         self.assertTrue(interfaces['other-interface']['keep'])
 
     def test_existing_online_demo_migrates_to_requested_model(self):
