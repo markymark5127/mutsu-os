@@ -22,6 +22,20 @@ install -Dm0644 "$src/fastfetch.jsonc" /etc/xdg/fastfetch/config.jsonc
 install -Dm0644 "$src/motd.md" /usr/share/ublue-os/motd/template.md
 install -Dm0644 "$src/motd.md" /usr/share/ublue-os/motd/template.sv.md
 
+# The original Bazzite MOTD rotates tip files even with a Mutsu banner.
+# Drop inherited tips that advertise Bazzite/Fedora and supply Mutsu tips.
+tip_root=/usr/share/ublue-os/motd/tips
+if [[ -d "$tip_root" ]]; then
+  while IFS= read -r -d '' tip; do
+    if grep -Eiq 'bazzite|fedora linux|fedora 44' "$tip"; then
+      rm -f -- "$tip"
+    fi
+  done < <(find "$tip_root" -type f -name '*.md' -print0)
+fi
+install -Dm0644 "$src/tip.md" "$tip_root/20-mutsu.md"
+install -Dm0644 "$src/tip.md" "$tip_root/sv/20-mutsu.md"
+
+
 # Bazzite defines its own aliases earlier in profile.d and fish conf.d.
 # Late vendor aliases replace only the display config; do not change the
 # upstream command, RPMs, update paths, or scripts.
