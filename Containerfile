@@ -214,10 +214,11 @@ RUN bash /tmp/mutsu-install-terminal-branding.sh && \
 # Clear inherited Bazzite first-run, wallpaper choices, and update launcher.
 # This does not alter bootc/OSTree technical IDs or user home directories.
 COPY packaging/mutsu-updater /usr/bin/mutsu-updater
+COPY packaging/mutsu-branding-doctor /usr/bin/mutsu-branding-doctor
 COPY packaging/run-mutsu-update.sh /usr/libexec/mutsu-os/run-mutsu-update.sh
 COPY packaging/install-remaining-branding.sh /tmp/mutsu-install-remaining-branding.sh
 COPY packaging/brand-just-recipes.py /tmp/mutsu-brand-just-recipes.py
-RUN chmod 0755 /usr/bin/mutsu-updater /usr/libexec/mutsu-os/run-mutsu-update.sh && \
+RUN chmod 0755 /usr/bin/mutsu-updater /usr/bin/mutsu-branding-doctor /usr/libexec/mutsu-os/run-mutsu-update.sh && \
     bash /tmp/mutsu-install-remaining-branding.sh && \
     python3 /tmp/mutsu-brand-just-recipes.py && \
     rm -f /tmp/mutsu-install-remaining-branding.sh /tmp/mutsu-brand-just-recipes.py
