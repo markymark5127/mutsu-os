@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Brand human-readable system-management recipes without renaming commands.
-
-This runs only while composing Mutsu OS. Keep upstream executable names,
-technical paths and update scripts unchanged.
-"""
+"""Rebrand visible ujust descriptions and changelogs, never program identifiers."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,13 +17,12 @@ if release.is_file():
         raise SystemExit("Cannot verify Mutsu changelog source in update recipe")
     content = content.replace(
         "jq -r '.body'",
-        'jq -r \' .body // "No Mutsu OS releases have been published yet." \'',
-    ).replace(
+        """jq -r '.body // "No Mutsu OS releases have been published yet."'""",
+    )
+    content = content.replace(
         "jq -r 'map(select(.prerelease)) | .[0].body'",
         """jq -r 'if type == "array" then (map(select(.prerelease)) | .[0].body // "No Mutsu OS prerelease notes yet.") else "No Mutsu OS prerelease notes yet." end'""",
     )
-    # Drop padding inside the jq single quotes; the syntax is valid either way.
-    content = content.replace("' .body", "'.body").replace('." \'', '."\'')
     release.write_text(content, encoding="utf-8")
 
 steam = root / "93-bazzite-update.just"
@@ -41,8 +36,8 @@ if steam.is_file():
         raise SystemExit("Upstream Steam updater recipe changed unexpectedly")
     steam.write_text(content, encoding="utf-8")
 
-# ujust pickers show recipe descriptions: rebrand prose but not real paths,
-# service names, script logic, or third-party names like Bazzite Buddy.
+# ujust pickers display recipe descriptions from comments.
+# Keep exact technical package IDs, third-party product names, and commands.
 for path in root.glob("*.just"):
     content = path.read_text(encoding="utf-8")
     lines = []
