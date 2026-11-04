@@ -210,6 +210,23 @@ RUN bash /tmp/mutsu-install-terminal-branding.sh && \
     systemctl enable mutsu-hostname.service && \
     rm -rf /tmp/mutsu-terminal-assets /tmp/mutsu-install-terminal-branding.sh
 
+### USER-FACING MUTSU IDENTITY
+# Clear inherited Bazzite first-run, wallpaper choices, and update launcher.
+# This does not alter bootc/OSTree technical IDs or user home directories.
+COPY packaging/mutsu-updater /usr/bin/mutsu-updater
+COPY packaging/run-mutsu-update.sh /usr/libexec/mutsu-os/run-mutsu-update.sh
+COPY packaging/install-remaining-branding.sh /tmp/mutsu-install-remaining-branding.sh
+COPY packaging/brand-just-recipes.py /tmp/mutsu-brand-just-recipes.py
+RUN chmod 0755 /usr/bin/mutsu-updater /usr/libexec/mutsu-os/run-mutsu-update.sh && \
+    bash /tmp/mutsu-install-remaining-branding.sh && \
+    python3 /tmp/mutsu-brand-just-recipes.py && \
+    rm -f /tmp/mutsu-install-remaining-branding.sh /tmp/mutsu-brand-just-recipes.py
+
+# Fail if a fresh installation retains visible Bazzite/Fedora cosmetics.
+COPY packaging/verify-visible-branding.py /tmp/mutsu-verify-visible-branding.py
+RUN python3 /tmp/mutsu-verify-visible-branding.py && \
+    rm -f /tmp/mutsu-verify-visible-branding.py
+
 ### LINTING
 ## Verify final image and contents are correct.
 RUN bootc container lint
