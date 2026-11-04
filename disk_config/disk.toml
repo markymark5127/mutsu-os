@@ -1,3 +1,5 @@
-[[customizations.filesystem]]
-mountpoint = "/"
-minsize = "20 GiB"
+# Modern Image Builder QCOW2 blueprint: select Btrfs using the CLI.
+# Legacy [[customizations.filesystem]] is unsupported for bootc QCOW2.
+name = "Mutsu OS VM"
+version = "0.1"
+description = "Mutsu OS bootc QCOW2 disk image"

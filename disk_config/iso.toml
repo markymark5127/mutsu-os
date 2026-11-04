@@ -1,23 +1,6 @@
-# bootc-image-builder blueprint for the legacy anaconda-iso output.
-# These public metadata fields are supported by the image builder; an ISO
-# being generated does NOT imply the installer has been boot/installation
-# tested. Do not include automated disk wipes or user passwords here.
-#
-# The anaconda-iso output is deprecated; see GitHub issue #11 for migration
-# to the supported interactive bootc installer workflow before release.
-#
-# Interactive mode: an empty custom kickstart causes Anaconda to prompt the
-# user for language, keyboard, disk selection, user creation, etc., similar
-# to a traditional Fedora/Ubuntu installer. bootc-image-builder still injects
-# the ostreecontainer line that deploys this Mutsu OS image.
+# Historical metadata retained for local-tool compatibility.
+# Modern generic-iso does NOT read this file. The installer boot image
+# instead embeds packaging/installer/iso.yaml and interactive-defaults.ks.
 name = "Mutsu OS"
 version = "0.1"
-description = "Mutsu OS interactive installer image"
-
-[customizations.iso]
-volume_id = "MUTSU_OS"
-application_id = "Mutsu OS Installer"
-publisher = "Mutsu OS"
-
-[customizations.installer.kickstart]
-contents = ""
+description = "Interactive Mutsu OS bootc installation media"

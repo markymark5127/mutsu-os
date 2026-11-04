@@ -1,0 +1,73 @@
+# Fedora 44 live Anaconda installer; the installed system is a separate
+# digest-pinned Mutsu OS container embedded by Image Builder.
+FROM quay.io/fedora/fedora-bootc:44
+ARG MUTSU_PAYLOAD_REF
+RUN test -n "$MUTSU_PAYLOAD_REF" && \
+    case "$(uname -m)" in \
+      x86_64) grub_pkg=grub2-efi-x64-cdboot ;; \
+      aarch64) grub_pkg=grub2-efi-aa64-cdboot ;; \
+      *) echo >&2 "Unsupported installer architecture"; exit 1 ;; \
+    esac && \
+    dnf5 install -qy \
+      anaconda anaconda-install-img-deps anaconda-dracut \
+      dracut-config-generic dracut-network dracut-live \
+      net-tools "$grub_pkg" plymouth \
+      default-fonts-core-sans default-fonts-other-sans \
+      google-noto-sans-cjk-fonts xorrisofs squashfs-tools jq && \
+    dnf5 clean all
+
+RUN install -d /boot/efi && cp -ra /usr/lib/efi/*/*/EFI /boot/efi
+COPY packaging/installer/iso.yaml /usr/lib/image-builder/bootc/iso.yaml
+# Interactive Anaconda payload; never hardcode automatic partitioning/wipes.
+RUN install -d /usr/share/anaconda && \
+    printf 'bootc --source-imgref containers-storage:%s --target-imgref %s\n' \
+      "$MUTSU_PAYLOAD_REF" "$MUTSU_PAYLOAD_REF" \
+      > /usr/share/anaconda/interactive-defaults.ks
+
+COPY branding/installer/sidebar-bg.png /usr/share/anaconda/pixmaps/sidebar-bg.png
+COPY branding/installer/sidebar-logo.png /usr/share/anaconda/pixmaps/sidebar-logo.png
+COPY branding/installer/topbar-bg.png /usr/share/anaconda/pixmaps/topbar-bg.png
+COPY branding/installer/mutsu.css /usr/share/anaconda/anaconda-gtk.css
+COPY branding/installer/.buildstamp /usr/share/anaconda/.buildstamp
+
+# Match Anaconda's documented bootc generic-ISO live environment.
+RUN if ! getent passwd install >/dev/null; then \
+      printf 'install:x:0:0:root:/root:/usr/libexec/anaconda/run-anaconda\n' >> /etc/passwd; \
+    fi && \
+    if ! getent shadow install >/dev/null; then \
+      printf 'install::14438:0:99999:7:::\n' >> /etc/shadow; \
+    fi && \
+    passwd -d root && \
+    if test -f /usr/share/anaconda/list-harddrives-stub; then \
+      mv /usr/share/anaconda/list-harddrives-stub /usr/bin/list-harddrives; \
+    fi && \
+    if test -d /usr/share/dnf5/repos.d; then \
+      mv /usr/share/dnf5/repos.d /etc/anaconda.repos.d; \
+    fi && \
+    ln -sfn /usr/lib/systemd/system/anaconda.target /etc/systemd/system/default.target && \
+    rm -f /usr/lib/systemd/system-generators/systemd-gpt-auto-generator && \
+    ln -sfn /usr/lib/systemd/system/anaconda-shell@.service \
+      /usr/lib/systemd/system/autovt@.service && \
+    install -d /var/mnt /usr/lib/systemd/logind.conf.d \
+      /etc/systemd/user/pipewire.service.d \
+      /etc/systemd/user/pipewire.socket.d && \
+    printf '[Login]\nReserveVT=2\n' \
+      > /usr/lib/systemd/logind.conf.d/anaconda-shell.conf && \
+    printf '[Unit]\nConditionUser=\n' \
+      > /etc/systemd/user/pipewire.service.d/allowroot.conf && \
+    printf '[Unit]\nConditionUser=\n' \
+      > /etc/systemd/user/pipewire.socket.d/allowroot.conf
+
+RUN set -eux; \
+    kernel="$(kernel-install list --json pretty | jq -r '.[] | select(.has_kernel == true) | .version' | head -n 1)"; \
+    test -n "$kernel"; \
+    test -f "/usr/lib/modules/$kernel/vmlinuz"; \
+    DRACUT_NO_XATTR=1 dracut --force --zstd --reproducible --no-hostonly \
+      --add "anaconda dmsquash-live" \
+      "/usr/lib/modules/$kernel/initramfs.img" "$kernel"; \
+    test -s "/usr/lib/modules/$kernel/initramfs.img"
+
+RUN test -s /usr/share/anaconda/.buildstamp && \
+    grep -qx 'Product=Mutsu OS' /usr/share/anaconda/.buildstamp && \
+    grep -q 'containers-storage:ghcr.io/markymark5127/mutsu-os@sha256:' \
+      /usr/share/anaconda/interactive-defaults.ks

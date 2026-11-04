@@ -32,13 +32,15 @@ on:
       - '.github/workflows/build-disk.yml'
       - 'branding/installer/**'
       - 'packaging/inject-iso-branding.sh'
+      - 'packaging/build-installer-iso.sh'
+      - 'packaging/installer/**'
       - 'tests/test_disk_image_workflow.py'
 
 env:
   IMAGE_NAME: ${{ github.event.repository.name }} # output of build.yml, keep in sync
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
-  # Modern image-builder (supports --force-repo). The old bootc-image-builder-action
-  # and quay.io/centos-bootc/bootc-image-builder container do not.
+  # Modern image-builder supports QCOW2 and container-based generic-iso.
+  # Legacy anaconda-iso is not supported by this CLI.
   IB_IMAGE: "ghcr.io/osbuild/image-builder-cli:latest"
 
 # Do NOT cancel an image-build run because an unrelated container workflow
@@ -68,6 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           bash -n packaging/inject-iso-branding.sh
+          bash -n packaging/build-installer-iso.sh
           python3 -m unittest discover -s tests -p 'test_disk_image_workflow.py' -v
 
   build:
@@ -84,10 +87,7 @@ jobs:
         github.event.workflow_run.event == 'workflow_dispatch'))
     env:
       SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
-      # qcow2 needs no repository override. The ISO step below sets specific
-      # Fedora 44 installer repos because Bazzite's custom distro identity
-      # does not give the builder usable Fedora RPM sources.
-      IB_EXTRA_ARGS: ""
+      # Only build from an image that actually completed and was published.
     # Pull requests have no workflow_dispatch inputs: default them to amd64.
     # Keep the privileged OSBuild disk/ISO jobs on Ubuntu 24.04: on 26.04,
     # osbuild fails with EPERM while mounting /run/osbuild/containers/storage
@@ -97,7 +97,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        disk-type: ["qcow2", "anaconda-iso"]
+        disk-type: ["qcow2", "generic-iso"]
     permissions:
       contents: read
       packages: read
@@ -151,75 +151,37 @@ jobs:
           echo "PINNED_IMAGE=${pinned}" >> "${GITHUB_ENV}"
           echo "Building disk artifacts from ${pinned} (source commit ${SOURCE_SHA})" >> "${GITHUB_STEP_SUMMARY}"
 
-      - name: Resolve Fedora 44 RPM sources for legacy installer
-        if: matrix.disk-type == 'anaconda-iso'
-        shell: bash
-        run: |
-          set -euo pipefail
-          # The source OCI currently uses the Fedora 44 Bazzite GNOME base.
-          # A newer Fedora base needs its own matching installer repositories.
-          release=44
-          arch="$(uname -m)"
-          case "${arch}" in
-            x86_64|aarch64) ;;
-            *) echo "::error::Unsupported installer architecture: ${arch}"; exit 1 ;;
-          esac
-          base="https://download.fedoraproject.org/pub/fedora/linux/releases/${release}/Everything/${arch}/os/"
-          updates="https://download.fedoraproject.org/pub/fedora/linux/updates/${release}/Everything/${arch}/"
-          # Fail early if a repo is unavailable, instead of getting a large
-          # misleading "missing packages: glibc, systemd, ..." error later.
-          for repo in "${base}" "${updates}"; do
-            echo "Checking Fedora installer RPM metadata: ${repo}"
-            curl --fail --silent --show-error --location --retry 3 \
-              --connect-timeout 20 --max-time 120 \
-              "${repo}repodata/repomd.xml" --output /dev/null
-          done
-          # Only affect the ISO's *installer RPM depsolve*. Neither repo is
-          # added to the installed OS or to the QCOW2 build.
-          printf 'IB_EXTRA_ARGS=--force-repo=%s --force-repo=%s\n' \
-            "${base}" "${updates}" >> "${GITHUB_ENV}"
-          echo "Legacy Anaconda ISO: Fedora ${release} installer repos verified for ${arch}" >> "${GITHUB_STEP_SUMMARY}"
-
-      # Invoke image-builder-cli directly. The old bootc-image-builder-action
-      # does not support --force-repo. This bootc source does not advertise a
-      # default root filesystem, so pass --bootc-default-fs btrfs.
+      # The published Mutsu image is the only installed payload; the ISO
+      # builds its own Fedora-based Anaconda environment using generic-iso.
       - name: Build disk images
         id: build
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p output
-          config="${{ matrix.disk-type == 'anaconda-iso' && format('{0}/disk_config/iso.toml', github.workspace) || format('{0}/disk_config/disk.toml', github.workspace) }}"
           image_type="${{ matrix.disk-type }}"
-          # Map legacy name if needed; image-builder still accepts anaconda-iso
-          # for the compatibility path. Prefer bootc-generic-iso later if this fails.
-          extra="${IB_EXTRA_ARGS:-}"
-          echo "Running image-builder for ${image_type} with extra: ${extra}"
-          sudo podman run --rm --privileged \
-            --security-opt label=type:unconfined_t \
-            --pull=newer \
-            -v /var/lib/containers/storage:/var/lib/containers/storage \
-            -v "${PWD}/output:/output" \
-            -v "${config}:/config.toml:ro" \
-            "${IB_IMAGE}" \
-            build \
-            --output-dir /output \
-            --bootc-ref "${PINNED_IMAGE}" \
-            --bootc-default-fs btrfs \
-            --blueprint /config.toml \
-            ${extra} \
-            "${image_type}"
+          if [[ "${image_type}" == "generic-iso" ]]; then
+            bash packaging/build-installer-iso.sh "${PINNED_IMAGE}" "${PWD}/output"
+          else
+            # Modern image-builder rejects legacy filesystem customizations.
+            # Btrfs is selected here rather than in the blueprint.
+            sudo podman run --rm --privileged \
+              --security-opt label=type:unconfined_t \
+              -v /var/lib/containers/storage:/var/lib/containers/storage \
+              -v "${PWD}/output:/output" \
+              -v "${PWD}/disk_config/disk.toml:/config.toml:ro" \
+              "${IB_IMAGE}" build \
+              --output-dir /output \
+              --bootc-ref "${PINNED_IMAGE}" \
+              --bootc-default-fs btrfs \
+              --blueprint /config.toml \
+              qcow2
+          fi
           sudo chown -R "${USER_UID}:${USER_GID}" output || true
           echo "output-directory=${PWD}/output" >> "${GITHUB_OUTPUT}"
 
-      # Anaconda only loads branding from images/product.img on the ISO.
-      # Files inside the Mutsu image do not affect the live installer.
-      - name: Inject Mutsu installer branding
-        if: matrix.disk-type == 'anaconda-iso'
-        run: |
-          chmod +x packaging/inject-iso-branding.sh
-          packaging/inject-iso-branding.sh "${{ steps.build.outputs.output-directory }}"
-
+      # Mutsu artwork and .buildstamp are baked into the live installer;
+      # legacy /images/product.img injection must not run on generic-iso.
       - name: Verify fresh ISO / QCOW2 and record exact container digest
         shell: bash
         env:
@@ -231,7 +193,7 @@ jobs:
             echo "::error::Disk builder returned no output directory"
             exit 1
           }
-          if [[ "${DISK_TYPE}" == "anaconda-iso" ]]; then
+          if [[ "${DISK_TYPE}" == "generic-iso" ]]; then
             artifact="$(find "${OUTPUT_DIRECTORY}" -type f -name '*.iso' -print -quit)"
           else
             artifact="$(find "${OUTPUT_DIRECTORY}" -type f -name '*.qcow2' -print -quit)"
@@ -240,9 +202,9 @@ jobs:
             echo "::error::No real ${DISK_TYPE} image produced"
             exit 1
           }
-          if [[ "${DISK_TYPE}" == "anaconda-iso" ]]; then
-            # Require the Anaconda product overlay and a real EFI boot entry.
-            xorriso -indev "${artifact}" -ls /images/product.img >/dev/null
+          if [[ "${DISK_TYPE}" == "generic-iso" ]]; then
+            # The modern live Anaconda ISO has a SquashFS payload.
+            xorriso -indev "${artifact}" -ls /LiveOS/squashfs.img >/dev/null
             xorriso -indev "${artifact}" -report_el_torito plain \
               | grep -Eiq '(UEFI|EFI)' || {
               echo "::error::ISO has no UEFI boot entry"
@@ -265,7 +227,7 @@ jobs:
         if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: mutsu-os-${{ matrix.disk-type }}-${{ inputs.platform || 'amd64' }}
+          name: mutsu-os-${{ matrix.disk-type == 'generic-iso' && 'anaconda-iso' || matrix.disk-type }}-${{ inputs.platform || 'amd64' }}
           path: ${{ steps.build.outputs.output-directory }}
           if-no-files-found: error
           retention-days: 0

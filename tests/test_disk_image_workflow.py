@@ -31,9 +31,9 @@ class DiskImageWorkflowTests(unittest.TestCase):
         )
 
     def test_matrix_preserves_both_artifacts(self):
-        self.assertIn('disk-type: ["qcow2", "anaconda-iso"]', self.workflow)
+        self.assertIn('disk-type: ["qcow2", "generic-iso"]', self.workflow)
         self.assertIn(
-            "name: mutsu-os-${{ matrix.disk-type }}-${{ inputs.platform || 'amd64' }}",
+            "name: mutsu-os-${{ matrix.disk-type == 'generic-iso' && 'anaconda-iso' || matrix.disk-type }}-${{ inputs.platform || 'amd64' }}",
             self.workflow,
         )
 
@@ -52,11 +52,10 @@ class DiskImageWorkflowTests(unittest.TestCase):
             self.assertIn(path, self.workflow)
         self.assertNotIn("'./disk_config", self.workflow)
 
-    def test_config_file_paths_are_absolute_workspace_binds(self):
-        # Relative 'disk_config/foo.toml' is parsed as a Podman named
-        # volume, not a host bind-mount path.
-        self.assertIn("format('{0}/disk_config/iso.toml', github.workspace)", self.workflow)
-        self.assertIn("format('{0}/disk_config/disk.toml', github.workspace)", self.workflow)
+    def test_qcow2_uses_modern_supported_blueprint(self):
+        self.assertIn('"${PWD}/disk_config/disk.toml:/config.toml:ro"', self.workflow)
+        self.assertIn("--blueprint /config.toml", self.workflow)
+        self.assertNotIn("format('{0}/disk_config/iso.toml', github.workspace)", self.workflow)
 
     def test_disk_image_runner_stays_on_ubuntu_24(self):
         # The privileged osbuild mount operation fails with EPERM on
@@ -72,9 +71,8 @@ class DiskImageWorkflowTests(unittest.TestCase):
                 self.assertIsInstance(values, dict)
         with (ROOT / "disk_config/disk.toml").open("rb") as handle:
             disk = tomllib.load(handle)
-        self.assertEqual(
-            disk["customizations"]["filesystem"][0]["mountpoint"], "/"
-        )
+        self.assertEqual(disk["name"], "Mutsu OS VM")
+        self.assertNotIn("customizations", disk)
 
     def test_ci_always_publishes_commit_specific_tag(self):
         build = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
@@ -112,73 +110,50 @@ class DiskImageWorkflowTests(unittest.TestCase):
         self.assertIn("MUTSU-BUILD-INFO.txt", self.workflow)
         self.assertIn("MUTSU_SOURCE_SHA=", self.workflow)
         self.assertIn("MUTSU_CONTAINER_IMAGE=", self.workflow)
-        self.assertIn("/images/product.img", self.workflow)
+        self.assertIn("/LiveOS/squashfs.img", self.workflow)
         self.assertIn("-report_el_torito plain", self.workflow)
         self.assertIn("if-no-files-found: error", self.workflow)
 
-    def test_only_supported_mutsu_installer_blueprint_exists(self):
-        # Former iso-gnome.toml and iso-kde.toml silently switched users
-        # to ghcr.io/ublue-os/image-template:latest. They were never wired
-        # to the production ISO and must not be shipped as usable configs.
+    def test_modern_installer_is_interactive_and_digest_pinned(self):
         configs = sorted(path.name for path in (ROOT / "disk_config").glob("*.toml"))
         self.assertEqual(configs, ["disk.toml", "iso.toml"])
-        blueprint = (ROOT / "disk_config/iso.toml").read_text(encoding="utf-8")
-        self.assertNotIn("image-template", blueprint)
-        self.assertIn('[customizations.installer.kickstart]', blueprint)
-        self.assertIn('contents = ""', blueprint)
-        self.assertIn('disk_config/iso.toml', self.workflow)
+        script = (ROOT / "packaging/build-installer-iso.sh").read_text()
+        containerfile = (ROOT / "packaging/installer/Containerfile").read_text()
+        iso_yaml = (ROOT / "packaging/installer/iso.yaml").read_text()
+        self.assertIn("--bootc-installer-payload-ref", script)
+        self.assertIn("--bootc-default-fs ext4", script)
+        self.assertIn("generic-iso", script)
+        self.assertIn("MUTSU_PAYLOAD_REF", containerfile)
+        self.assertIn("interactive-defaults.ks", containerfile)
+        self.assertIn("containers-storage:%s", containerfile)
+        self.assertIn("COPY branding/installer/.buildstamp", containerfile)
+        self.assertIn("Install Mutsu OS", iso_yaml)
+        self.assertIn("MUTSU_OS", iso_yaml)
+        self.assertNotIn("clearpart", iso_yaml)
+        self.assertNotIn("clearpart", containerfile)
+        self.assertIn("packaging/build-installer-iso.sh", self.just)
+        self.assertIn("(_rootful_load_image target_image tag)", self.just)
+        self.assertNotIn('(_build-bib target_image tag "anaconda-iso"', self.just)
 
-    def test_local_just_iso_matches_github_anaconda_iso_type(self):
-        self.assertIn(
-            '(_build-bib target_image tag "anaconda-iso" "disk_config/iso.toml")',
-            self.just,
-        )
-        self.assertIn(
-            '(_rebuild-bib target_image tag "anaconda-iso" "disk_config/iso.toml")',
-            self.just,
-        )
-        self.assertNotIn('(_build-bib target_image tag "iso" "disk_config/iso.toml")', self.just)
-        self.assertNotIn('(_rebuild-bib target_image tag "iso" "disk_config/iso.toml")', self.just)
-        self.assertIn('image_file="output/bootiso/install.iso"', self.just)
+    def test_live_installer_includes_mutsu_artwork(self):
+        main_image = (ROOT / ".github/workflows/build.yml").read_text()
+        containerfile = (ROOT / "packaging/installer/Containerfile").read_text()
+        self.assertIn('bash -n "$script"', main_image)
+        self.assertIn("packaging/install-branding.sh", main_image)
+        self.assertIn("COPY branding/installer/sidebar-bg.png", containerfile)
+        self.assertIn("COPY branding/installer/.buildstamp", containerfile)
+        self.assertNotIn("      - name: Inject Mutsu installer branding", self.workflow)
+        self.assertIn("/LiveOS/squashfs.img", self.workflow)
+        self.assertIn("-report_el_torito plain", self.workflow)
 
-    def test_branded_iso_script_is_syntax_checked_in_both_workflows(self):
-        image = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
-        self.assertIn("bash -n \"$script\"", image)
-        self.assertIn("packaging/install-mac-shortcuts.sh", image)
-        self.assertIn("packaging/install-branding.sh", image)
-        self.assertIn("packaging/inject-iso-branding.sh", image)
-        self.assertIn("bash -n packaging/inject-iso-branding.sh", self.workflow)
-
-    def test_uses_modern_image_builder(self):
+    def test_supported_builder_types_not_legacy_flags(self):
         self.assertIn("ghcr.io/osbuild/image-builder-cli:latest", self.workflow)
-        self.assertIn("--bootc-ref", self.workflow)
-        self.assertIn("--force-repo", self.workflow)
-        self.assertNotIn("osbuild/bootc-image-builder-action", self.workflow)
-
-    def test_legacy_iso_forces_matching_fedora_rpm_sources(self):
-        # Anaconda ISO packages are resolved separately from the Mutsu
-        # bootc container. The Bazzite image identity does not guarantee
-        # that the builder chooses Fedora's base/updates repositories.
-        self.assertIn("if: matrix.disk-type == 'anaconda-iso'", self.workflow)
-        self.assertIn("release=44", self.workflow)
-        self.assertIn('arch="$(uname -m)"', self.workflow)
-        self.assertIn(
-            "https://download.fedoraproject.org/pub/fedora/linux/releases/",
-            self.workflow,
-        )
-        self.assertIn(
-            "https://download.fedoraproject.org/pub/fedora/linux/updates/",
-            self.workflow,
-        )
-        self.assertIn("repodata/repomd.xml", self.workflow)
-        self.assertIn("--force-repo=%s --force-repo=%s", self.workflow)
-        self.assertIn('>> "${GITHUB_ENV}"', self.workflow)
-        # Local developers should not hit the same ISO-only error.
-        self.assertIn('if [[ "${type}" == "anaconda-iso" ]]', self.just)
-        self.assertIn("release=44", self.just)
-        self.assertIn("--force-repo=${base} --force-repo=${updates}", self.just)
-        self.assertIn('"${repo}repodata/repomd.xml"', self.just)
-
+        self.assertIn('--bootc-ref "${PINNED_IMAGE}"', self.workflow)
+        self.assertIn("--bootc-default-fs btrfs", self.workflow)
+        self.assertIn("bash packaging/build-installer-iso.sh", self.workflow)
+        self.assertNotIn("--force-repo", self.workflow)
+        self.assertNotIn('image_type="anaconda-iso"', self.workflow)
+        self.assertNotIn("osbuild/bootc-image-builder-action@", self.workflow)
 
 
 

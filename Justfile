@@ -316,26 +316,6 @@ _build-bib $target_image $tag $type $config: (_rootful_load_image target_image t
     args+="--use-librepo=True "
     args+="--rootfs=btrfs "
 
-    # The legacy installer ISO resolves its own RPM package set, distinct
-    # from the bootc payload. Bazzite's os-release may not select Fedora's
-    # RPM repositories in the current image-builder.
-    if [[ "${type}" == "anaconda-iso" ]]; then
-        release=44
-        arch="$(uname -m)"
-        case "${arch}" in
-          x86_64|aarch64) ;;
-          *) echo >&2 "Unsupported installer architecture: ${arch}"; exit 1 ;;
-        esac
-        base="https://download.fedoraproject.org/pub/fedora/linux/releases/${release}/Everything/${arch}/os/"
-        updates="https://download.fedoraproject.org/pub/fedora/linux/updates/${release}/Everything/${arch}/"
-        for repo in "${base}" "${updates}"; do
-            curl --fail --silent --show-error --location --retry 3 \
-                --connect-timeout 20 --max-time 120 \
-                "${repo}repodata/repomd.xml" --output /dev/null
-        done
-        args+="--force-repo=${base} --force-repo=${updates}"
-    fi
-
     BUILDTMP=$(mktemp -p "${PWD}" -d -t _build-bib.XXXXXXXXXX)
 
     sudo podman run \
@@ -377,7 +357,10 @@ build-raw $target_image=("localhost/" + image_name) $tag=default_tag: && (_build
 
 # Build an ISO virtual machine image
 [group('Build Virtal Machine Image')]
-build-iso $target_image=("localhost/" + image_name) $tag=default_tag: && (_build-bib target_image tag "anaconda-iso" "disk_config/iso.toml")
+build-iso $target_image=("localhost/" + image_name) $tag=default_tag: (_rootful_load_image target_image tag)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    bash packaging/build-installer-iso.sh "${target_image}:${tag}" "${PWD}/output"
 
 # Rebuild a QCOW2 virtual machine image
 [group('Build Virtal Machine Image')]
@@ -389,7 +372,7 @@ rebuild-raw $target_image=("localhost/" + image_name) $tag=default_tag: && (_reb
 
 # Rebuild an ISO virtual machine image
 [group('Build Virtal Machine Image')]
-rebuild-iso $target_image=("localhost/" + image_name) $tag=default_tag: && (_rebuild-bib target_image tag "anaconda-iso" "disk_config/iso.toml")
+rebuild-iso $target_image=("localhost/" + image_name) $tag=default_tag: (build target_image tag) && (build-iso target_image tag)
 
 # Run a virtual machine with the specified image type and configuration
 _run-vm $target_image $tag $type $config:
@@ -399,7 +382,8 @@ _run-vm $target_image $tag $type $config:
     # Determine the image file based on the type
     image_file="output/${type}/disk.${type}"
     if [[ $type == iso ]]; then
-        image_file="output/bootiso/install.iso"
+        image_file="$(find output -type f -name '*.iso' -print -quit)"
+        [[ -n "$image_file" ]] || { echo >&2 "No Mutsu installer ISO found in output/"; exit 1; }
     fi
 
     # Build the image if it does not exist

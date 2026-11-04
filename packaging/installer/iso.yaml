@@ -1,0 +1,8 @@
+# Source of the live ISO's boot label and GRUB menu branding.
+label: MUTSU_OS
+grub2:
+  timeout: 8
+  entries:
+    - name: "Install Mutsu OS"
+      linux: "/images/pxeboot/vmlinuz inst.stage2=hd:LABEL=MUTSU_OS inst.graphical rhgb quiet"
+      initrd: "/images/pxeboot/initrd.img"

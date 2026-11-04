@@ -1,5 +1,41 @@
 # Mutsu OS disk-image builds
 
+## November 4, 2026 — fixing the modern image-builder build
+
+The latest main-branch [failed disk run](https://github.com/markymark5127/mutsu-os/actions/runs/41849282686)
+showed two *different* incompatibilities:
+
+- **QCOW2:** `blueprint validation failed for image type "qcow2":
+  customizations.filesystem: not supported`. Modern Image Builder expects
+  the root filesystem choice on the CLI (`--bootc-default-fs btrfs`), so
+  the legacy filesystem customization has been removed from `disk.toml`.
+- **ISO:** `image type bootc "anaconda-iso" is not supported with
+  image-builder`. A repository override cannot solve that error because
+  the modern CLI deliberately does not build legacy Anaconda ISOs.
+
+The pipeline now uses the documented **generic-iso** path. It builds an
+independent Fedora 44 Anaconda live installer, embeds the **digest-pinned Mutsu
+OS image** in the ISO, and boots with the **Install Mutsu OS** menu entry.
+Mutsu's branding is packaged inside the live Anaconda container, rather
+than injected later via the old `/images/product.img` mechanism.
+
+Source files: `packaging/installer/Containerfile`,
+`packaging/installer/iso.yaml`, `packaging/build-installer-iso.sh`.
+Both CI and local `just build-iso` use the same installer script. The
+downloadable artifact retains the historical `mutsu-os-anaconda-iso` label
+for compatibility with artifact pruning, but its actual image-builder type
+is `generic-iso`.
+
+**Safety and verification:** The live installer contains only a `bootc`
+interactive-defaults directive and no unattended partitioning instructions.
+A successful ISO file build is *not* proof it boots or that installation is
+safe on a machine with existing disks. Test only with a blank VM disk before
+shipping to physical hardware. This migration also changes the installer
+runtime from the previous legacy Anaconda ISO, so graphical QA is required.
+
+Source: https://osbuild.org/docs/developer-guide/projects/image-builder/advanced/bootc/isos/
+
+
 The Mutsu OS bootc container is built from the Bazzite GNOME base and currently does
 **not** advertise a default root filesystem to the image builder.
 
