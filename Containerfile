@@ -198,6 +198,18 @@ RUN bash /tmp/mutsu-verify-initramfs.sh && \
     bash /tmp/mutsu-rebuild-initramfs.sh && \
     rm /tmp/mutsu-verify-initramfs.sh /tmp/mutsu-rebuild-initramfs.sh
 
+### NATIVE MUTSU TERMINAL
+# Replace the inherited Bazzite welcome, fastfetch display and default host
+# at image build time. Preserve upstream package IDs, hooks and user configs.
+COPY branding/terminal/ /tmp/mutsu-terminal-assets/
+COPY packaging/install-terminal-branding.sh /tmp/mutsu-install-terminal-branding.sh
+COPY packaging/ensure-mutsu-hostname.sh /usr/libexec/mutsu-os/ensure-mutsu-hostname.sh
+COPY packaging/mutsu-hostname.service /usr/lib/systemd/system/mutsu-hostname.service
+RUN bash /tmp/mutsu-install-terminal-branding.sh && \
+    chmod 0755 /usr/libexec/mutsu-os/ensure-mutsu-hostname.sh && \
+    systemctl enable mutsu-hostname.service && \
+    rm -rf /tmp/mutsu-terminal-assets /tmp/mutsu-install-terminal-branding.sh
+
 ### LINTING
 ## Verify final image and contents are correct.
 RUN bootc container lint
