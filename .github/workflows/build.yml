@@ -66,6 +66,11 @@ jobs:
           bash -n packaging/install-shell-branding.sh
           bash -n packaging/install-terminal-branding.sh
           bash -n packaging/ensure-mutsu-hostname.sh
+          bash -n packaging/mutsu-updater
+          bash -n packaging/run-mutsu-update.sh
+          bash -n packaging/install-remaining-branding.sh
+          python3 -m py_compile packaging/brand-just-recipes.py
+          python3 -m py_compile packaging/verify-visible-branding.py
           bash -n packaging/render-plymouth-theme.sh
           bash -n packaging/verify-upstream-initramfs.sh
           bash -n packaging/rebuild-mutsu-initramfs.sh
