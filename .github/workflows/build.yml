@@ -67,6 +67,7 @@ jobs:
           bash -n packaging/install-terminal-branding.sh
           bash -n packaging/ensure-mutsu-hostname.sh
           bash -n packaging/mutsu-updater
+          bash -n packaging/mutsu-branding-doctor
           bash -n packaging/run-mutsu-update.sh
           bash -n packaging/install-remaining-branding.sh
           python3 -m py_compile packaging/brand-just-recipes.py
