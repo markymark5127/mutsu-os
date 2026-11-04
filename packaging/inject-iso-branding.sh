@@ -52,6 +52,15 @@ fi
 test -s "$logo"
 
 cp "$brand/mutsu.css" "$stage/usr/share/anaconda/anaconda-gtk.css"
+# Anaconda's product name is not derived from the payload's os-release.
+# Include the installer-specific Mutsu .buildstamp in the *live ISO* overlay.
+[[ -s "$brand/.buildstamp" ]] || {
+  echo >&2 "Missing Mutsu installer .buildstamp"
+  exit 1
+}
+install -Dm0644 "$brand/.buildstamp" "$stage/usr/share/anaconda/.buildstamp"
+grep -qx 'Product=Mutsu OS' "$stage/usr/share/anaconda/.buildstamp"
+
 (
   cd "$stage"
   find . -print | cpio -o -H newc | gzip -9 > "$work/product.img"
