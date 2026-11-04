@@ -114,6 +114,37 @@ class ImageIntegrationTests(unittest.TestCase):
         self.assertIn("mutsu-logo-symbol.svg", script)
         self.assertIn("mutsu-japandi-4k.png", script)
 
+    def test_terminal_branding_is_native_and_keeps_upstream_compatibility(self):
+        image = read("Containerfile")
+        installer = read("packaging/install-terminal-branding.sh")
+        motd = read("branding/terminal/motd.md")
+        fetch = json.loads(read("branding/terminal/fastfetch.jsonc"))
+        hostname = read("packaging/ensure-mutsu-hostname.sh")
+        service = read("packaging/mutsu-hostname.service")
+
+        self.assertIn("COPY branding/terminal/", image)
+        self.assertIn("COPY packaging/install-terminal-branding.sh", image)
+        self.assertIn("systemctl enable mutsu-hostname.service", image)
+        self.assertIn("Welcome to Mutsu OS", motd)
+        self.assertNotIn("Welcome to Bazzite", motd)
+        self.assertNotIn("docs.bazzite.gg", motd)
+        self.assertIn("${MOTD_GREENBOOT}", motd)
+        self.assertIn("/usr/share/ublue-os/motd/template.md", installer)
+        self.assertIn("/usr/share/ublue-os/motd/template.sv.md", installer)
+        self.assertIn("/etc/profile.d/zz-mutsu-fastfetch.sh", installer)
+        self.assertIn("/usr/share/fish/vendor_conf.d/zz-mutsu-fastfetch.fish", installer)
+        self.assertIn("/etc/xdg/fastfetch/config.jsonc", installer)
+        self.assertEqual(fetch["logo"]["source"], "/usr/share/mutsu-os/terminal/logo.txt")
+        self.assertIn({"type": "os", "key": "OS", "format": "{pretty-name}"}, fetch["modules"])
+        self.assertFalse(any(
+            "bazzite" in str(module).lower() for module in fetch["modules"]
+        ))
+        self.assertIn("bazzite|bazzite.localdomain)", hostname)
+        self.assertIn("hostnamectl set-hostname mutsu", hostname)
+        self.assertIn("ExecStart=/usr/libexec/mutsu-os/ensure-mutsu-hostname.sh", service)
+        self.assertNotIn('"ID":', installer)
+        self.assertNotIn("~/.bashrc", installer)
+
     def test_preflight_runs_before_expensive_build(self):
         just = read("Justfile")
         ci = read(".github/workflows/build.yml")
