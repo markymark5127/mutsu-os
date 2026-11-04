@@ -28,7 +28,9 @@ class CleanInstallTests(TestCase):
         self.assertIn("latest-${short_sha}", flow)
         self.assertIn("skopeo inspect", flow)
         self.assertIn("PINNED_IMAGE=", flow)
-        self.assertIn("image: ${{ env.PINNED_IMAGE }}", flow)
+        # After migration to image-builder-cli the pinned image is passed via
+        # --bootc-ref rather than the old action's image: input.
+        self.assertIn("--bootc-ref \"${PINNED_IMAGE}\"", flow)
         self.assertNotIn("image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest", flow)
         self.assertIn("github.event_name == 'workflow_dispatch'", flow)
         self.assertIn("# PRs only validate.", flow)
