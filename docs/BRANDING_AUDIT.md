@@ -49,10 +49,15 @@ On a disposable VM with a fresh install and a *new* local account:
 5. Open **Mutsu Updater** and **Mutsu Portal**, verify visible titles
    and update controls; confirm update status and rollback still function.
 6. Verify the new account never autostarts a Bazzite welcome or announcement.
-7. Test a **previously created** account separately. Existing `~/.config`
+7. For a previously created account, run `mutsu-branding-doctor`
+   (read-only). To back up and disable only known inherited user autostart
+   entries and Fastfetch config, and disable the old logo-menu extension,
+   explicitly run `mutsu-branding-doctor --fix`. No automatic per-login
+   home-directory changes are made.
+8. Test a **previously created** account separately. Existing `~/.config`
    autostart entries, dconf values, shell aliases, or custom hostnames
    are deliberately **not overwritten** by the image build.
-8. Test that the Mutsu branding persists across a bootc update, and that
+9. Test that the Mutsu branding persists across a bootc update, and that
    an older rollback deployment behaves consistently.
 
 For deeper read-only diagnostics:
