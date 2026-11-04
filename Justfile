@@ -314,7 +314,27 @@ _build-bib $target_image $tag $type $config: (_rootful_load_image target_image t
 
     args="--type ${type} "
     args+="--use-librepo=True "
-    args+="--rootfs=btrfs"
+    args+="--rootfs=btrfs "
+
+    # The legacy installer ISO resolves its own RPM package set, distinct
+    # from the bootc payload. Bazzite's os-release may not select Fedora's
+    # RPM repositories in the current image-builder.
+    if [[ "${type}" == "anaconda-iso" ]]; then
+        release=44
+        arch="$(uname -m)"
+        case "${arch}" in
+          x86_64|aarch64) ;;
+          *) echo >&2 "Unsupported installer architecture: ${arch}"; exit 1 ;;
+        esac
+        base="https://download.fedoraproject.org/pub/fedora/linux/releases/${release}/Everything/${arch}/os/"
+        updates="https://download.fedoraproject.org/pub/fedora/linux/updates/${release}/Everything/${arch}/"
+        for repo in "${base}" "${updates}"; do
+            curl --fail --silent --show-error --location --retry 3 \
+                --connect-timeout 20 --max-time 120 \
+                "${repo}repodata/repomd.xml" --output /dev/null
+        done
+        args+="--force-repo=${base} --force-repo=${updates}"
+    fi
 
     BUILDTMP=$(mktemp -p "${PWD}" -d -t _build-bib.XXXXXXXXXX)
 
