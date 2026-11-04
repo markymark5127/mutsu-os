@@ -178,6 +178,12 @@ class DiskImageWorkflowTests(unittest.TestCase):
         self.assertIn("--force-repo=%s --force-repo=%s", self.workflow)
         self.assertIn('>> "${GITHUB_ENV}"', self.workflow)
         self.assertNotIn("additional-args: --force-repo=", self.workflow)
+        # Local developers should not hit the same ISO-only error.
+        self.assertIn('if [[ "${type}" == "anaconda-iso" ]]', self.just)
+        self.assertIn("release=44", self.just)
+        self.assertIn("--force-repo=${base} --force-repo=${updates}", self.just)
+        self.assertIn('"${repo}repodata/repomd.xml"', self.just)
+
 
 
 
