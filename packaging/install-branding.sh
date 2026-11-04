@@ -100,6 +100,11 @@ done
 
 # Install without deleting Fedora/Bazzite icons or renaming RPMs/services.
 install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/apps/mutsu-os-logo.svg
+# GNOME and some fallback dialogs request 'distributor-logo' rather than
+# LOGO=mutsu-os-logo. Point that desktop-visible alias at Mutsu too.
+install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/places/distributor-logo.svg
+install -Dm0644 "$symbol" /usr/share/icons/MutsuJapandi/scalable/places/distributor-logo.svg
+install -Dm0644 "$symbol" /usr/share/icons/MutsuCyberpunk/scalable/places/distributor-logo.svg
 install -Dm0644 "$symbol" /usr/share/icons/hicolor/scalable/apps/io.github.markymark5127.AIDesktop.svg
 install -Dm0644 "$brand/icons/mutsu-ai.svg" /usr/share/icons/hicolor/scalable/apps/mutsu-ai.svg
 install -Dm0644 "$symbol" /usr/share/pixmaps/mutsu/mutsu-logo-symbol.svg
