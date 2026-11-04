@@ -6,6 +6,8 @@
 
 This repository is the **bootc image build**. The related [ai-desktop](https://github.com/markymark5127/ai-desktop) repository contains the Python GTK4 launcher, initial setup wizard, search, AI tool broker, and user-session preferences. The latter is pinned here to one reviewed commit rather than being updated silently every build.
 
+**Branding audit:** [User-facing identity and fresh-install QA](docs/BRANDING_AUDIT.md) covers the terminal, boot and installer text, wallpaper picker, first-login entries, updater, and which upstream technical identifiers must remain unchanged.
+
 **Verification status:** Source and packaging for an alpha prototype exist. A verified bootable image (fresh VM install, first-run, rollback) has not yet been established. See the [roadmap](docs/ROADMAP.md) before treating any build as ready for daily use.
 
 ## What this image currently includes
