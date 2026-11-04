@@ -82,6 +82,10 @@ jobs:
         github.event.workflow_run.event == 'workflow_dispatch'))
     env:
       SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      # qcow2 needs no repository override. The ISO step below sets specific
+      # Fedora 44 installer repos because Bazzite's custom distro identity
+      # does not give the legacy builder usable Fedora RPM sources.
+      BIB_EXTRA_ARGS: --use-librepo=True
     # Pull requests have no workflow_dispatch inputs: default them to amd64.
     # Keep the privileged OSBuild disk/ISO jobs on Ubuntu 24.04: on 26.04,
     # osbuild fails with EPERM while mounting /run/osbuild/containers/storage
@@ -145,6 +149,35 @@ jobs:
           echo "PINNED_IMAGE=${pinned}" >> "${GITHUB_ENV}"
           echo "Building disk artifacts from ${pinned} (source commit ${SOURCE_SHA})" >> "${GITHUB_STEP_SUMMARY}"
 
+      - name: Resolve Fedora 44 RPM sources for legacy installer
+        if: matrix.disk-type == 'anaconda-iso'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The source OCI currently uses the Fedora 44 Bazzite GNOME base.
+          # A newer Fedora base needs its own matching installer repositories.
+          release=44
+          arch="$(uname -m)"
+          case "${arch}" in
+            x86_64|aarch64) ;;
+            *) echo "::error::Unsupported installer architecture: ${arch}"; exit 1 ;;
+          esac
+          base="https://download.fedoraproject.org/pub/fedora/linux/releases/${release}/Everything/${arch}/os/"
+          updates="https://download.fedoraproject.org/pub/fedora/linux/updates/${release}/Everything/${arch}/"
+          # Fail early if a repo is unavailable, instead of getting a large
+          # misleading "missing packages: glibc, systemd, ..." error later.
+          for repo in "${base}" "${updates}"; do
+            echo "Checking Fedora installer RPM metadata: ${repo}"
+            curl --fail --silent --show-error --location --retry 3 \
+              --connect-timeout 20 --max-time 120 \
+              "${repo}repodata/repomd.xml" --output /dev/null
+          done
+          # Only affect the ISO's *installer RPM depsolve*. Neither repo is
+          # added to the installed OS or to the QCOW2 build.
+          printf 'BIB_EXTRA_ARGS=--use-librepo=True --force-repo=%s --force-repo=%s\n' \
+            "${base}" "${updates}" >> "${GITHUB_ENV}"
+          echo "Legacy Anaconda ISO: Fedora ${release} installer repos verified for ${arch}" >> "${GITHUB_STEP_SUMMARY}"
+
       # Existing local 'Justfile' already passes --rootfs=btrfs. The action
       # must receive the same setting because this bootc source does not
       # advertise a default root filesystem to bootc-image-builder.
@@ -160,7 +193,7 @@ jobs:
           chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
           types: ${{ matrix.disk-type }}
           rootfs: btrfs
-          additional-args: --use-librepo=True
+          additional-args: ${{ env.BIB_EXTRA_ARGS }}
 
       # Anaconda only loads branding from images/product.img on the ISO.
       # Files inside the Mutsu image do not affect the live installer.
