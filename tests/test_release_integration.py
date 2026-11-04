@@ -167,7 +167,7 @@ class ImageIntegrationTests(unittest.TestCase):
         self.assertIn("Visible vendor desktop entry:", verifier)
         self.assertIn("Branded wallpaper chooser entry:", verifier)
         self.assertIn("20-mutsu.md", motd_installer)
-        self.assertIn("branding/terminal/tip.md", "branding/terminal/tip.md")
+        self.assertIn("Mutsu OS", read("branding/terminal/tip.md"))
         self.assertIn("Exec=/usr/bin/mutsu-updater", updater)
         self.assertNotIn("Exec=bazzite-updater", updater)
         self.assertIn("ujust update", read("packaging/run-mutsu-update.sh"))
