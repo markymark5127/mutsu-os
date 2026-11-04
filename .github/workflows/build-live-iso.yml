@@ -1,0 +1,178 @@
+name: Build Mutsu Live USB ISO (manual)
+
+# Intentionally no push, pull_request, schedule, or workflow_run events.
+# The live desktop is experimental and should be built only on demand.
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Published GHCR tag (latest or latest-<7-character commit SHA>)"
+        required: true
+        type: string
+        default: latest
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: mutsu-live-iso
+  cancel-in-progress: false
+
+jobs:
+  build-live-iso:
+    name: Build and verify live desktop ISO
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Mutsu live-ISO sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Validate the manual input and live-only contract
+        env:
+          INPUT_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          [[ "$INPUT_TAG" =~ ^latest(-[a-f0-9]{7})?$ ]] || {
+            echo "::error::Use latest or latest-<7-character lowercase commit SHA>"
+            exit 1
+          }
+          echo "IMAGE_TAG=$INPUT_TAG" >> "$GITHUB_ENV"
+          python3 -m unittest discover -s tests -p 'test_live_iso_workflow.py' -v
+
+      - name: Free runner disk space
+        uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6
+
+      - name: Install ISO and QEMU dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            podman skopeo jq xorriso mtools squashfs-tools dosfstools \
+            systemd-boot systemd-boot-efi gdisk qemu-system-x86 ovmf
+
+      - name: Resolve and pull exact published Mutsu image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | sudo podman login ghcr.io \
+            --username "$GITHUB_ACTOR" --password-stdin
+          image="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]'):$IMAGE_TAG"
+          digest="$(sudo skopeo inspect --format '{{.Digest}}' "docker://$image")"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+            echo "::error::Failed to resolve a published Mutsu OCI digest"
+            exit 1
+          }
+          pinned="${image%:*}@$digest"
+          sudo podman pull "$pinned"
+          sudo podman image exists "$pinned"
+          echo "PINNED_IMAGE=$pinned" >> "$GITHUB_ENV"
+          echo "SOURCE_TAG=$image" >> "$GITHUB_ENV"
+          echo "Live desktop image: $pinned" >> "$GITHUB_STEP_SUMMARY"
+
+      # Tacklebox contains dracut live-root modules and live-user/GDM setup.
+      # Pin upstream commit instead of executing a moving latest tag.
+      - name: Checkout pinned Tacklebox live image builder
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: tuna-os/tacklebox
+          ref: bbd0b0edeb13363045d7435097761c670d030c88
+          path: .tacklebox
+          persist-credentials: false
+
+      - name: Set up pinned Tacklebox Go toolchain
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: .tacklebox/go.mod
+          cache: false
+
+      - name: Build Tacklebox
+        run: |
+          set -euo pipefail
+          cd .tacklebox
+          go build -o ../tacklebox ./cmd/tacklebox
+          ../tacklebox --help
+
+      - name: Prepare digest-pinned live desktop recipe
+        run: |
+          set -euo pipefail
+          mkdir -p mutsu-live-out
+          jq --arg image "$PINNED_IMAGE" \
+            '.bootable_environments[0].image = $image' \
+            packaging/live/recipe.json > mutsu-live-out/recipe.json
+          jq -e --arg image "$PINNED_IMAGE" \
+            '.bootable_environments | length == 1 and .[0].image == $image and .[0].modes == ["live"] and .[0].desktop == "gnome"' \
+            mutsu-live-out/recipe.json
+
+      - name: Build Mutsu desktop Live ISO
+        id: iso
+        run: |
+          set -euo pipefail
+          # The ISO target uses a temporary writable RAM overlay on the live
+          # squashfs; it does NOT install or repartition the host.
+          sudo ./tacklebox build mutsu-live-out/recipe.json \
+            --iso "$PWD/mutsu-live-out/mutsu-os-live.iso" \
+            -b "$PWD/mutsu-live-out/build"
+          sudo chown -R "$(id -u):$(id -g)" mutsu-live-out
+          test -s mutsu-live-out/mutsu-os-live.iso
+
+      - name: Verify ISO metadata and checksum
+        run: |
+          set -euo pipefail
+          ./tacklebox verify mutsu-live-out/mutsu-os-live.iso
+          xorriso -indev mutsu-live-out/mutsu-os-live.iso \
+            -report_el_torito plain | tee mutsu-live-out/efi-layout.txt
+          grep -Eiq '(EFI|UEFI)' mutsu-live-out/efi-layout.txt
+          (
+            cd mutsu-live-out
+            sha256sum mutsu-os-live.iso > MUTSU-LIVE-SHA256SUMS.txt
+            sha256sum -c MUTSU-LIVE-SHA256SUMS.txt
+          )
+          {
+            echo "MUTSU_CONTAINER_IMAGE=$PINNED_IMAGE"
+            echo "MUTSU_SOURCE_TAG=$SOURCE_TAG"
+            echo "MUTSU_WORKFLOW_SHA=$GITHUB_SHA"
+            echo "TACKLEBOX_COMMIT=bbd0b0edeb13363045d7435097761c670d030c88"
+          } > mutsu-live-out/MUTSU-LIVE-BUILD-INFO.txt
+          echo "Live USB ISO assembled and structurally verified." >> "$GITHUB_STEP_SUMMARY"
+
+      # Try booting all the way through the live root with UEFI in QEMU.
+      # Some graphical-only images do not show a serial login: record the
+      # result independently instead of throwing away an otherwise valid ISO.
+      - name: Headless QEMU UEFI boot smoke test
+        id: smoke
+        continue-on-error: true
+        env:
+          QEMU_LIVE_LOG: ${{ github.workspace }}/mutsu-live-out/qemu-live-boot.log
+        run: |
+          set -euo pipefail
+          bash .tacklebox/scripts/test-live-boot.sh \
+            mutsu-live-out/mutsu-os-live.iso 600
+
+      - name: Summarize boot test result
+        if: always() && steps.iso.outcome == 'success'
+        env:
+          SMOKE_RESULT: ${{ steps.smoke.outcome }}
+        run: |
+          if [[ "$SMOKE_RESULT" == "success" ]]; then
+            echo "QEMU live boot smoke test passed (serial login reached)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::The ISO built, but QEMU did not confirm a boot to login. Review qemu-live-boot.log and test on spare hardware."
+            echo "QEMU boot smoke test unconfirmed; do not assume graphical boot works." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload Mutsu Live ISO and diagnostics
+        if: steps.iso.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutsu-os-live-amd64
+          path: |
+            mutsu-live-out/mutsu-os-live.iso
+            mutsu-live-out/MUTSU-LIVE-SHA256SUMS.txt
+            mutsu-live-out/MUTSU-LIVE-BUILD-INFO.txt
+            mutsu-live-out/efi-layout.txt
+            mutsu-live-out/qemu-live-boot.log
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

@@ -1,0 +1,14 @@
+{
+  "media_name": "MUTSU_LIVE",
+  "size": "20G",
+  "default_boot": "mutsu",
+  "bootable_environments": [
+    {
+      "id": "mutsu",
+      "image": "ghcr.io/markymark5127/mutsu-os:latest",
+      "title": "Mutsu OS (Live Desktop)",
+      "desktop": "gnome",
+      "modes": ["live"]
+    }
+  ]
+}
