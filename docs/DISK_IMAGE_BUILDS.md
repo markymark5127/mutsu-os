@@ -22,6 +22,52 @@ in container, please use "--rootfs" to set manually
 The workflow also defaults PR jobs to the x86_64 runner when no manual
 `inputs.platform` is supplied and uses distinct artifact names.
 
+## November 4, 2026: Fedora RPMs missing from legacy ISO depsolve
+
+The real main-branch container build completed, but the `anaconda-iso`
+job failed when the legacy bootc-image-builder resolved its **installer**
+RPM package set:
+
+```text
+Generating manifest manifest-anaconda-iso.json
+No match for argument: selinux-policy-targeted
+No match for argument: coreutils
+No match for argument: glibc
+No match for argument: systemd
+No match for argument: python3
+No match for argument: lorax-templates-generic
+error: cannot build manifest: cannot depsolve: DNF error occurred
+```
+
+This is **not** an instruction to add these packages to Mutsu's payload
+Containerfile. The disk-image builder constructs an extra Anaconda installer
+environment and independently fetches RPMs for it. Since Bazzite uses its own
+distro ID, the builder can lack usable Fedora repository definitions for this
+legacy image type.
+
+**Fix:** for the `anaconda-iso` matrix job only, explicitly pass two Fedora 44
+RPM repositories to the image builder with `--force-repo`: the Fedora
+Everything release repository and its updates repository. Both are checked
+for reachable `repodata/repomd.xml` before starting the expensive build.
+The `qcow2` job is intentionally unchanged, and the local `Justfile` ISO
+command uses the same remedy.
+
+The repo URLs use Fedora 44 because Mutsu is currently based on Fedora 44
+through Bazzite GNOME. **When the base moves to Fedora 45 or later, update
+the release numbers in both the workflow and the Justfile in the same PR.**
+Do not combine RPMs from different Fedora releases. The forced repositories
+affect installer build-time depsolving only, not the installed Mutsu system.
+
+The historical failure is recorded in
+[Actions run #41771442536](https://github.com/markymark5127/mutsu-os/actions/runs/41771442536).
+A successful lint, test suite or QCOW2 build does not prove that a new
+Anaconda ISO builds, boots, or asks before installing. Recheck the next
+**real main-branch** installer build and test it only in a disposable VM.
+
+Upstream documentation:
+- https://osbuild.org/docs/developer-guide/projects/image-builder/advanced/bootc/legacy-isos/
+- https://osbuild.org/docs/developer-guide/projects/image-builder/advanced/repositories/
+
 ## October 23, 2026: privileged OSBuild mount permission regression
 
 After fixing Btrfs and absolute Podman config paths, both jobs reached OSBuild

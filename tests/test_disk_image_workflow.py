@@ -156,7 +156,35 @@ class DiskImageWorkflowTests(unittest.TestCase):
     def test_action_still_uses_read_only_builder_config(self):
         self.assertIn("uses: osbuild/bootc-image-builder-action@", self.workflow)
         self.assertIn("config-file: ${{ matrix.disk-type", self.workflow)
-        self.assertIn("additional-args: --use-librepo=True", self.workflow)
+        self.assertIn("additional-args: ${{ env.BIB_EXTRA_ARGS }}", self.workflow)
+
+    def test_legacy_iso_forces_matching_fedora_rpm_sources(self):
+        # Anaconda ISO packages are resolved separately from the Mutsu
+        # bootc container. The Bazzite image identity does not guarantee
+        # that the builder chooses Fedora's base/updates repositories.
+        self.assertIn("if: matrix.disk-type == 'anaconda-iso'", self.workflow)
+        self.assertIn("BIB_EXTRA_ARGS: --use-librepo=True", self.workflow)
+        self.assertIn("release=44", self.workflow)
+        self.assertIn('arch="$(uname -m)"', self.workflow)
+        self.assertIn(
+            "https://download.fedoraproject.org/pub/fedora/linux/releases/",
+            self.workflow,
+        )
+        self.assertIn(
+            "https://download.fedoraproject.org/pub/fedora/linux/updates/",
+            self.workflow,
+        )
+        self.assertIn("repodata/repomd.xml", self.workflow)
+        self.assertIn("--force-repo=%s --force-repo=%s", self.workflow)
+        self.assertIn('>> "${GITHUB_ENV}"', self.workflow)
+        self.assertNotIn("additional-args: --force-repo=", self.workflow)
+        # Local developers should not hit the same ISO-only error.
+        self.assertIn('if [[ "${type}" == "anaconda-iso" ]]', self.just)
+        self.assertIn("release=44", self.just)
+        self.assertIn("--force-repo=${base} --force-repo=${updates}", self.just)
+        self.assertIn('"${repo}repodata/repomd.xml"', self.just)
+
+
 
 
 if __name__ == "__main__":
