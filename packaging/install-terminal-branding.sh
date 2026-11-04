@@ -27,7 +27,7 @@ install -Dm0644 "$src/motd.md" /usr/share/ublue-os/motd/template.sv.md
 tip_root=/usr/share/ublue-os/motd/tips
 if [[ -d "$tip_root" ]]; then
   while IFS= read -r -d '' tip; do
-    if grep -Eiq 'bazzite|fedora linux|fedora 44' "$tip"; then
+    if grep -Eiq 'bazzite|fedora' "$tip"; then
       rm -f -- "$tip"
     fi
   done < <(find "$tip_root" -type f -name '*.md' -print0)
