@@ -6,12 +6,15 @@
 
 This repository is the **bootc image build**. The related [ai-desktop](https://github.com/markymark5127/ai-desktop) repository contains the Python GTK4 launcher, initial setup wizard, search, AI tool broker, and user-session preferences. The latter is pinned here to one reviewed commit rather than being updated silently every build.
 
+**Branding audit:** [User-facing identity and fresh-install QA](docs/BRANDING_AUDIT.md) covers the terminal, boot and installer text, wallpaper picker, first-login entries, updater, and which upstream technical identifiers must remain unchanged.
+
 **Verification status:** Source and packaging for an alpha prototype exist. A verified bootable image (fresh VM install, first-run, rollback) has not yet been established. See the [roadmap](docs/ROADMAP.md) before treating any build as ready for daily use.
 
 ## What this image currently includes
 
 - Built from `ghcr.io/ublue-os/bazzite-gnome:stable`. Visible branding is Mutsu; upstream technical IDs stay so updates remain compatible.
 - Mutsu OS identity in `os-release`, GNOME About icon, GDM greeter wordmark.
+- Mutsu terminal welcome banner, Mutsu `fastfetch` logo/system summary, and a default `mutsu` hostname; upgraded installations rename only an inherited `bazzite` hostname, never a custom machine name. Upstream image IDs and update tooling are intentionally unchanged.
 - Original Mutsu two-wave SVGs and **both 3840×2160 wallpapers**, installed in standard shared paths.
 - First-stage **MutsuJapandi icon theme** with Adwaita/hicolor fallback, Mutsu-owned app/action icons, and a system green accent; see [Japandi icon guide](docs/JAPANDI_ICONS.md). The full GNOME app icon set is not yet redesigned.
 - A new GNOME 50 user gets the **Japandi desktop**: 4K sage wallpaper, light appearance, sage Mutsu top-bar identity, and a compact bottom floating Dash-to-Dock. Desktop choices remain user-overridable and previous custom wallpapers/themes are not reset.

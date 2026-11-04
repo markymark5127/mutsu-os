@@ -1,0 +1,11 @@
+[Unit]
+Description=Replace an inherited Bazzite hostname with Mutsu OS
+After=local-fs.target
+ConditionPathExists=/etc/hostname
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/mutsu-os/ensure-mutsu-hostname.sh
+
+[Install]
+WantedBy=multi-user.target

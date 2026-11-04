@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Mutsu Updater
+Name=Mutsu OS Updater
 GenericName=System Update
-Comment=Update Mutsu OS
-Exec=bazzite-updater
+Comment=Update Mutsu OS and installed applications
+Exec=/usr/bin/mutsu-updater
 Icon=mutsu-updater
 Terminal=false
 Categories=System;Settings;
