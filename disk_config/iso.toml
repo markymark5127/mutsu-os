@@ -12,7 +12,7 @@
 # the ostreecontainer line that deploys this Mutsu OS image.
 name = "Mutsu OS"
 version = "0.1"
-description = "Mutsu OS installer image (Bazzite GNOME derivative)"
+description = "Mutsu OS interactive installer image"
 
 [customizations.iso]
 volume_id = "MUTSU_OS"
