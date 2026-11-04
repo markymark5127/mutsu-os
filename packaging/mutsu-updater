@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Native Mutsu-facing launcher. The system update engine remains upstream.
+set -euo pipefail
+
+runner=/usr/libexec/mutsu-os/run-mutsu-update.sh
+if command -v xdg-terminal-exec >/dev/null 2>&1; then
+  exec xdg-terminal-exec --app-id=mutsu-updater --title="Mutsu OS Updates" -- "$runner"
+fi
+if command -v ptyxis >/dev/null 2>&1; then
+  exec ptyxis --new-window -- "$runner"
+fi
+echo >&2 "Mutsu OS Updates needs an installed terminal (xdg-terminal-exec or Ptyxis)."
+echo >&2 "You can update manually using: ujust update"
+exit 1
