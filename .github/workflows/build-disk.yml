@@ -37,7 +37,9 @@ on:
 env:
   IMAGE_NAME: ${{ github.event.repository.name }} # output of build.yml, keep in sync
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
-  BIB_IMAGE: "quay.io/centos-bootc/bootc-image-builder:latest"
+  # Modern image-builder (supports --force-repo). The old bootc-image-builder-action
+  # and quay.io/centos-bootc/bootc-image-builder container do not.
+  IB_IMAGE: "ghcr.io/osbuild/image-builder-cli:latest"
 
 # Do NOT cancel an image-build run because an unrelated container workflow
 # finished (including cancelled, manual or PR runs). A previous version grouped
@@ -84,8 +86,8 @@ jobs:
       SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       # qcow2 needs no repository override. The ISO step below sets specific
       # Fedora 44 installer repos because Bazzite's custom distro identity
-      # does not give the legacy builder usable Fedora RPM sources.
-      BIB_EXTRA_ARGS: --use-librepo=True
+      # does not give the builder usable Fedora RPM sources.
+      IB_EXTRA_ARGS: ""
     # Pull requests have no workflow_dispatch inputs: default them to amd64.
     # Keep the privileged OSBuild disk/ISO jobs on Ubuntu 24.04: on 26.04,
     # osbuild fails with EPERM while mounting /run/osbuild/containers/storage
@@ -174,26 +176,41 @@ jobs:
           done
           # Only affect the ISO's *installer RPM depsolve*. Neither repo is
           # added to the installed OS or to the QCOW2 build.
-          printf 'BIB_EXTRA_ARGS=--use-librepo=True --force-repo=%s --force-repo=%s\n' \
+          printf 'IB_EXTRA_ARGS=--force-repo=%s --force-repo=%s\n' \
             "${base}" "${updates}" >> "${GITHUB_ENV}"
           echo "Legacy Anaconda ISO: Fedora ${release} installer repos verified for ${arch}" >> "${GITHUB_STEP_SUMMARY}"
 
-      # Existing local 'Justfile' already passes --rootfs=btrfs. The action
-      # must receive the same setting because this bootc source does not
-      # advertise a default root filesystem to bootc-image-builder.
-      # Use absolute paths for config-file so Podman treats them as host
-      # binds rather than named volumes (relative paths were failing).
+      # Invoke image-builder-cli directly. The old bootc-image-builder-action
+      # does not support --force-repo. This bootc source does not advertise a
+      # default root filesystem, so pass --bootc-default-fs btrfs.
       - name: Build disk images
         id: build
-        uses: osbuild/bootc-image-builder-action@8661cd3832544ad68c12dcde8681b13ab0f56a8d # main
-        with:
-          builder-image: ${{ env.BIB_IMAGE }}
-          config-file: ${{ matrix.disk-type == 'anaconda-iso' && format('{0}/disk_config/iso.toml', github.workspace) || format('{0}/disk_config/disk.toml', github.workspace) }}
-          image: ${{ env.PINNED_IMAGE }}
-          chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
-          types: ${{ matrix.disk-type }}
-          rootfs: btrfs
-          additional-args: ${{ env.BIB_EXTRA_ARGS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          config="${{ matrix.disk-type == 'anaconda-iso' && format('{0}/disk_config/iso.toml', github.workspace) || format('{0}/disk_config/disk.toml', github.workspace) }}"
+          image_type="${{ matrix.disk-type }}"
+          # Map legacy name if needed; image-builder still accepts anaconda-iso
+          # for the compatibility path. Prefer bootc-generic-iso later if this fails.
+          extra="${IB_EXTRA_ARGS:-}"
+          echo "Running image-builder for ${image_type} with extra: ${extra}"
+          sudo podman run --rm --privileged \
+            --security-opt label=type:unconfined_t \
+            --pull=newer \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            -v "${PWD}/output:/output" \
+            -v "${config}:/config.toml:ro" \
+            "${IB_IMAGE}" \
+            build \
+            --output-dir /output \
+            --bootc-ref "${PINNED_IMAGE}" \
+            --bootc-default-fs btrfs \
+            --blueprint /config.toml \
+            ${extra} \
+            "${image_type}"
+          sudo chown -R "${USER_UID}:${USER_GID}" output || true
+          echo "output-directory=${PWD}/output" >> "${GITHUB_OUTPUT}"
 
       # Anaconda only loads branding from images/product.img on the ISO.
       # Files inside the Mutsu image do not affect the live installer.

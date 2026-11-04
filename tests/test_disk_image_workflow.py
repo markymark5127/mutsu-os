@@ -27,14 +27,11 @@ class DiskImageWorkflowTests(unittest.TestCase):
     def test_root_filesystem_matches_justfile_btrfs(self):
         self.assertRegex(self.just, r"--rootfs=btrfs")
         self.assertRegex(
-            self.workflow, r"(?m)^          rootfs: btrfs\s*$"
+            self.workflow, r"--bootc-default-fs btrfs"
         )
-        # Do not pass two conflicting --rootfs flags to the action.
-        self.assertNotIn("additional-args: --rootfs", self.workflow)
 
     def test_matrix_preserves_both_artifacts(self):
         self.assertIn('disk-type: ["qcow2", "anaconda-iso"]', self.workflow)
-        self.assertIn("types: ${{ matrix.disk-type }}", self.workflow)
         self.assertIn(
             "name: mutsu-os-${{ matrix.disk-type }}-${{ inputs.platform || 'amd64' }}",
             self.workflow,
@@ -60,7 +57,6 @@ class DiskImageWorkflowTests(unittest.TestCase):
         # volume, not a host bind-mount path.
         self.assertIn("format('{0}/disk_config/iso.toml', github.workspace)", self.workflow)
         self.assertIn("format('{0}/disk_config/disk.toml', github.workspace)", self.workflow)
-        self.assertNotIn("config-file: ${{ matrix.disk-type == 'anaconda-iso' && './", self.workflow)
 
     def test_disk_image_runner_stays_on_ubuntu_24(self):
         # The privileged osbuild mount operation fails with EPERM on
@@ -153,17 +149,17 @@ class DiskImageWorkflowTests(unittest.TestCase):
         self.assertIn("packaging/inject-iso-branding.sh", image)
         self.assertIn("bash -n packaging/inject-iso-branding.sh", self.workflow)
 
-    def test_action_still_uses_read_only_builder_config(self):
-        self.assertIn("uses: osbuild/bootc-image-builder-action@", self.workflow)
-        self.assertIn("config-file: ${{ matrix.disk-type", self.workflow)
-        self.assertIn("additional-args: ${{ env.BIB_EXTRA_ARGS }}", self.workflow)
+    def test_uses_modern_image_builder(self):
+        self.assertIn("ghcr.io/osbuild/image-builder-cli:latest", self.workflow)
+        self.assertIn("--bootc-ref", self.workflow)
+        self.assertIn("--force-repo", self.workflow)
+        self.assertNotIn("osbuild/bootc-image-builder-action", self.workflow)
 
     def test_legacy_iso_forces_matching_fedora_rpm_sources(self):
         # Anaconda ISO packages are resolved separately from the Mutsu
         # bootc container. The Bazzite image identity does not guarantee
         # that the builder chooses Fedora's base/updates repositories.
         self.assertIn("if: matrix.disk-type == 'anaconda-iso'", self.workflow)
-        self.assertIn("BIB_EXTRA_ARGS: --use-librepo=True", self.workflow)
         self.assertIn("release=44", self.workflow)
         self.assertIn('arch="$(uname -m)"', self.workflow)
         self.assertIn(
@@ -177,7 +173,6 @@ class DiskImageWorkflowTests(unittest.TestCase):
         self.assertIn("repodata/repomd.xml", self.workflow)
         self.assertIn("--force-repo=%s --force-repo=%s", self.workflow)
         self.assertIn('>> "${GITHUB_ENV}"', self.workflow)
-        self.assertNotIn("additional-args: --force-repo=", self.workflow)
         # Local developers should not hit the same ISO-only error.
         self.assertIn('if [[ "${type}" == "anaconda-iso" ]]', self.just)
         self.assertIn("release=44", self.just)
