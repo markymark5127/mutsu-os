@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Inspect old user profiles for inherited Bazzite branding.
+# Default is read-only; --fix makes backed-up, narrowly scoped changes.
+set -euo pipefail
+case "${1:-}" in
+  '') apply=false ;;
+  --fix) apply=true ;;
+  *) echo >&2 "Usage: mutsu-branding-doctor [--fix]"; exit 2 ;;
+esac
+
+printf 'Mutsu OS — existing profile branding check\n'
+printf 'Mode: %s\n\n' "$($apply && printf 'fix' || printf 'read-only')"
+found=0
+
+backup_file() {
+  local path="$1"
+  local backup="${path}.mutsu-backup"
+  if [[ -e "$backup" ]]; then
+    echo >&2 "  Backup exists, leaving unchanged: $backup"
+    return
+  fi
+  mv -- "$path" "$backup"
+  echo "  Disabled old autostart; backup: $backup"
+}
+
+for name in bazzite-portal.desktop bazzite-announcement.desktop; do
+  path="$HOME/.config/autostart/$name"
+  if [[ -f "$path" ]]; then
+    printf 'Old per-user autostart: %s\n' "$path"
+    found=$((found+1))
+    if $apply; then
+      backup_file "$path"
+    fi
+  fi
+done
+
+if command -v gnome-extensions >/dev/null 2>&1; then
+  active="$(gnome-extensions list --enabled 2>/dev/null || true)"
+  for uuid in logomenu@aryan_k logo-menu@aryan_k; do
+    if grep -Fxq -- "$uuid" <<< "$active"; then
+      printf 'Old Bazzite logo-menu extension enabled: %s\n' "$uuid"
+      found=$((found+1))
+      if $apply; then
+        gnome-extensions disable "$uuid" || true
+      fi
+    fi
+  done
+fi
+
+fastfetch="$HOME/.config/fastfetch/config.jsonc"
+if [[ -f "$fastfetch" ]] && grep -qi 'bazzite' "$fastfetch"; then
+  echo "Old personal Fastfetch configuration still references Bazzite: $fastfetch"
+  found=$((found+1))
+  if $apply; then
+    backup_file "$fastfetch"
+    echo '  System-wide Mutsu Fastfetch defaults will apply in new shells.'
+  fi
+fi
+
+if (( found == 0 )); then
+  echo 'No known inherited user-profile branding entries found.'
+elif ! $apply; then
+  echo
+  echo 'Run mutsu-branding-doctor --fix to back up and disable only these known entries.'
+  echo 'It does not alter unrelated dotfiles, bootloader entries, or system IDs.'
+else
+  echo
+  echo 'Finished. Log out and back in to apply any GNOME extension change.'
+fi
