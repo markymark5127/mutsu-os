@@ -1,8 +1,9 @@
 # Fedora 44 live Anaconda installer; the installed system is a separate
 # digest-pinned Mutsu OS container embedded by Image Builder.
 FROM quay.io/fedora/fedora-bootc:44
-ARG MUTSU_PAYLOAD_REF
-RUN test -n "$MUTSU_PAYLOAD_REF" && \
+ARG MUTSU_PAYLOAD_SOURCE_REF
+ARG MUTSU_PAYLOAD_TARGET_REF
+RUN test -n "$MUTSU_PAYLOAD_SOURCE_REF" && test -n "$MUTSU_PAYLOAD_TARGET_REF" && \
     case "$(uname -m)" in \
       x86_64) grub_pkg=grub2-efi-x64-cdboot ;; \
       aarch64) grub_pkg=grub2-efi-aa64-cdboot ;; \
@@ -21,7 +22,7 @@ COPY packaging/installer/iso.yaml /usr/lib/image-builder/bootc/iso.yaml
 # Interactive Anaconda payload; never hardcode automatic partitioning/wipes.
 RUN install -d /usr/share/anaconda && \
     printf 'bootc --source-imgref containers-storage:%s --target-imgref %s\n' \
-      "$MUTSU_PAYLOAD_REF" "$MUTSU_PAYLOAD_REF" \
+      "$MUTSU_PAYLOAD_SOURCE_REF" "$MUTSU_PAYLOAD_TARGET_REF" \
       > /usr/share/anaconda/interactive-defaults.ks
 
 COPY branding/installer/sidebar-bg.png /usr/share/anaconda/pixmaps/sidebar-bg.png
@@ -69,5 +70,5 @@ RUN set -eux; \
 
 RUN test -s /usr/share/anaconda/.buildstamp && \
     grep -qx 'Product=Mutsu OS' /usr/share/anaconda/.buildstamp && \
-    grep -q 'containers-storage:ghcr.io/markymark5127/mutsu-os@sha256:' \
+    grep -q 'containers-storage:ghcr.io/markymark5127/mutsu-os:offline-installer-payload' \
       /usr/share/anaconda/interactive-defaults.ks

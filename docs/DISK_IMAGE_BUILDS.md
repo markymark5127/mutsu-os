@@ -1,5 +1,31 @@
 # Mutsu OS disk-image builds
 
+## November 4, 2026 — offline ISO image copy error
+
+The Fedora 44 Anaconda generic-ISO builder successfully generated a manifest,
+but failed in the final `org.osbuild.skopeo` stage:
+
+```text
+Copying this image would require changing layer representation,
+which we cannot do: "Destination specifies a digest"
+```
+
+The container was selected by its immutable SHA digest as intended, but the
+`--bootc-installer-payload-ref` argument also determines the **destination
+name** inside the ISO's `containers-storage:` store. A fixed digest cannot
+be used as a destination when layer conversion/recompression is needed.
+
+The build now pulls the *same immutable digest*, creates a local,
+unpublished `ghcr.io/markymark5127/mutsu-os:offline-installer-payload` tag
+with `podman tag`, asserts both image references resolve to the identical
+local image ID, then embeds the **tagged alias**. Anaconda's
+`--source-imgref containers-storage:` uses that alias for offline installs;
+its `--target-imgref` still references the exact published source digest.
+The alias is not pushed to GHCR and does not change the payload's contents.
+
+Passing the build is still distinct from boot testing in a blank VM.
+
+
 ## November 4, 2026 — fixing the modern image-builder build
 
 The latest main-branch [failed disk run](https://github.com/markymark5127/mutsu-os/actions/runs/41849282686)
