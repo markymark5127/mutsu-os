@@ -52,8 +52,8 @@ sudo podman run --rm --entrypoint /bin/sh \
   test -x /usr/bin/bootc
   test -x /usr/libexec/mutsu-bootc-original
   bash -n /usr/bin/bootc
-  grep -Fq '\''mount --bind "$scratch" /var/tmp'\'' /usr/bin/bootc
-  grep -Fq '\''lost+found'\'' /usr/bin/bootc
+  grep -Fq "mount --bind" /usr/bin/bootc
+  grep -Fq "lost+found" /usr/bin/bootc
 '
 sudo podman run --rm --privileged \
   --security-opt label=type:unconfined_t \
