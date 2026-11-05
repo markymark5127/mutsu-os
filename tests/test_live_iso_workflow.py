@@ -57,7 +57,9 @@ class LiveISOTests(unittest.TestCase):
         self.assertIn("bash .tacklebox/scripts/test-live-boot.sh", workflow)
         self.assertNotIn("continue-on-error: true", workflow)
         self.assertIn("if: always() && steps.iso.outcome == 'success'", workflow)
-        self.assertIn("FAILED: QEMU live boot was not confirmed", workflow)
+        self.assertIn("FAILED: Live optical/USB boot not fully confirmed", workflow)
+        self.assertIn("::error::QEMU optical or raw USB boot failed", workflow)
+        self.assertIn("mutsu-live-out/qemu-usb-boot.log", workflow)
         self.assertIn("mutsu-live-out/qemu-live-boot.log", workflow)
 
     def test_dd_written_usb_boot_is_patched_and_tested(self):
