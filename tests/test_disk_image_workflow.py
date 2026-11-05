@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import subprocess
 import tomllib
 import unittest
 
@@ -201,6 +202,28 @@ class DiskImageWorkflowTests(unittest.TestCase):
         self.assertIn("pciutils", (
             ROOT / "packaging/installer/Containerfile"
         ).read_text())
+
+    def test_installer_stages_large_bootc_import_on_disk_not_ram(self):
+        wrapper_path = ROOT / "packaging/installer/bootc-with-disk-scratch.sh"
+        wrapper = wrapper_path.read_text(encoding="utf-8")
+        containerfile = (ROOT / "packaging/installer/Containerfile").read_text()
+        build_script = (ROOT / "packaging/build-installer-iso.sh").read_text()
+        subprocess.run(["bash", "-n", str(wrapper_path)], check=True)
+        self.assertIn('target="${*: -1}"', wrapper)
+        self.assertIn('findmnt -n -M "$target_root"', wrapper)
+        self.assertIn('min_free=$((48 * 1024 * 1024 * 1024))', wrapper)
+        self.assertIn('target_root="$(realpath -e -- "$target")"', wrapper)
+        self.assertIn('parent="$target_root/lost+found"', wrapper)
+        self.assertIn('mount --bind "$scratch" /var/tmp', wrapper)
+        self.assertIn('stat -c %d /var/tmp', wrapper)
+        self.assertIn('trap cleanup EXIT', wrapper)
+        self.assertIn('umount /var/tmp', wrapper)
+        self.assertIn('rm -rf -- "$scratch"', wrapper)
+        self.assertIn('"$original" "$@"', wrapper)
+        self.assertNotRegex(wrapper, r"\\b(?:mkfs|wipefs|sgdisk|parted)\\b")
+        self.assertIn('COPY packaging/installer/bootc-with-disk-scratch.sh /usr/bin/bootc', containerfile)
+        self.assertIn('/usr/libexec/mutsu-bootc-original', containerfile)
+        self.assertIn('bash -n /usr/bin/bootc', build_script)
 
     def test_live_installer_includes_mutsu_artwork(self):
         main_image = (ROOT / ".github/workflows/build.yml").read_text()

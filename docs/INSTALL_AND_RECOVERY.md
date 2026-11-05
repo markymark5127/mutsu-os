@@ -42,8 +42,33 @@ Until a verified installer is available:
 2. Use the generated qcow2 or ISO only after confirming the workflow produced a bootable artifact.
 3. Do **not** rebase a daily-driver machine until M0 gates (especially #8, #11, #13) have attached evidence.
 
-**Interactive installer (anaconda-iso):**
-The `disk_config/iso.toml` blueprint supplies an empty custom Kickstart. This causes Anaconda to run in interactive mode (language, keyboard, disk selection, user account, etc.), similar to a traditional Fedora or Ubuntu installer. `bootc-image-builder` still injects the command that deploys the Mutsu OS container image. Always test on a blank virtual disk only — the installer can still be destructive if pointed at a real drive.
+**Interactive installer (`generic-iso`):**
+The Fedora 44 Anaconda ISO embeds an immutable Mutsu OS bootc image and
+presents interactive disk, account, language, and network configuration.
+There is no unattended wipe in Mutsu's installer configuration. Nevertheless,
+formatting or reusing a partition in Anaconda **destroys data on the selected
+partition**. Back up important data and test the image in a disposable VM
+before using a real machine.
+
+### Disk-backed scratch for the offline container
+
+The live installer's writable root, including `/var/tmp`, is too small for
+Mutsu's large embedded image. Without disk-backed scratch, `bootc install
+to-filesystem` can fail with `/var/tmp/container_images_*: no space left on
+device`, even when the installation partition has hundreds of gigabytes free.
+
+The installer-only `/usr/bin/bootc` wrapper now checks that Anaconda has mounted
+the selected target at `/mnt/sysimage`, checks for at least **48 GiB** free
+space, creates a temporary folder under that target's `lost+found`, and
+bind-mounts it over the live `/var/tmp` while bootc imports the image.
+Using `lost+found` is intentional: bootc exempts it from the destination's
+empty-root requirement. An exit trap removes the temporary mount and folder
+on both success and failure. Other bootc operations use the unmodified
+binary. This workaround does **not** select, repartition, or wipe disks.
+
+This is a source-level fix with build-time checks; a successful full-size
+installation and boot on real hardware still needs to be verified. Do not
+wipe another drive or buy RAM to solve the installer overlay's ENOSPC error.
 
 Mutsu OS is the product name. Upstream Bazzite / Universal Blue / Fedora credits and technical IDs are preserved so updates remain compatible.
 

@@ -25,6 +25,16 @@ COPY packaging/installer/patch-anaconda-offline-network.py /usr/libexec/mutsu-pa
 RUN python3 /usr/libexec/mutsu-patch-anaconda-offline-network.py && \
     python3 /usr/libexec/mutsu-patch-anaconda-offline-network.py --verify
 
+# The offline payload is too large for the live Anaconda root's /var/tmp.
+# Scope the disk-backed scratch workaround to bootc install to-filesystem.
+# Keep the real executable for all other bootc operations.
+RUN test -x /usr/bin/bootc && \
+    install -m 0755 /usr/bin/bootc /usr/libexec/mutsu-bootc-original && \
+    rm /usr/bin/bootc
+COPY packaging/installer/bootc-with-disk-scratch.sh /usr/bin/bootc
+RUN chmod 0755 /usr/bin/bootc && bash -n /usr/bin/bootc && \
+    test -x /usr/libexec/mutsu-bootc-original
+
 RUN install -d /boot/efi && cp -ra /usr/lib/efi/*/*/EFI /boot/efi
 COPY packaging/installer/iso.yaml /usr/lib/image-builder/bootc/iso.yaml
 # Interactive Anaconda payload; never hardcode automatic partitioning/wipes.
