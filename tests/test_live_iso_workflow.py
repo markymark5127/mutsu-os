@@ -52,6 +52,14 @@ class LiveISOTests(unittest.TestCase):
         self.assertNotIn('install to-disk', workflow)
         self.assertNotIn('bootc-image-builder', workflow)
 
+    def test_failed_qemu_boot_blocks_success_but_keeps_diagnostics(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("bash .tacklebox/scripts/test-live-boot.sh", workflow)
+        self.assertNotIn("continue-on-error: true", workflow)
+        self.assertIn("if: always() && steps.iso.outcome == 'success'", workflow)
+        self.assertIn("FAILED: QEMU live boot was not confirmed", workflow)
+        self.assertIn("mutsu-live-out/qemu-live-boot.log", workflow)
+
     def test_upstream_builder_revision_is_pinned(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("repository: tuna-os/tacklebox", workflow)
