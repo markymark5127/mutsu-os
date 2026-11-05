@@ -1,8 +1,18 @@
 {
   "uuid": "mutsu-adaptive@mutsu-os",
   "name": "Mutsu Adaptive Desktop",
-  "description": "Mutsu OS core desktop/tablet mode: docked laptop UI, tablet app-grid Home, and manual posture controls. Automatic hardware posture detection remains a work in progress.",
-  "shell-version": ["46", "47", "48", "49", "50"],
+  "description": "Mutsu OS core desktop/tablet mode: a Mac-first desktop that turns into an iPadOS-style tablet when a 2-in-1 is folded: app-grid Home with pull-down Mutsu Search, full-screen apps, bottom-edge gestures and multitasking blades with traffic-light window controls.",
+  "shell-version": [
+    "46",
+    "47",
+    "48",
+    "49",
+    "50"
+  ],
   "url": "https://github.com/markymark5127/mutsu-os",
-  "settings-schema": "org.gnome.shell.extensions.mutsu-adaptive"
+  "settings-schema": "org.gnome.shell.extensions.mutsu-adaptive",
+  "session-modes": [
+    "user",
+    "unlock-dialog"
+  ]
 }

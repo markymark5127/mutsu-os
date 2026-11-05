@@ -38,10 +38,10 @@ This is the canonical **release roadmap**, with executable work tracked as GitHu
 | P1 | [#17 Top bar, floating dock, app grid, overview](https://github.com/markymark5127/mutsu-os/issues/17) | Prototype notes and extension panel indicator | Shell identity changes + verification |
 | P1 | [#19 Native Spotlight app/file/action integration](https://github.com/markymark5127/mutsu-os/issues/19) | mutsu-search launcher and Super+Space default | OS-native overlay reliability |
 | P1 | [#18 System-coherent Japandi/Cyberpunk appearance](https://github.com/markymark5127/mutsu-os/issues/18) | Wallpapers and app-scoped styles | Full Shell/GTK theme layers + rollback |
-| P1 | [#15 Real convertible tablet-mode sensor integration](https://github.com/markymark5127/mutsu-os/issues/15) | Manual modes exist; Automatic is a scaffold | SW_TABLET_MODE wiring |
-| P1 | [#16 Touch gestures, tablet Home, accessibility](https://github.com/markymark5127/mutsu-os/issues/16) | Experimental bottom-edge actor (off by default) | Real touch testing |
+| P1 | [#15 Real convertible tablet-mode sensor integration](https://github.com/markymark5127/mutsu-os/issues/15) | Automatic combines Mutter touch-mode, kernel tablet switches and iio hinge angles; QS override until next fold | Real 2-in-1 validation |
+| P1 | [#16 Touch gestures, tablet Home, accessibility](https://github.com/markymark5127/mutsu-os/issues/16) | iPadOS-style Home (pull-down search, folders, edit mode), bottom-edge gestures, multitasking blades with traffic lights; simulated tests in CI | Real touch testing |
 
-**Current:** `extensions/mutsu-adaptive@mutsu-os/extension.js` has manual modes, home/maximize, and experimental pointer-like gesture logic that is **off unless explicitly enabled**. Automatic posture uses the backend signal plus a sysfs poll. The install script preserves the existing extension list.
+**Current:** `extensions/mutsu-adaptive@mutsu-os` provides Automatic/Desktop/Tablet modes, a tablet Home behind windows, full-screen apps, bottom-edge navigation, multitasking blades, Split View/Slide Over and a crash-safe settings journal; see its README. The install script preserves the existing extension list.
 
 ## Milestone M2 — AI, phone and gaming integration
 
@@ -78,7 +78,7 @@ This is the canonical **release roadmap**, with executable work tracked as GitHu
 - `ai-desktop` owns Mutsu Search GTK app, AI client, onboarding preferences, safe tool broker, app-scoped styles, and text/file search.
 - **Cross-repo pin:** `packaging/desktop-source.env` records the reviewed `ai-desktop` commit. The build includes provenance. CI runs headless tests before the image build. Bumps are deliberate. [#10](https://github.com/markymark5127/mutsu-os/issues/10)
 - **Alpha safety:** `packaging/install-adaptive-extension.sh` installs the extension without overriding the existing `enabled-extensions` list, and requires strict schema compilation. Bottom-edge gestures are off unless the experimental setting is enabled. Live GNOME testing is still required before closing [#14](https://github.com/markymark5127/mutsu-os/issues/14).
-- `extension.js` does **not** implement automatic tablet posture.
+- Automatic tablet posture is implemented but **unverified on real hardware**.
 - `.github/workflows/build-disk.yml` still references the legacy `anaconda-iso` type. The blueprint metadata fields are valid, but the installer is not yet boot-tested. [#11](https://github.com/markymark5127/mutsu-os/issues/11)
 - **Do not infer success from the presence of workflow files.** Attach CI logs, boot screenshots, or `bootc rollback` evidence to issues before marking them verified.
 

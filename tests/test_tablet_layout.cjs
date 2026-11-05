@@ -109,41 +109,58 @@ assert.equal(globalMock.display.focus_window,second);
 console.log('Recent-app navigation ring checks passed.');
 
 class Box extends Button {
-    constructor(){super();this.children=[];}
+    constructor(){super();this.children=[];this.classes=new Set();}
     add_child(child){this.children.push(child);}
-    set_width(width){this.width=width;}
-    add_style_class_name(){}
-    remove_style_class_name(){}
+    add_style_class_name(c){this.classes.add(c);}
+    remove_style_class_name(c){this.classes.delete(c);}
 }
-let keyboardOverride={value:false};
-const originalOverride=keyboardOverride;
-class Settings {
-    get_user_value(){return keyboardOverride;}
-    set_boolean(_key,value){keyboardOverride={value};}
-    reset(){keyboardOverride=null;}
-    set_value(_key,value){keyboardOverride=value;}
-    get_string(){return '12h';}
-}
-const preferences=Object.assign(new Emitter(),{values:{'home-widgets':true,'automatic-keyboard':true},
-    get_boolean(key){return this.values[key];}});
 const quickActor=new Box(),dateActor=new Box();
 Main.panel={statusArea:{quickSettings:{menu:{actor:quickActor}},dateMenu:{menu:{actor:dateActor}}}};
-Main.overview._overview=new Box();
-Main.layoutManager.primaryMonitor={x:0,y:0,width:768,height:1024};
+const preferences=Object.assign(new Emitter(),{values:{'automatic-keyboard':true},
+    get_boolean(key){return this.values[key];}});
+const journalCalls=[];
+const journal={change(schema,key,apply){journalCalls.push(['change',schema,key]);
+        apply({set_boolean:(k,v)=>journalCalls.push(['set',k,v])});return true;},
+    revert(schema,key){journalCalls.push(['revert',schema,key]);}};
+let keyboardDestroyed=false;
 const sessionSource=fs.readFileSync(path.join(folder,'tabletSession.js'),'utf8')
-    .replace(/^import .*;\r?\n/gm,'').replace('export ','');
-const Session=new Function('Clutter','Gio','GLib','St','Main','TabletKeyboard',`${sessionSource};return TabletSession;`)(
-    Clutter,{Settings},{DateTime:{new_now_local:()=>({format:()=> '10:00 AM\nThursday'})},
-        PRIORITY_DEFAULT:0,SOURCE_CONTINUE:true,timeout_add_seconds:()=>1,source_remove(){}},
-    {BoxLayout:Box,Label:Box,Button:Box},Main,class {destroy(){}});
-const session=new Session(()=>{},preferences);
-assert.equal(keyboardOverride.value,true,'tablet enables native text-field keyboard');
-Main.overview.visible=true;Main.overview.emit('showing');
-assert.equal(session._strip.visible,true);
-assert.equal(session._strip.vertical,true,'portrait widgets reflow');
-preferences.values['home-widgets']=false;preferences.emit('changed::home-widgets');
-assert.equal(session._strip.visible,false,'widgets can be disabled');
+    .replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'');
+const Session=new Function('Main','TabletKeyboard',`${sessionSource};return TabletSession;`)(
+    Main,class {destroy(){keyboardDestroyed=true;}});
+const session=new Session(preferences,journal);
+assert.deepEqual(journalCalls.slice(0,2),[['change','org.gnome.desktop.a11y.applications',
+    'screen-keyboard-enabled'],['set','screen-keyboard-enabled',true]],
+    'tablet enables native text-field keyboard through the crash-safe journal');
+assert(quickActor.classes.has('mutsu-tablet-controls'),'larger touch targets in Controls');
+preferences.values['automatic-keyboard']=false;preferences.emit('changed::automatic-keyboard');
+assert.deepEqual(journalCalls.at(-1),['revert','org.gnome.desktop.a11y.applications',
+    'screen-keyboard-enabled'],'turning the preference off restores the user value at once');
 session.destroy();
-assert.equal(keyboardOverride,originalOverride,'desktop restores exact keyboard preference');
+assert.equal(keyboardDestroyed,true);
+assert.equal(quickActor.classes.has('mutsu-tablet-controls'),false);
 assert.equal(preferences.signals.size,0);
-console.log('Tablet session checks passed (keyboard preference, Home widgets, portrait, cleanup).');
+console.log('Tablet session checks passed (keyboard preference via journal, controls, cleanup).');
+
+// Slide Over keeps the floating app's own input: only a small handle is chrome.
+const chrome=[];
+Main.layoutManager.addChrome=actor=>chrome.push(actor);
+Main.layoutManager.removeChrome=actor=>chrome.splice(chrome.indexOf(actor),1);
+class Widget extends Box {
+    set_position(x,y){this.x=x;this.y=y;} set_size(w,h){this.width=w;this.height=h;}
+    ease(p){Object.assign(this,p);p.onComplete?.();}
+}
+const SlideSplit=new Function('Clutter','Meta','St','Main','global','splitFrames','maximizeWindow','unmaximizeWindow',
+    `${splitSource};return TabletSplitView;`)(
+    {...Clutter,BinLayout:class{},AnimationMode:{EASE_OUT_QUAD:1,EASE_IN_QUAD:2}},{},
+    {Button,Label:class{},Widget},Main,globalMock,splitFrames,maximizeWindow,unmaximizeWindow);
+const slider=new SlideSplit(()=>({x:0,y:0,width:1280,height:800}));
+const floating=Object.assign(window(),{is_skip_taskbar:()=>false,make_above(){this.above=true;},
+    unmake_above(){this.above=false;},minimize(){this.minimized=true;}});
+slider.slideOver(floating);
+const handle=chrome.find(a=>a instanceof Widget);
+assert(handle.height<=40 && handle.y+handle.height<=floating.frame.y,'handle sits above the app, not over it');
+assert.equal(floating.above,true,'slide over floats above the full-screen app');
+floating.emit('unmanaged');
+assert.equal(chrome.includes(handle),false,'closing the app removes its handle');
+slider.destroy();
+console.log('Slide Over checks passed (handle outside the app, keep-above, close cleanup).');

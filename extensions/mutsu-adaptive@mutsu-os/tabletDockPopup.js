@@ -7,8 +7,9 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 // Temporary touch dock: does not pin Dash-to-Dock or reserve screen space.
 export class TabletDockPopup {
-    constructor(recent) {
+    constructor(recent, monitor) {
         this._recent = recent;
+        this._monitor = monitor;
         this._box = new St.BoxLayout({style_class: 'mutsu-touch-dock', reactive: true});
         Main.layoutManager.addChrome(this._box, {affectsStruts: false});
         this._box.hide();
@@ -35,14 +36,15 @@ export class TabletDockPopup {
         const apps = [...AppFavorites.getAppFavorites().getFavorites(),
             ...Shell.AppSystem.get_default().get_running()];
         const unique = [...new Map(apps.map(app => [app.get_id(), app])).values()];
-        const monitor = Main.layoutManager.primaryMonitor;
+        const monitor = this._monitor();
+        if (!monitor)
+            return;
         const count = Math.max(1, Math.floor((monitor.width - 100) / 68) - 1);
         for (const app of unique.slice(0, count)) {
             const button = new St.Button({style_class: 'mutsu-dock-app',
                 accessible_name: app.get_name(), child: app.create_icon_texture(48)});
             button.connect('clicked', () => {
                 this.hide();
-                Main.overview.hide();
                 const window = app.get_windows().find(w => !w.is_skip_taskbar());
                 if (window)
                     Main.activateWindow(window);
@@ -60,6 +62,7 @@ export class TabletDockPopup {
         this._box.set_position(monitor.x + (monitor.width - width) / 2,
             monitor.y + monitor.height - 112);
         this._box.show();
+        this._box.get_parent()?.set_child_above_sibling(this._box, null);
         this._box.translation_y = 30;
         this._box.opacity = 0;
         this._box.ease({translation_y: 0, opacity: 255, duration: 160,

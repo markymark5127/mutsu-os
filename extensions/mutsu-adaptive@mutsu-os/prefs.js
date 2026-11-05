@@ -16,7 +16,7 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
         page.add(mode);
         const modeRow = new Adw.ComboRow({
             title: 'Tablet mode',
-            subtitle: 'Automatic follows the keyboard fold when the hardware reports it',
+            subtitle: 'Automatic switches when the 2-in-1 is folded. The Quick Settings toggle overrides it until the next fold.',
             model: Gtk.StringList.new(['Automatic', 'Always desktop', 'Always tablet']),
         });
         const modes = ['automatic', 'always-desktop', 'always-tablet'];
@@ -28,12 +28,27 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
 
         const behavior = new Adw.PreferencesGroup({title: 'When in tablet mode'});
         page.add(behavior);
-        this._switch(behavior, settings, 'open-home-on-tablet', 'Open the app grid', 'Show Applications becomes Home');
-        this._switch(behavior, settings, 'enable-experimental-gestures', 'Bottom swipe gestures', 'Short pull: Dock · Long swipe: Home · Hold: Recent Apps · Sideways: switch apps');
-        this._switch(behavior, settings, 'collapse-dock-in-tablet', 'Hide the dock', 'Autohide Dash to Dock while folded');
-        this._switch(behavior, settings, 'rotation-lock', 'Lock rotation', 'Stop auto-rotate while in tablet mode');
-        this._switch(behavior, settings, 'home-widgets', 'Home widgets', 'Clock, date and touch shortcuts');
-        this._switch(behavior, settings, 'automatic-keyboard', 'On-screen keyboard', 'Show the native keyboard for text fields in tablet mode');
+        this._switch(behavior, settings, 'open-home-on-tablet', 'Go Home when folding',
+            'Open apps step aside and return when you unfold');
+        this._switch(behavior, settings, 'enable-experimental-gestures', 'Bottom swipe gestures',
+            'Short pull: Dock · Swipe: Home · Swipe and hold: Multitasking · Sideways: switch apps');
+        this._switch(behavior, settings, 'collapse-dock-in-tablet', 'Hide the desktop dock',
+            'Home has its own dock');
+        this._switch(behavior, settings, 'rotation-lock', 'Lock rotation',
+            'Stop auto-rotate while in tablet mode');
+        this._switch(behavior, settings, 'home-widgets', 'Home clock', 'Time and date on Home');
+        this._switch(behavior, settings, 'automatic-keyboard', 'On-screen keyboard',
+            'Show the native keyboard for text fields in tablet mode');
+
+        const home = new Adw.PreferencesGroup({title: 'Home Screen'});
+        page.add(home);
+        const reset = new Adw.ActionRow({title: 'Reset Home Screen layout',
+            subtitle: 'Alphabetical order, with games gathered in a folder'});
+        const button = new Gtk.Button({label: 'Reset', valign: Gtk.Align.CENTER,
+            css_classes: ['destructive-action']});
+        button.connect('clicked', () => settings.set_string('home-layout', ''));
+        reset.add_suffix(button);
+        home.add(reset);
     }
 
     _switch(group, settings, key, title, subtitle) {
