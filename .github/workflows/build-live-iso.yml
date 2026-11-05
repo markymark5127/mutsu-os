@@ -138,11 +138,11 @@ jobs:
           echo "Live USB ISO assembled and structurally verified." >> "$GITHUB_STEP_SUMMARY"
 
       # Try booting all the way through the live root with UEFI in QEMU.
-      # Some graphical-only images do not show a serial login: record the
-      # result independently instead of throwing away an otherwise valid ISO.
+      # Treat a failed boot as a failed build, even when the ISO structure is valid.
+      # A serial-login test is not a complete graphical-desktop test, but its
+      # failure must not leave an unverified ISO looking like a green release.
       - name: Headless QEMU UEFI boot smoke test
         id: smoke
-        continue-on-error: true
         env:
           QEMU_LIVE_LOG: ${{ github.workspace }}/mutsu-live-out/qemu-live-boot.log
         run: |
@@ -158,12 +158,13 @@ jobs:
           if [[ "$SMOKE_RESULT" == "success" ]]; then
             echo "QEMU live boot smoke test passed (serial login reached)." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::warning::The ISO built, but QEMU did not confirm a boot to login. Review qemu-live-boot.log and test on spare hardware."
-            echo "QEMU boot smoke test unconfirmed; do not assume graphical boot works." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::QEMU failed to confirm a live boot. Inspect qemu-live-boot.log before writing a USB."
+            echo "FAILED: QEMU live boot was not confirmed. ISO is diagnostic-only and must not be treated as bootable." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      # Upload evidence on boot failure so the actual root cause can be investigated.
       - name: Upload Mutsu Live ISO and diagnostics
-        if: steps.iso.outcome == 'success'
+        if: always() && steps.iso.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mutsu-os-live-amd64
