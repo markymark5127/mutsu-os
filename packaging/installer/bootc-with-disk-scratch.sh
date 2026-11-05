@@ -41,8 +41,8 @@ cleanup() {
     trap - EXIT
     if (( mounted )); then
         if ! umount /var/tmp; then
-            echo 'Mutsu installer error: failed to unmount temporary image scratch' >&2
-            status=1
+            echo 'Mutsu installer error: failed to unmount temporary image scratch; preserving it rather than deleting a mounted directory' >&2
+            exit 1
         fi
     fi
     if [[ -n "$scratch" ]]; then
