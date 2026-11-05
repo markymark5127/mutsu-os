@@ -210,7 +210,7 @@ class DiskImageWorkflowTests(unittest.TestCase):
         build_script = (ROOT / "packaging/build-installer-iso.sh").read_text()
         subprocess.run(["bash", "-n", str(wrapper_path)], check=True)
         self.assertIn('target="${*: -1}"', wrapper)
-        self.assertIn('findmnt -n -M "$target"', wrapper)
+        self.assertIn('findmnt -n -M "$target_root"', wrapper)
         self.assertIn('min_free=$((48 * 1024 * 1024 * 1024))', wrapper)
         self.assertIn('target_root="$(realpath -e -- "$target")"', wrapper)
         self.assertIn('parent="$target_root/lost+found"', wrapper)
