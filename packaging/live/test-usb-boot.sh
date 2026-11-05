@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ISO="${1:?usage: test-usb-boot.sh ISO [timeout_seconds]}"
-TIMEOUT="${2:-600}"
+TIMEOUT="${2:-900}"
 LOG="${QEMU_LIVE_LOG:-qemu-usb-boot.log}"
 
 [[ -s "$ISO" ]] || { echo "::error::ISO not found: $ISO"; exit 1; }

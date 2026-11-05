@@ -79,6 +79,16 @@ class LiveISOTests(unittest.TestCase):
         self.assertIn("if=none,id=usb-image,format=raw,readonly=on", script)
         self.assertIn('grep -aq "login:" "$LOG"', script)
 
+    def test_boot_tests_use_kvm_and_publish_readable_logs(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        kvm = workflow.index("Enable KVM acceleration for boot tests")
+        self.assertLess(kvm, workflow.index("Headless QEMU UEFI boot smoke test"))
+        self.assertIn('KERNEL=="kvm", GROUP="kvm", MODE="0666"', workflow)
+        self.assertIn("mutsu-os-live.iso 900", workflow)
+        self.assertNotIn("mutsu-os-live.iso 600", workflow)
+        self.assertIn("Show end of boot logs", workflow)
+        self.assertIn("mutsu-os-live-boot-logs", workflow)
+
     def test_upstream_builder_revision_is_pinned(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("repository: tuna-os/tacklebox", workflow)

@@ -162,6 +162,25 @@ jobs:
       # Treat a failed boot as a failed build, even when the ISO structure is valid.
       # A serial-login test is not a complete graphical-desktop test, but its
       # failure must not leave an unverified ISO looking like a green release.
+      # GitHub's Ubuntu runners expose /dev/kvm, but only root can open it
+      # by default. Without this, QEMU falls back to software emulation
+      # (accel=tcg), and a full Bazzite GNOME desktop cannot reach a login
+      # prompt within the timeout. Every earlier boot test ran under TCG.
+      - name: Enable KVM acceleration for boot tests
+        run: |
+          set -euo pipefail
+          if [[ -e /dev/kvm ]]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+              | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+          fi
+          if [[ -w /dev/kvm ]]; then
+            echo "QEMU boot tests use KVM acceleration." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::/dev/kvm unavailable: boot tests fall back to slow software emulation"
+          fi
+
       - name: Headless QEMU UEFI boot smoke test
         id: smoke
         env:
@@ -169,18 +188,32 @@ jobs:
         run: |
           set -euo pipefail
           bash .tacklebox/scripts/test-live-boot.sh \
-            mutsu-live-out/mutsu-os-live.iso 600
+            mutsu-live-out/mutsu-os-live.iso 900
 
       # The above optical-drive test checks El Torito. Real flash drives
       # written in DD mode boot through the raw USB partition table instead.
+      # Runs even when the optical test fails, so both boot logs exist.
       - name: Raw USB UEFI boot smoke test
         id: usb-smoke
+        if: always() && steps.iso.outcome == 'success'
         env:
           QEMU_LIVE_LOG: ${{ github.workspace }}/mutsu-live-out/qemu-usb-boot.log
         run: |
           set -euo pipefail
           bash packaging/live/test-usb-boot.sh \
-            mutsu-live-out/mutsu-os-live.iso 600
+            mutsu-live-out/mutsu-os-live.iso 900
+
+      # The filtered tail printed by the boot scripts hides where a boot
+      # actually stopped. Show the real end of each serial log here.
+      - name: Show end of boot logs
+        if: always() && steps.iso.outcome == 'success'
+        run: |
+          for log in mutsu-live-out/qemu-live-boot.log mutsu-live-out/qemu-usb-boot.log; do
+            [[ -s "$log" ]] || continue
+            echo "::group::Last 120 lines of $log"
+            sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$log" | grep -v '^\s*$' | tail -120
+            echo "::endgroup::"
+          done
 
       - name: Summarize boot test result
         if: always() && steps.iso.outcome == 'success'
@@ -194,6 +227,20 @@ jobs:
             echo "::error::QEMU optical or raw USB boot failed. Inspect both boot logs before writing a USB."
             echo "FAILED: Live optical/USB boot not fully confirmed. ISO is diagnostic-only, not a verified release." >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      # Small separate artifact: boot logs can be read without downloading
+      # the multi-gigabyte ISO.
+      - name: Upload boot logs
+        if: always() && steps.iso.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutsu-os-live-boot-logs
+          path: |
+            mutsu-live-out/qemu-live-boot.log
+            mutsu-live-out/qemu-usb-boot.log
+            mutsu-live-out/MUTSU-LIVE-BUILD-INFO.txt
+          if-no-files-found: warn
+          retention-days: 14
 
       # Upload evidence on boot failure so the actual root cause can be investigated.
       - name: Upload Mutsu Live ISO and diagnostics
