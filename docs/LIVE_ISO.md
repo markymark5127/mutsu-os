@@ -45,10 +45,14 @@ the machine contains important personal data.
 
 The workflow uses `tacklebox verify`, confirms an EFI boot entry,
 produces a SHA256 checksum, and attempts a QEMU/OVMF serial boot smoke test.
-The QEMU test is **non-blocking**, because serial login is not guaranteed
-by every graphical configuration. Its log is packaged with the ISO.
-A successful ISO build or QEMU login is **not proof** that graphics,
-touchscreen gestures, Wi-Fi, and Newelle work on actual hardware.
+The QEMU boot test is a **required build gate**. If QEMU cannot confirm a
+live login, the job fails rather than publishing a misleading green build.
+The ISO and its QEMU log are still uploaded as *diagnostic-only* artifacts
+when the ISO assembly succeeded, even if the boot test fails. Inspect
+`qemu-live-boot.log` in the artifact to distinguish a kernel/initramfs
+failure from an unavailable serial login. A successful ISO build and QEMU
+login still do **not** prove that graphics, touchscreen gestures, Wi-Fi, or
+Newelle work on real hardware.
 
 This manual-only live workflow does **not** run Mutsu's usual installer.
 It also does not create a persistent USB installation. The original
