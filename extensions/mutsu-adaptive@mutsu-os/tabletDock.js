@@ -1,6 +1,9 @@
 // Use Dash-to-Dock's own visibility handling so Home/overview still shows
 // the dock, and ordinary app windows can use the freed screen area.
-export function applyTabletDock(settings) {
+// With a SettingsJournal the change is recorded on disk (crash-safe) and the
+// journal restores it; the returned function is then a no-op.
+export const DOCK_SCHEMA = 'org.gnome.shell.extensions.dash-to-dock';
+export function applyTabletDock(settings, journal = null) {
     const values = {
         'autohide': true,
         'intellihide': false,
@@ -9,6 +12,11 @@ export function applyTabletDock(settings) {
         'show-dock-urgent-notify': false,
         'dock-fixed': false,
     };
+    if (journal) {
+        for (const [key, value] of Object.entries(values))
+            journal.change(DOCK_SCHEMA, key, s => s.set_boolean(key, value));
+        return () => {};
+    }
     const saved = new Map();
     let restored = false;
     const restore = () => {

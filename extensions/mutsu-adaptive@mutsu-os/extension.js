@@ -1,6 +1,7 @@
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
@@ -8,55 +9,107 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Clutter from 'gi://Clutter';
 import {TabletSwitcher} from './tabletSwitcher.js';
-import {TabletSpringboard} from './tabletSpringboard.js';
-import {applyTabletDock} from './tabletDock.js';
+import {TabletHome} from './tabletHome.js';
+import {applyTabletDock, DOCK_SCHEMA} from './tabletDock.js';
 import {TabletSession} from './tabletSession.js';
-import {maximizeWindow, unmaximizeWindow} from './tabletGeometry.js';
+import {SettingsJournal} from './settingsJournal.js';
+import {PostureMonitor} from './posture.js';
+import {maximizeWindow, unmaximizeWindow, isWindowMaximized, resolveTablet} from './tabletGeometry.js';
 
-// Installed and enabled by default for new Mutsu OS users.
-// Manual desktop/tablet modes are available even without a hinge switch.
-// Automatic posture uses the GNOME backend signal when present, plus a
-// sysfs poll of common convertible tablet-mode paths.
-// Bottom-edge home gesture is opt-in via enable-experimental-gestures.
-// Mutsu image defaults turn it on; the schema default stays off.
+// Mutsu OS core desktop/tablet mode, enabled by default for new users.
+// Mac-first desktop; folding a 2-in-1 into tablet posture switches to an
+// iPadOS-style Home, full-screen apps and touch navigation.
+//
+// Runs in the 'unlock-dialog' session mode too, so locking the screen does
+// not tear tablet mode down (which used to unmaximize every window and lose
+// Split View). All tablet UI hides itself while locked.
 // Recovery: gnome-extensions disable mutsu-adaptive@mutsu-os
 
-const BOTTOM_EDGE_HEIGHT = 36;
 const DEBOUNCE_MS = 400;
-const PULL_TRIGGER_PX = 70;
+const INTERFACE = 'org.gnome.desktop.interface';
+const TOUCHSCREEN = 'org.gnome.settings-daemon.peripherals.touchscreen';
+const TOUCHSHELL = 'org.gnome.shell.extensions.touchshell';
+const TOUCHSHELL_UUID = 'touchshell@touchshell.com';
+const SEARCH_APP_ID = 'io.github.markymark5127.AIDesktop';
+const SEARCH_TITLE = 'Mutsu OS Search';
+const SEARCH_BIN = '/usr/bin/mutsu-search';
+
+// Touchshell owns the top edge (Controls, Notifications) and text helpers.
+// Mutsu owns the bottom edge, Home, and window sizing, so Touchshell's
+// competing gestures are switched off while in tablet mode.
+const TOUCHSHELL_TABLET = {
+    'top-right-swipe-activation': 'always',
+    'top-center-swipe-activation': 'always',
+    'swipe-to-dismiss-notifications-activation': 'always',
+    'text-selection-activation': 'always',
+    'text-action-fab-activation': 'always',
+    'window-tiling-flick-activation': 'always',
+    'bottom-edge-swipe-activation': 'off',
+    'action-bar-activation': 'off',
+    'panel-auto-hide-activation': 'off',
+    'flick-to-close-activation': 'off',
+    'overview-workspace-switch-activation': 'off',
+    'overview-vertical-swipe-activation': 'off',
+    'desktop-workspace-switch-activation': 'off',
+    'desktop-vertical-swipe-activation': 'off',
+    'auto-maximize-windows-activation': 'off',
+};
+
+function isSearchWindow(window) {
+    try {
+        return window?.get_gtk_application_id?.() === SEARCH_APP_ID &&
+            window.get_title() === SEARCH_TITLE;
+    } catch (e) {
+        return false;
+    }
+}
+
+function readFile(path) {
+    try {
+        const [ok, bytes] = GLib.file_get_contents(path);
+        return ok ? new TextDecoder().decode(bytes) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function listDir(path) {
+    const names = [];
+    try {
+        const children = Gio.File.new_for_path(path).enumerate_children('standard::name',
+            Gio.FileQueryInfoFlags.NONE, null);
+        let info;
+        while ((info = children.next_file(null)))
+            names.push(info.get_name());
+    } catch (e) {}
+    return names;
+}
 
 export default class MutsuAdaptiveExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._inTablet = false;
-        this._maximizeHandlerId = 0;
-        this._focusHandlerId = 0;
-        this._homeLockId = 0;
-        this._gestureActive = false;
-        this._gestureActors = [];
-        this._pullActor = null;
-        this._overviewShowingId = 0;
-        this._hiddenChrome = [];
+        this._override = null;
         this._debounceSource = 0;
         this._pendingTablet = null;
-        this._saved = {};
-        this._postureSignalId = 0;
-        this._posturePollId = 0;
-        this._searchBusy = false;
+        this._signals = [];
+        this._parked = new Map();
+        this._searchBusy = 0;
 
-        this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
-        this._modeIcon = new St.Icon({
-            icon_name: 'video-display-symbolic',
-            style_class: 'system-status-icon',
+        // Crash-safe journal: if the Shell died mid-tablet-mode, put the
+        // user's desktop settings back before anything else.
+        this._journal = new SettingsJournal({
+            load: () => this._settings.get_string('saved-state'),
+            save: value => this._settings.set_string('saved-state', value),
+            open: schemaId => this._openSettings(schemaId),
+            parse: text => GLib.Variant.parse(null, text, null, null),
         });
-        this._indicator.add_child(this._modeIcon);
-        this._indicator.menu.addAction('Toggle Tablet Mode', () => this._toggleManual());
-        this._indicator.menu.addAction('Recent Apps', () => this._tabletSwitcher?.show());
-        this._indicator.menu.addAction('Always Desktop', () => this._setMode('always-desktop'));
-        this._indicator.menu.addAction('Always Tablet', () => this._setMode('always-tablet'));
-        this._indicator.menu.addAction('Automatic', () => this._setMode('automatic'));
-        Main.panel.addToStatusArea(this.uuid, this._indicator);
+        if (this._journal.pending) {
+            log('Mutsu Adaptive: restoring desktop settings left over from an interrupted tablet session');
+            this._journal.restore();
+        }
 
+        this._buildIndicator();
         this._qsToggle = null;
         try {
             const menu = Main.panel.statusArea.quickSettings?.menu;
@@ -75,9 +128,28 @@ export default class MutsuAdaptiveExtension extends Extension {
             log(`Mutsu Adaptive: Quick Settings unavailable (${error})`);
         }
 
-        this._settingsChangedId = this._settings.connect('changed::mode', () => this._applyFromSettings());
-        this._applyFromSettings();
-        this._startPostureWatcher();
+        this._connect(this._settings, 'changed::mode', () => {
+            this._override = null;
+            this._evaluate();
+        });
+        this._connect(Main.sessionMode, 'updated', () => this._syncLocked());
+        this._posture = new PostureMonitor({
+            seat: this._seat(),
+            readFile,
+            listDir,
+            poll: (seconds, fn) => GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, seconds, () => {
+                fn();
+                return GLib.SOURCE_CONTINUE;
+            }),
+            cancel: id => GLib.source_remove(id),
+        }, () => {
+            // A real fold/unfold ends any manual override.
+            this._override = null;
+            this._evaluate();
+        });
+        log(`Mutsu Adaptive: posture sources: ${this._posture.description}`);
+        this._evaluate(true);
+        this._syncLocked();
     }
 
     disable() {
@@ -85,172 +157,179 @@ export default class MutsuAdaptiveExtension extends Extension {
             GLib.source_remove(this._debounceSource);
             this._debounceSource = 0;
         }
-        if (this._settingsChangedId) {
-            this._settings.disconnect(this._settingsChangedId);
-            this._settingsChangedId = 0;
-        }
-        if (this._qsToggle) {
-            this._qsToggle.destroy();
-            this._qsToggle = null;
-        }
-        if (this._indicator) {
-            this._indicator.destroy();
-            this._indicator = null;
-        }
-        this._modeIcon = null;
-        this._stopPostureWatcher();
+        this._posture?.destroy();
+        this._posture = null;
+        for (const [object, id] of this._signals)
+            object.disconnect(id);
+        this._signals = [];
         this._leaveTablet();
+        this._qsToggle?.destroy();
+        this._qsToggle = null;
+        this._indicator?.destroy();
+        this._indicator = null;
+        this._modeIcon = null;
+        this._journal?.restore();
+        this._journal = null;
         this._settings = null;
+    }
+
+    _connect(object, signal, fn) {
+        this._signals.push([object, object.connect(signal, fn)]);
+    }
+
+    // Gio.Settings aborts the whole Shell for an unknown schema, so look it
+    // up first. Touchshell's schema lives in its own extension folder.
+    _openSettings(schemaId) {
+        let schema = Gio.SettingsSchemaSource.get_default()?.lookup(schemaId, true) ?? null;
+        if (!schema && schemaId === TOUCHSHELL) {
+            try {
+                const dir = Main.extensionManager.lookup(TOUCHSHELL_UUID)?.dir?.get_child('schemas');
+                if (dir?.query_exists(null)) {
+                    const source = Gio.SettingsSchemaSource.new_from_directory(dir.get_path(),
+                        Gio.SettingsSchemaSource.get_default(), false);
+                    schema = source.lookup(schemaId, false);
+                }
+            } catch (e) {
+                schema = null;
+            }
+        }
+        return schema ? new Gio.Settings({settings_schema: schema}) : null;
+    }
+
+    // ---- indicator and mode ------------------------------------------------
+
+    _buildIndicator() {
+        this._indicator = new PanelMenu.Button(0.0, 'Mutsu Adaptive', false);
+        this._modeIcon = new St.Icon({icon_name: 'video-display-symbolic',
+            style_class: 'system-status-icon'});
+        this._indicator.add_child(this._modeIcon);
+        this._indicator.menu.addAction('Multitasking', () => this._switcher?.show());
+        this._indicator.menu.addAction('Edit Home Screen', () => this._home?.setEditing(true));
+        this._indicator.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem('Tablet Mode'));
+        this._modeItems = new Map();
+        for (const [mode, label] of [['automatic', 'Automatic (follow the hinge)'],
+            ['always-desktop', 'Always Desktop'], ['always-tablet', 'Always Tablet']]) {
+            const item = this._indicator.menu.addAction(label, () => this._setMode(mode));
+            this._modeItems.set(mode, item);
+        }
+        Main.panel.addToStatusArea(this.uuid, this._indicator);
     }
 
     _setMode(mode) {
         this._settings.set_string('mode', mode);
     }
 
+    // Quick Settings toggle. In Automatic it is a temporary override that
+    // lasts until the hardware posture next changes, so Automatic is never
+    // silently lost. In a forced mode it flips between the forced modes.
     _toggleManual() {
-        const current = this._settings.get_string('mode');
-        if (current === 'always-tablet')
-            this._setMode('always-desktop');
-        else
-            this._setMode('always-tablet');
-    }
-
-    _applyFromSettings() {
         const mode = this._settings.get_string('mode');
-        if (mode === 'always-tablet')
-            this._requestTablet(true);
-        else if (mode === 'always-desktop')
-            this._requestTablet(false);
-        else if (mode === 'automatic') {
-            // Do not leave an old forced-tablet state stuck on an ordinary laptop.
-            // Enter tablet mode only after a positive hardware indication.
-            this._requestTablet(false);
+        const target = this._pendingTablet ?? this._inTablet;
+        if (mode === 'automatic') {
+            this._override = !target;
+            this._evaluate();
+        } else {
+            this._setMode(mode === 'always-tablet' ? 'always-desktop' : 'always-tablet');
         }
-        this._syncQsToggle();
     }
 
-    _syncQsToggle() {
-        const mode = this._settings.get_string('mode');
-        const inTablet = mode === 'always-tablet' || (mode === 'automatic' && this._inTablet);
+    _evaluate(immediate = false) {
+        if (!this._settings)
+            return;
+        const want = resolveTablet({
+            mode: this._settings.get_string('mode'),
+            override: this._override,
+            seatTouch: this._posture?.seatTouch ?? false,
+            hardware: this._posture?.hardware ?? null,
+        });
+        this._requestTablet(want, immediate);
+        this._syncIndicators(want);
+    }
+
+    _syncIndicators(inTablet = this._inTablet) {
         if (this._qsToggle)
             this._qsToggle.checked = inTablet;
-        this._updateModeIcon(inTablet);
-    }
-
-    _updateModeIcon(inTablet) {
-        if (!this._modeIcon)
-            return;
-        // Show the current mode: tablet icon while in tablet, desktop icon otherwise.
-        this._modeIcon.icon_name = inTablet
-            ? 'mutsu-tablet-mode-symbolic'
-            : 'video-display-symbolic';
+        if (this._modeIcon)
+            this._modeIcon.icon_name = inTablet ? 'mutsu-tablet-mode-symbolic' : 'video-display-symbolic';
         if (this._indicator)
             this._indicator.accessible_name = inTablet ? 'Tablet mode' : 'Desktop mode';
+        const mode = this._settings?.get_string('mode');
+        for (const [key, item] of this._modeItems ?? []) {
+            try {
+                item.setOrnament(key === mode ? PopupMenu.Ornament.CHECK ?? PopupMenu.Ornament.DOT
+                    : PopupMenu.Ornament.NONE);
+            } catch (e) {}
+        }
     }
 
-    _requestTablet(wantTablet) {
+    _syncLocked() {
+        const locked = Main.sessionMode.isLocked || Main.sessionMode.isGreeter;
+        if (this._indicator)
+            this._indicator.visible = !locked;
+        if (this._qsToggle)
+            this._qsToggle.visible = !locked;
+    }
+
+    _requestTablet(wantTablet, immediate = false) {
         if (this._debounceSource)
             GLib.source_remove(this._debounceSource);
+        this._debounceSource = 0;
         this._pendingTablet = wantTablet;
-        this._debounceSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DEBOUNCE_MS, () => {
+        const apply = () => {
             this._debounceSource = 0;
-            if (this._pendingTablet === true)
-                this._enterTablet();
-            else if (this._pendingTablet === false)
-                this._leaveTablet();
+            const want = this._pendingTablet;
             this._pendingTablet = null;
+            if (want)
+                this._enterTablet();
+            else
+                this._leaveTablet();
+            this._syncIndicators();
+        };
+        if (immediate) {
+            apply();
+            return;
+        }
+        this._debounceSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DEBOUNCE_MS, () => {
+            apply();
             return GLib.SOURCE_REMOVE;
         });
     }
 
-
-    _setTouchshell(on) {
-        // Touchshell gestures follow Mutsu tablet mode, not the seat alone.
-        // Off in desktop mode even if the hinge is folded.
-        try {
-            const s = new Gio.Settings({ schema_id: 'org.gnome.shell.extensions.touchshell' });
-            if (!on && this._touchshellSaved) {
-                for (const [key, value] of this._touchshellSaved)
-                    s.set_string(key, value);
-                this._touchshellSaved = null;
-                return;
-            }
-            if (on)
-                this._touchshellSaved = new Map();
-            const value = on ? 'always' : 'off';
-            if (s.settings_schema.has_key('bottom-edge-swipe-activation')) {
-                if (on)
-                    this._touchshellSaved.set('bottom-edge-swipe-activation',
-                        s.get_string('bottom-edge-swipe-activation'));
-                s.set_string('bottom-edge-swipe-activation', 'off');
-            }
-            for (const key of [
-                'top-right-swipe-activation',
-                'panel-auto-hide-activation',
-                // Bottom-edge gestures belong to TabletSwitcher.
-                'top-center-swipe-activation',
-                'flick-to-close-activation',
-                'overview-workspace-switch-activation',
-                'overview-vertical-swipe-activation',
-                'swipe-to-dismiss-notifications-activation',
-                'desktop-workspace-switch-activation',
-                'desktop-vertical-swipe-activation',
-                'auto-maximize-windows-activation',
-                'text-selection-activation',
-                'text-action-fab-activation',
-                'window-tiling-flick-activation',
-            ]) {
-                if (s.settings_schema.has_key(key)) {
-                    if (on)
-                        this._touchshellSaved.set(key, s.get_string(key));
-                    s.set_string(key, value);
-                }
-            }
-            // Mutsu owns the bottom indicator and app navigation. Keep
-            // Touchshell's workspace-swipe bar from competing for the edge.
-            if (s.settings_schema.has_key('action-bar-activation')) {
-                if (on)
-                    this._touchshellSaved.set('action-bar-activation', s.get_string('action-bar-activation'));
-                s.set_string('action-bar-activation', 'off');
-            }
-        } catch (e) {
-            log(`Mutsu Adaptive: Touchshell toggle failed (${e})`);
-        }
-    }
+    // ---- entering and leaving ----------------------------------------------
 
     _enterTablet() {
         if (this._inTablet)
             return;
         this._inTablet = true;
-        this._saveReversibleState();
-
-        this._springboard = new TabletSpringboard(() => Main.overview.hide());
-        if (this._settings.get_boolean('open-home-on-tablet'))
-            this._springboard.show();
-
-        this._applyTabletHome();
-        this._applyTouchVisuals();
-        this._installMaximizeOnLaunch();
-        this._installAppLayering();
-        // A Home search button replaces the old transparent pull-down
-        // catcher, which intercepted app-grid long presses and folder drags.
-        this._tabletSession = new TabletSession(() => this._openSpotlight(), this._settings);
+        this._applyTouchSettings();
+        this._home = new TabletHome({
+            settings: this._settings,
+            monitor: () => this._tabletMonitor(),
+            search: () => this._openSearch(),
+        });
+        this._session = new TabletSession(this._settings, this._journal);
         // TabletSwitcher owns the bottom edge to avoid competing recognizers.
-        this._tabletSwitcher = new TabletSwitcher(
-            () => {
-                const win = global.display.focus_window;
-                if (win && !win.is_skip_taskbar())
-                    win.minimize();
-                this._springboard?.show();
-            },
+        this._switcher = new TabletSwitcher(
+            () => this._goHome(),
             () => this._gestureSuppressed(),
-            () => this._settings.get_boolean('enable-experimental-gestures'));
-        this._lockHomeWhenEmpty();
+            () => this._settings.get_boolean('enable-experimental-gestures'),
+            () => this._tabletMonitor());
+        this._installWindowSizing();
+        this._tabletSignals = [];
+        // GNOME's overview has no role in tablet mode: Super / hot corner go Home.
+        this._tabletSignals.push([Main.overview, Main.overview.connect('showing', () => {
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                if (this._inTablet && Main.overview.visible) {
+                    Main.overview.hide();
+                    this._goHome();
+                }
+                return GLib.SOURCE_REMOVE;
+            });
+        })]);
+        Main.overview.hide();
         this._slimStatusBar(true);
-        this._installTopGestures();
-
-        this._setTouchshell(true);
-        this._syncQsToggle();
+        if (this._settings.get_boolean('open-home-on-tablet'))
+            this._goHome();
         log('Mutsu Adaptive: entered tablet mode');
     }
 
@@ -258,34 +337,40 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (!this._inTablet)
             return;
         this._inTablet = false;
-        this._springboard?.destroy();
-        this._springboard = null;
-        this._tabletSwitcher?.destroy();
-        this._tabletSwitcher = null;
-        this._tabletSession?.destroy();
-        this._tabletSession = null;
-
-        this._removeMaximizeOnLaunch();
-        this._removeAppLayering();
-        if (this._homeLockId) {
-            try { Main.overview.disconnect(this._homeLockId); } catch (e) {}
-            this._homeLockId = 0;
-        }
-        this._removeBottomGesture();
-        this._removePullSearch();
-        this._restoreTabletHome();
-        this._restoreReversibleState();
-
-        this._setTouchshell(false);
-        try {
-            Main.overview.hide();
-        } catch (e) {}
-        this._syncQsToggle();
+        for (const [object, id] of this._tabletSignals ?? [])
+            object.disconnect(id);
+        this._tabletSignals = [];
+        this._switcher?.destroy();
+        this._switcher = null;
+        this._home?.destroy();
+        this._home = null;
+        this._session?.destroy();
+        this._session = null;
+        this._removeWindowSizing();
+        this._unparkWindows();
+        this._journal.restore();
         this._slimStatusBar(false);
-        this._removeTopGestures();
-                log('Mutsu Adaptive: left tablet mode');
+        log('Mutsu Adaptive: left tablet mode');
     }
 
+    _applyTouchSettings() {
+        const j = this._journal;
+        // Larger text, unless the user already chose their own scaling.
+        const scale = j.settings(INTERFACE)?.get_user_value('text-scaling-factor');
+        if (!scale || Math.abs(scale.unpack() - 1.0) < 0.01) {
+            const factor = this._settings.get_double('touch-text-scale');
+            j.change(INTERFACE, 'text-scaling-factor', s => s.set_double('text-scaling-factor', factor));
+        }
+        if (this._settings.get_boolean('rotation-lock'))
+            j.change(TOUCHSCREEN, 'orientation-lock', s => s.set_boolean('orientation-lock', true));
+        if (this._settings.get_boolean('collapse-dock-in-tablet')) {
+            const dock = j.settings(DOCK_SCHEMA);
+            if (dock)
+                applyTabletDock(dock, j);
+        }
+        for (const [key, value] of Object.entries(TOUCHSHELL_TABLET))
+            j.change(TOUCHSHELL, key, s => s.set_string(key, value));
+    }
 
     _slimStatusBar(on) {
         const panel = Main.panel;
@@ -295,643 +380,160 @@ export default class MutsuAdaptiveExtension extends Extension {
             panel.add_style_class_name('mutsu-status-slim');
         else
             panel.remove_style_class_name('mutsu-status-slim');
-        const hide = [
-            panel.statusArea?.activities,
-            panel.statusArea?.appMenu,
-            panel._leftBox,
-        ];
+        const hide = [panel.statusArea?.activities, panel.statusArea?.appMenu];
         for (const actor of hide) {
             if (!actor)
                 continue;
             if (on && actor._mutsuSavedVisible === undefined)
                 actor._mutsuSavedVisible = actor.visible;
-            actor.visible = on ? false : actor._mutsuSavedVisible !== false;
-        }
-        try { panel.height = on ? 28 : -1; } catch (e) {}
-    }
-
-    _installTopGestures() {
-        if (this._topActor)
-            return;
-        const actor = new St.Widget({reactive: true, style: 'background-color: transparent;'});
-        const monitor = Main.layoutManager.primaryMonitor;
-        if (!monitor)
-            return;
-        actor.set_position(monitor.x, monitor.y);
-        actor.set_size(monitor.width, 28);
-        Main.layoutManager.addChrome(actor, {affectsStruts: false});
-        let start = null;
-        actor.connect('event', (_a, event) => {
-            const type = event.type();
-            if (type === Clutter.EventType.TOUCH_BEGIN || type === Clutter.EventType.BUTTON_PRESS) {
-                start = event.get_coords();
-                return Clutter.EVENT_PROPAGATE;
+            if (on) {
+                actor.visible = false;
+            } else if (actor._mutsuSavedVisible !== undefined) {
+                actor.visible = actor._mutsuSavedVisible;
+                delete actor._mutsuSavedVisible;
             }
-            if (!start || (type !== Clutter.EventType.TOUCH_END && type !== Clutter.EventType.BUTTON_RELEASE))
-                return Clutter.EVENT_PROPAGATE;
-            const [x, y] = event.get_coords();
-            const [sx, sy] = start;
-            start = null;
-            if (y - sy < 24)
-                return Clutter.EVENT_PROPAGATE;
-            const right = x > monitor.x + monitor.width * 0.66;
-            if (right)
-                Main.panel.statusArea.quickSettings?.menu.open();
-            else
-                Main.panel.statusArea.dateMenu?.menu.open();
-            return Clutter.EVENT_STOP;
-        });
-        this._topActor = actor;
-    }
-
-    _removeTopGestures() {
-        if (!this._topActor)
-            return;
-        Main.layoutManager.removeChrome(this._topActor);
-        this._topActor.destroy();
-        this._topActor = null;
-    }
-
-    _overviewActor() {
-        return Main.overview?._overview ?? null;
-    }
-
-    _controls() {
-        return this._overviewActor()?._controls ?? null;
-    }
-
-    _applyTabletHome() {
-        const overview = this._overviewActor();
-        overview?.add_style_class_name('mutsu-tablet-home');
-        this._hideChrome();
-        if (!this._overviewShowingId) {
-            this._overviewShowingId = Main.overview.connect('showing', () => {
-                if (this._inTablet)
-                    this._hideChrome();
-            });
         }
     }
 
-    _restoreTabletHome() {
-        if (this._overviewShowingId) {
-            try {
-                Main.overview.disconnect(this._overviewShowingId);
-            } catch (e) {}
-            this._overviewShowingId = 0;
-        }
-        this._overviewActor()?.remove_style_class_name('mutsu-tablet-home');
-        for (const entry of this._hiddenChrome) {
-            try {
-                entry.actor.visible = entry.visible;
-                entry.actor.opacity = entry.opacity;
-            } catch (e) {}
-        }
-        this._hiddenChrome = [];
-    }
-
-    _hideChrome() {
-        const controls = this._controls();
-        if (!controls)
-            return;
-        // Force apps view so the window overview ("desktop thingy") is not shown
-        // above the app grid in tablet mode.
+    // The built-in panel of a 2-in-1 hosts tablet UI even if an external
+    // display is primary. Falls back to the primary monitor.
+    _tabletMonitor() {
+        const layout = Main.layoutManager;
         try {
-            if (controls._appDisplay && typeof controls._appDisplay.show === 'function')
-                controls._appDisplay.show();
-            if (typeof controls.showApps === 'function')
-                controls.showApps();
+            const manager = global.backend.get_monitor_manager();
+            for (const connector of ['eDP-1', 'eDP-2', 'LVDS-1', 'DSI-1']) {
+                const index = manager.get_monitor_for_connector(connector);
+                if (index >= 0 && layout.monitors[index])
+                    return layout.monitors[index];
+            }
         } catch (e) {}
-        const actors = [
-            controls._thumbnailsBox,
-            controls._thumbnailsSlider,
-            controls._workspacesDisplay,
-            controls._windowPreview,
-        ].filter(Boolean);
-        for (const actor of actors) {
-            if (!this._hiddenChrome.some(entry => entry.actor === actor)) {
-                this._hiddenChrome.push({
-                    actor,
-                    visible: actor.visible,
-                    opacity: actor.opacity,
-                });
-            }
-            actor.opacity = 0;
-            actor.visible = false;
+        return layout.primaryMonitor;
+    }
+
+    // ---- Home and windows ------------------------------------------------------
+
+    // Every visible app on the tablet screen steps aside; Home is behind
+    // them. They come back with the desktop when tablet mode ends.
+    _goHome() {
+        this._switcher?.hide();
+        const monitor = this._tabletMonitor();
+        const index = Main.layoutManager.monitors.indexOf(monitor);
+        for (const window of global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null)) {
+            if (window.minimized || window.is_skip_taskbar() || isSearchWindow(window))
+                continue;
+            if (index >= 0 && window.get_monitor() !== index)
+                continue;
+            if (!window.get_workspace()?.active && !window.is_on_all_workspaces())
+                continue;
+            this._park(window);
+            window.minimize();
+        }
+        this._home?.reveal();
+    }
+
+    _park(window) {
+        if (this._parked.has(window))
+            return;
+        const ids = [
+            window.connect('notify::minimized', () => {
+                if (!window.minimized)
+                    this._unpark(window);
+            }),
+            window.connect('unmanaged', () => this._unpark(window)),
+        ];
+        this._parked.set(window, ids);
+    }
+
+    _unpark(window) {
+        const ids = this._parked.get(window);
+        if (!ids)
+            return;
+        this._parked.delete(window);
+        for (const id of ids)
+            window.disconnect(id);
+    }
+
+    _unparkWindows() {
+        for (const window of [...this._parked.keys()]) {
+            this._unpark(window);
+            try {
+                window.unminimize();
+            } catch (e) {}
         }
     }
 
-    _installPullSearch() {
-        if (this._pullActor)
-            return;
-        try {
-            const width = Math.round(global.stage.width * 0.5);
-            const height = Math.round(global.stage.height * 0.28);
-            const actor = new St.Widget({
-                reactive: true,
-                can_focus: false,
-                track_hover: false,
-                style: 'background-color: transparent;',
-            });
-            actor.set_size(width, height);
-            actor.set_position(
-                Math.round((global.stage.width - width) / 2),
-                Math.round(global.stage.height * 0.18),
-            );
-            Main.layoutManager.uiGroup.add_child(actor);
-            // Keep the pull surface above the overview so the gesture works
-            // while the app grid is visible.
+    // Apps open full screen (maximized, keeping their traffic lights). The
+    // green button floats a window, and it stays floating: nothing fights it.
+    _installWindowSizing() {
+        this._tabletWindowState = new Map();
+        const fit = (window, remember) => {
+            if (isSearchWindow(window) || window.get_window_type() !== Meta.WindowType.NORMAL ||
+                window.is_skip_taskbar() || window.get_transient_for() || !window.allows_resize?.())
+                return;
+            if (remember && !this._tabletWindowState.has(window))
+                this._tabletWindowState.set(window, isWindowMaximized(window));
+            if (!isWindowMaximized(window))
+                maximizeWindow(window, Meta);
+        };
+        for (const window of global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null)) {
             try {
-                Main.layoutManager.uiGroup.set_child_above_sibling(actor, null);
+                fit(window, true);
             } catch (e) {}
-            this._pullActor = actor;
-
-            let startY = 0;
-            actor.connect('button-press-event', (_a, event) => {
-                if (!this._inTablet || !Main.overview.visible)
-                    return Clutter.EVENT_PROPAGATE;
-                const [, y] = event.get_coords();
-                startY = y;
-                return Clutter.EVENT_PROPAGATE;
-            });
-            actor.connect('motion-event', (_a, event) => {
-                if (!startY || !this._inTablet || !Main.overview.visible)
-                    return Clutter.EVENT_PROPAGATE;
-                const [, y] = event.get_coords();
-                if (y - startY > PULL_TRIGGER_PX) {
-                    startY = 0;
-                    this._openSpotlight();
+        }
+        this._windowCreatedId = global.display.connect('window-created', (_d, window) => {
+            // Wait until the client has set its app id, title and size hints.
+            const id = window.connect('shown', () => {
+                window.disconnect(id);
+                if (this._inTablet) {
+                    try {
+                        fit(window, false);
+                    } catch (e) {}
                 }
-                return Clutter.EVENT_PROPAGATE;
             });
-            actor.connect('button-release-event', () => {
-                startY = 0;
-                return Clutter.EVENT_PROPAGATE;
-            });
-        } catch (e) {
-            log(`Mutsu Adaptive: pull search unavailable (${e})`);
+        });
+    }
+
+    _removeWindowSizing() {
+        if (this._windowCreatedId)
+            global.display.disconnect(this._windowCreatedId);
+        this._windowCreatedId = 0;
+        // Windows that were open before tablet mode get their desktop size
+        // back. Windows opened in tablet mode stay as they are.
+        for (const [window, wasMaximized] of this._tabletWindowState ?? []) {
+            try {
+                if (!wasMaximized && isWindowMaximized(window))
+                    unmaximizeWindow(window, Meta);
+            } catch (e) { /* closed in tablet mode */ }
         }
+        this._tabletWindowState = null;
     }
 
-    _removePullSearch() {
-        if (!this._pullActor)
-            return;
-        try {
-            this._pullActor.destroy();
-        } catch (e) {}
-        this._pullActor = null;
-    }
-
-    _openSpotlight() {
+    _openSearch() {
         if (this._searchBusy)
             return;
-        this._searchBusy = true;
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 800, () => {
-            this._searchBusy = false;
+        this._searchBusy = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 800, () => {
+            this._searchBusy = 0;
             return GLib.SOURCE_REMOVE;
         });
+        // The branding extension positions and focuses the search window;
+        // the on-screen keyboard follows its text field natively.
+        if (!GLib.file_test(SEARCH_BIN, GLib.FileTest.IS_EXECUTABLE)) {
+            Main.notify('Mutsu Search', 'Search is not installed on this system.');
+            return;
+        }
         try {
-            Gio.Subprocess.new(
-                ['/usr/bin/mutsu-search'],
-                Gio.SubprocessFlags.NONE,
-            );
-            // Give the search window a moment, then raise it over the overview.
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
-                try {
-                    const wins = global.get_window_actors?.() ?? [];
-                    for (const a of wins) {
-                        const meta = a.meta_window;
-                        if (!meta)
-                            continue;
-                        const title = (meta.get_title?.() || '').toLowerCase();
-                        const wm = (meta.get_wm_class?.() || '').toLowerCase();
-                        if (title.includes('mutsu') || wm.includes('mutsu') || title.includes('search')) {
-                            meta.activate(global.get_current_time());
-                            meta.make_above?.();
-                        }
-                    }
-                } catch (e) {}
-                return GLib.SOURCE_REMOVE;
-            });
+            Gio.Subprocess.new([SEARCH_BIN], Gio.SubprocessFlags.NONE);
         } catch (e) {
             log(`Mutsu Adaptive: mutsu-search failed (${e})`);
         }
-        try {
-            const keyboard = Main.keyboard;
-            if (keyboard?.open)
-                keyboard.open(Main.layoutManager.primaryIndex);
-            else if (keyboard?.show)
-                keyboard.show(Main.layoutManager.primaryIndex);
-        } catch (e) {
-            log(`Mutsu Adaptive: on-screen keyboard unavailable (${e})`);
-        }
-    }
-
-    _saveReversibleState() {
-        try {
-            const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
-            this._saved.textScaling = iface.get_double('text-scaling-factor');
-            this._saved.hadCustomScale = Math.abs(this._saved.textScaling - 1.0) > 0.01;
-        } catch (e) {
-            this._saved.textScaling = null;
-        }
-    }
-
-    _applyTouchVisuals() {
-        if (!this._saved.hadCustomScale && this._saved.textScaling !== null) {
-            try {
-                const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
-                const scale = this._settings.get_double('touch-text-scale');
-                iface.set_double('text-scaling-factor', scale);
-            } catch (e) {
-                log(`Mutsu Adaptive: text scale failed (${e})`);
-            }
-        }
-
-        if (this._settings.get_boolean('rotation-lock')) {
-            try {
-                const iface = new Gio.Settings({ schema_id: 'org.gnome.settings-daemon.peripherals.touchscreen' });
-                if (iface.settings_schema.has_key('orientation-lock'))
-                    this._saved.rotationLock = iface.get_user_value('orientation-lock');
-                if (iface.settings_schema.has_key('orientation-lock'))
-                    iface.set_boolean('orientation-lock', true);
-            } catch (e) {}
-        }
-
-        if (this._settings.get_boolean('collapse-dock-in-tablet')) {
-            try {
-                const dock = new Gio.Settings({ schema_id: 'org.gnome.shell.extensions.dash-to-dock' });
-                this._restoreTabletDock = applyTabletDock(dock);
-            } catch (e) {}
-        }
-    }
-
-    _restoreReversibleState() {
-        if (this._saved.rotationLock !== undefined) {
-            try {
-                const touchscreen = new Gio.Settings({schema_id: 'org.gnome.settings-daemon.peripherals.touchscreen'});
-                if (this._saved.rotationLock === null)
-                    touchscreen.reset('orientation-lock');
-                else
-                    touchscreen.set_value('orientation-lock', this._saved.rotationLock);
-            } catch (e) {}
-        }
-        if (this._saved.textScaling !== null && !this._saved.hadCustomScale) {
-            try {
-                const iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
-                iface.set_double('text-scaling-factor', this._saved.textScaling);
-            } catch (e) {}
-        }
-        this._restoreTabletDock?.();
-        this._restoreTabletDock = null;
-        this._saved = {};
     }
 
     _seat() {
         try {
-            return global.stage?.get_context?.()?.get_backend?.()?.get_default_seat?.()
-                ?? Clutter.get_default_backend?.()?.get_default_seat?.()
-                ?? null;
+            return global.stage?.get_context?.()?.get_backend?.()?.get_default_seat?.() ??
+                Clutter.get_default_backend?.()?.get_default_seat?.() ?? null;
         } catch (e) {
             return null;
-        }
-    }
-
-    _startPostureWatcher() {
-        // Prefer Mutter's touch-mode. It is driven by libinput's SW_TABLET_MODE
-        // (and touchscreen + no external keyboard). Keyboard disable, OSK, and
-        // rotation already follow this. Hard-coded sysfs is only a fallback.
-        const seat = this._seat();
-        if (seat && typeof seat.connect === 'function') {
-            try {
-                this._postureSignalId = seat.connect('notify::touch-mode', () => {
-                    if (this._settings.get_string('mode') !== 'automatic')
-                        return;
-                    const active = seat.touch_mode ?? seat.get_touch_mode?.();
-                    this._requestTablet(!!active);
-                });
-                const initial = seat.touch_mode ?? seat.get_touch_mode?.();
-                if (this._settings.get_string('mode') === 'automatic' && initial)
-                    this._requestTablet(true);
-                log('Mutsu Adaptive: following Clutter seat touch-mode');
-                return;
-            } catch (e) {
-                log(`Mutsu Adaptive: seat touch-mode unavailable (${e})`);
-            }
-        }
-        const candidates = ['tablet-mode', 'tablet-mode-switch', 'notify::tablet-mode'];
-        for (const sig of candidates) {
-            try {
-                if (global.backend && typeof global.backend.connect === 'function') {
-                    this._postureSignalId = global.backend.connect(sig, (_b, active) => {
-                        if (this._settings.get_string('mode') !== 'automatic')
-                            return;
-                        this._requestTablet(!!active);
-                    });
-                    log(`Mutsu Adaptive: connected posture signal '${sig}'`);
-                    return;
-                }
-            } catch (e) {}
-        }
-        // Last resort for hardware that exposes a sysfs switch Mutter did not see.
-        this._posturePollId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
-            if (this._settings.get_string('mode') !== 'automatic')
-                return GLib.SOURCE_CONTINUE;
-            let active = this._readHingeTablet();
-            if (active === null)
-                active = this._readSysfsTablet();
-            if (active !== null && active !== this._inTablet)
-                this._requestTablet(active);
-            return GLib.SOURCE_CONTINUE;
-        });
-        log('Mutsu Adaptive: sysfs tablet-mode poller started (no seat signal)');
-    }
-
-    _readHingeTablet() {
-        // Convertibles without SW_TABLET_MODE often expose a hinge angle
-        // on an iio device (in_angl*). Folded past ~180 degrees is tablet.
-        try {
-            const dir = Gio.File.new_for_path('/sys/bus/iio/devices');
-            const kids = dir.enumerate_children('standard::*', Gio.FileQueryInfoFlags.NONE, null);
-            let info;
-            while ((info = kids.next_file(null))) {
-                const name = info.get_name();
-                for (const file of ['in_angl0_raw', 'in_angl_raw', 'in_angl0_input']) {
-                    const path = `/sys/bus/iio/devices/${name}/${file}`;
-                    const f = Gio.File.new_for_path(path);
-                    if (!f.query_exists(null))
-                        continue;
-                    const [ok, bytes] = f.load_contents(null);
-                    if (!ok)
-                        continue;
-                    const angle = parseInt(new TextDecoder().decode(bytes).trim(), 10);
-                    if (Number.isNaN(angle))
-                        continue;
-                    return angle >= 180;
-                }
-            }
-        } catch (e) {}
-        return null;
-    }
-
-    _readSysfsTablet() {
-        const paths = [
-            '/sys/bus/platform/devices/tablet-mode-switch/tablet-mode',
-            '/sys/devices/platform/tablet-mode-switch/tablet-mode',
-            '/sys/class/input/tablet-mode',
-        ];
-        for (const path of paths) {
-            try {
-                const f = Gio.File.new_for_path(path);
-                if (!f.query_exists(null))
-                    continue;
-                const [, contents] = f.load_contents(null);
-                const val = new TextDecoder().decode(contents).trim();
-                if (val === '1' || val === '0')
-                    return val === '1';
-            } catch (e) {}
-        }
-        return null;
-    }
-
-    _stopPostureWatcher() {
-        if (this._postureSignalId) {
-            try {
-                this._seat()?.disconnect(this._postureSignalId);
-            } catch (e) {}
-            try {
-                global.backend?.disconnect(this._postureSignalId);
-            } catch (e) {}
-            this._postureSignalId = 0;
-        }
-        if (this._posturePollId) {
-            GLib.source_remove(this._posturePollId);
-            this._posturePollId = 0;
-        }
-    }
-
-    _installAppLayering() {
-        // Overview is always above windows. Hide it when an app is focused
-        // so open apps sit above the app grid. Show the grid again when
-        // nothing is open (home).
-        if (this._focusHandlerId)
-            return;
-        try {
-            this._focusHandlerId = global.display.connect('notify::focus-window', () => {
-                if (!this._inTablet || this._tabletSwitcher?.visible)
-                    return;
-                const win = global.display.focus_window;
-                if (win && !win.is_skip_taskbar?.()) {
-                    try { Main.overview.hide(); } catch (e) {}
-                } else if (!this._anyNormalWindows()) {
-                    try { Main.overview.showApps(); } catch (e) {}
-                }
-            });
-        } catch (e) {}
-    }
-
-    _anyNormalWindows() {
-        try {
-            const wins = global.display.get_tab_list(Meta.TabList.NORMAL, null) || [];
-            return wins.some(w => !w.minimized && !w.is_skip_taskbar?.());
-        } catch (e) {
-            return false;
-        }
-    }
-
-    _removeAppLayering() {
-        if (this._focusHandlerId) {
-            try { global.display.disconnect(this._focusHandlerId); } catch (e) {}
-            this._focusHandlerId = 0;
-        }
-    }
-
-    _installMaximizeOnLaunch() {
-        if (this._maximizeHandlerId)
-            return;
-        this._tabletWindowState = new Map();
-        const maximize = win => {
-            if (win.get_gtk_application_id() === 'io.github.markymark5127.AIDesktop' &&
-                win.get_title() === 'Mutsu OS Search')
-                return;
-            if (win.get_window_type() !== Meta.WindowType.NORMAL || win.is_skip_taskbar())
-                return;
-            if (!this._tabletWindowState.has(win))
-                this._tabletWindowState.set(win, win.get_maximized?.() ?? win.is_maximized?.());
-            maximizeWindow(win, Meta);
-        };
-        for (const win of global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null))
-            maximize(win);
-        try {
-            this._maximizeHandlerId = global.display.connect('window-created', (_d, win) => {
-                if (!this._inTablet)
-                    return;
-                if (win.window_type === Meta.WindowType.NORMAL) {
-                    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-                        try {
-                            if (this._inTablet)
-                                maximize(win);
-                        } catch (e) {}
-                        return GLib.SOURCE_REMOVE;
-                    });
-                }
-            });
-        } catch (e) {
-            log(`Mutsu Adaptive: maximize-on-launch unavailable (${e})`);
-        }
-    }
-
-    _removeMaximizeOnLaunch() {
-        for (const [win, flags] of this._tabletWindowState ?? []) {
-            try {
-                unmaximizeWindow(win, Meta);
-                if (flags) {
-                    if (Meta.MaximizeFlags)
-                        win.maximize(flags);
-                    else
-                        maximizeWindow(win, Meta);
-                }
-            } catch (e) { /* Window may have closed in tablet mode. */ }
-        }
-        this._tabletWindowState = null;
-        if (this._maximizeHandlerId) {
-            try {
-                global.display.disconnect(this._maximizeHandlerId);
-            } catch (e) {}
-            this._maximizeHandlerId = 0;
-        }
-    }
-
-    _lockHomeWhenEmpty() {
-        if (this._homeLockId)
-            return;
-        try {
-            this._homeLockId = Main.overview.connect('hiding', () => {
-                if (!this._inTablet || this._gestureActive)
-                    return;
-                if (!this._anyNormalWindows()) {
-                    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-                        if (this._inTablet && !this._anyNormalWindows())
-                            this._springboard?.show();
-                        return GLib.SOURCE_REMOVE;
-                    });
-                }
-            });
-        } catch (e) {}
-    }
-
-    _windowActor(win) {
-        try {
-            return win?.get_compositor_private?.() ?? null;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    _raiseWindowsOverHome() {
-        try {
-            const group = global.window_group;
-            if (group?.get_parent())
-                group.get_parent().set_child_above_sibling(group, null);
-        } catch (e) {}
-    }
-
-    _goHomeAnimated(win) {
-        const actor = this._windowActor(win);
-        this._gestureActive = true;
-        this._springboard?.show();
-        this._raiseWindowsOverHome();
-        if (!actor) {
-            try { win?.minimize?.(); } catch (e) {}
-            this._gestureActive = false;
-            return;
-        }
-        const saved = {
-            scaleX: actor.scale_x,
-            scaleY: actor.scale_y,
-            ty: actor.translation_y,
-        };
-        actor.save_easing_state?.();
-        actor.set_easing_duration(280);
-        actor.set_easing_mode(Clutter.AnimationMode.EASE_OUT_CUBIC);
-        actor.set_pivot_point(0.5, 0.5);
-        actor.scale_x = 0.62;
-        actor.scale_y = 0.62;
-        actor.translation_y = -36;
-        actor.opacity = 220;
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
-            try {
-                actor.set_easing_duration(0);
-                actor.scale_x = saved.scaleX || 1;
-                actor.scale_y = saved.scaleY || 1;
-                actor.translation_y = saved.ty || 0;
-                actor.opacity = 255;
-                actor.restore_easing_state?.();
-                win.minimize();
-            } catch (e) {}
-            this._gestureActive = false;
-            return GLib.SOURCE_REMOVE;
-        });
-    }
-
-    _installBottomGesture() {
-        if (this._gestureActors.length)
-            return;
-        try {
-            const actor = new St.Widget({
-                reactive: true,
-                can_focus: false,
-                track_hover: false,
-                style: 'background-color: transparent;',
-            });
-            actor.set_size(global.stage.width, BOTTOM_EDGE_HEIGHT);
-            actor.set_position(0, global.stage.height - BOTTOM_EDGE_HEIGHT);
-            Main.layoutManager.uiGroup.add_child(actor);
-            this._gestureActors.push(actor);
-
-            let startY = 0;
-            let fired = false;
-            const begin = (event) => {
-                if (this._gestureSuppressed() || !this._inTablet)
-                    return Clutter.EVENT_PROPAGATE;
-                const [, y] = event.get_coords();
-                startY = y;
-                fired = false;
-                return Clutter.EVENT_PROPAGATE;
-            };
-            const move = (event) => {
-                if (!startY || fired || this._gestureSuppressed())
-                    return Clutter.EVENT_PROPAGATE;
-                const [, y] = event.get_coords();
-                if (startY - y > 48) {
-                    fired = true;
-                    const win = global.display.focus_window;
-                    if (win && !win.is_skip_taskbar?.())
-                        this._goHomeAnimated(win);
-                    else
-                        try { Main.overview.showApps(); } catch (e) {}
-                }
-                return Clutter.EVENT_PROPAGATE;
-            };
-            const end = () => {
-                startY = 0;
-                return Clutter.EVENT_PROPAGATE;
-            };
-            actor.connect('button-press-event', (_a, event) => begin(event));
-            actor.connect('motion-event', (_a, event) => move(event));
-            actor.connect('button-release-event', end);
-            actor.connect('touch-event', (_a, event) => {
-                const type = event.type();
-                if (type === Clutter.EventType.TOUCH_BEGIN)
-                    return begin(event);
-                if (type === Clutter.EventType.TOUCH_UPDATE)
-                    return move(event);
-                if (type === Clutter.EventType.TOUCH_END || type === Clutter.EventType.TOUCH_CANCEL)
-                    return end();
-                return Clutter.EVENT_PROPAGATE;
-            });
-            Main.layoutManager.uiGroup.set_child_above_sibling(actor, null);
-        } catch (e) {
-            log(`Mutsu Adaptive: bottom gesture unavailable (${e})`);
         }
     }
 
@@ -952,14 +554,5 @@ export default class MutsuAdaptiveExtension extends Extension {
         } catch (e) {
             return false;
         }
-    }
-
-    _removeBottomGesture() {
-        for (const actor of this._gestureActors) {
-            try {
-                actor.destroy();
-            } catch (e) {}
-        }
-        this._gestureActors = [];
     }
 }

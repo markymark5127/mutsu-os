@@ -1,49 +1,98 @@
 # Mutsu tablet experience
 
-Mutsu builds on the bundled Touchshell and native GNOME app grid, keyboard,
-Quick Settings and notification system. Desktop settings are restored on exit.
+Mutsu OS is a Mac-first desktop. When a 2-in-1 is folded into tablet posture,
+the Adaptive Desktop extension turns it into an iPadOS-style tablet; unfolding
+puts the desktop back exactly as it was.
 
-## Navigation
+## Switching
 
-Bottom and top swipe gestures are on by default in tablet mode. Home and Recent Apps also have accessible buttons.
+- **Automatic** (default) follows Mutter's tablet signal (libinput
+  `SW_TABLET_MODE`, or a touchscreen with no keyboard/mouse attached), plus
+  kernel tablet-mode switches and iio hinge sensors when present.
+- The **Quick Settings toggle** overrides Automatic until the hinge next moves,
+  so Automatic is never silently lost. The top-bar menu also offers Always
+  Desktop / Always Tablet.
+- Locking the screen keeps tablet mode running (windows and Split View
+  survive); all tablet UI is hidden while locked.
 
-- Short pull from the bottom edge: reveal a temporary dock with favorite and running apps.
-- Longer upward swipe: Home. The current app preview follows the finger and fades into Home.
-- Longer upward swipe and pause: Recent Apps.
-- Horizontal swipe along the bottom edge: previous/next recent app. Consecutive swipes cycle through the recent-app list.
-- The temporary dock dismisses after an app selection, an outside tap, focus change or five seconds.
-- Tap the Home indicator to return Home.
-- Search is available from the Home widget and the existing global shortcut.
+## Home
 
-Recent Apps supports finger-tracked vertical dismissal, horizontal card scrolling,
-keyboard navigation and ordinary application close requests (including unsaved-work prompts).
+Home sits behind every window, like the wallpaper. Any app that comes forward
+covers it; when no app is in the way, Home shows through.
 
-## Two-app layouts
+- Paged app grid that adapts to portrait and landscape. Swipe pages with your
+  finger; the dots are tappable too.
+- **Pull down** anywhere in the middle of Home to open **Mutsu Search**
+  (or tap the Search pill). The top edge stays reserved for Notifications
+  (centre) and Controls (right).
+- Dock: your favourites, then up to three recently used apps. Running apps
+  have a dot.
+- **Long-press** an icon: Open/Show, New Window, Add to/Remove from Dock,
+  Edit Home Screen, Quit.
+- **Edit mode** (long-press then drag, long-press the wallpaper, or the menu):
+  icons jiggle; drag to reorder, hold at a screen edge to change page, drop
+  an app onto another to make a folder or onto a folder to join it. Tap Done.
+- Folders open in place; tap the name to rename. Long-press inside a folder
+  to remove an app from it.
+- First run is alphabetical with games gathered into a Games folder (Steam
+  stays on the grid). Reset from the extension preferences.
 
-Open Recent Apps, tap **Split View** on one card, then tap another card.
-A wide divider resizes the pair within a 30–70% range. Tap the divider to maximize
-the active app, or use **Full screen** on a card. Closing one app expands its companion.
-Rotation reflows the pair; the layout accounts for the on-screen keyboard on its monitor.
-Fixed-size apps cannot use this layout. Applications can enforce minimum sizes;
-small portrait screens may not fit two desktop applications comfortably.
+## Navigation (bottom edge)
 
-## Home, keyboard and controls
+- Short pull: temporary dock.
+- Swipe up: Home. The app follows your finger and shrinks away.
+- Swipe up and pause: **multitasking blades**.
+- Swipe along the edge: previous/next app.
+- Full-screen games keep the first swipe; it lights the Home indicator, and a
+  second swipe within a couple of seconds navigates.
+- Tap the Home indicator to go Home.
 
-- Native GNOME app-grid pagination, icon long-press menus, folder creation and rearrangement are retained.
-  The former invisible pull-down search catcher has been removed so it cannot steal icon gestures.
-- An optional local clock/date widget and Search, Controls, Notifications and Keyboard buttons appear on Home.
-  The widget rearranges for portrait and respects the system's 12/24-hour clock setting.
-- Quick Settings and notifications use Touchshell's top-edge gestures, with larger touch targets.
-- Native GNOME text-field keyboard handling is enabled temporarily, with a preference to turn this off.
-  In tablet mode, the native keyboard spans the active display width with larger
-  rectangular key targets. Its height adapts to portrait/landscape orientation,
-  and desktop sizing is restored on exit. The bottom gesture indicator is hidden
-  while the keyboard is visible.
-- Dock auto-hide, keyboard accessibility, rotation lock and Touchshell settings restore on leaving tablet mode.
-- The default desktop auto-maximizer skips the compact Mutsu Search surface.
+## Apps and windows
 
-The widget is a clock/date and shortcut strip, not a general third-party widget platform.
-Native app support determines how well text entry, folders and window resizing behave.
+Apps open full screen (maximized) and keep their traffic lights:
+close, minimize, and zoom. Zoom floats a window and it stays floating.
+Windows that were open before tablet mode get their desktop size back when
+tablet mode ends; apps you sent Home come back too.
+
+## Multitasking blades
+
+One tall blade per app, newest first, fanned in perspective. Every window of
+an app is a pane in its blade with its own traffic lights, so apps with
+several windows are easy to manage.
+
+- Tap a pane to open that window. Swipe sideways to browse.
+- Swipe a blade **up** to close the app, **down** to minimize it. In a blade
+  with several windows, swiping one pane affects only that window. Closing
+  uses the app's normal close, so unsaved-work prompts still appear.
+- **Spaces** along the top filter by desktop; **+** adds one.
+- Hold a blade and drag it onto another blade for **Split View**, onto a
+  Space to move the app there, or to the right edge for **Slide Over**.
+  The blade's Split View / Slide Over buttons do the same.
+- Tap empty space, press Escape or Done to go back; Home goes Home.
+- Keyboard: ←/→ browse, Enter opens, Delete closes, M minimizes.
+
+## Split View and Slide Over
+
+A wide divider resizes the pair within 30–70%; tap it to make the active app
+full screen. Closing one app expands the other. Rotation and the on-screen
+keyboard reflow the pair. Slide Over floats an app above the others with a
+grab handle above it (tap or swipe right to dismiss). Fixed-size apps cannot
+be split.
+
+## Settings safety
+
+Every system setting tablet mode changes (text size, on-screen keyboard,
+rotation lock, Dash to Dock, Touchshell gestures) is recorded on disk
+*before* it is changed. If GNOME Shell crashes or you log out in tablet mode,
+your desktop settings are restored the next time the extension starts. A
+setting you change yourself while in tablet mode is left as you set it.
+
+## Requirements and limits
+
+- Wayland session (Home lives in the compositor's background layer).
+- GNOME Shell 46–50. Touch gestures, rotation and fold detection still need
+  validation on real 2-in-1 hardware.
+- Native app support decides how well text entry and window resizing behave.
 
 ## Verification
 
@@ -55,13 +104,17 @@ node tests/test_tablet_switcher.cjs extensions/mutsu-adaptive@mutsu-os/tabletSwi
 node tests/test_tablet_layout.cjs extensions/mutsu-adaptive@mutsu-os
 node tests/test_tablet_keyboard.cjs extensions/mutsu-adaptive@mutsu-os/tabletKeyboard.js
 node tests/test_tablet_dock.cjs extensions/mutsu-adaptive@mutsu-os/tabletDock.js
+node tests/test_tablet_logic.cjs extensions/mutsu-adaptive@mutsu-os
+node tests/test_tablet_ui.cjs extensions/mutsu-adaptive@mutsu-os
+node tests/test_tablet_extension.cjs extensions/mutsu-adaptive@mutsu-os
 ```
 
-CI runs gesture, layout, settings-restoration and JavaScript syntax checks.
-These use simulated shell objects and do not prove live rendering or hardware behavior.
-Before shipping, boot GNOME and test touchscreen navigation, cancelled gestures,
-text fields in GTK and non-GTK apps, portrait/landscape rotation, two-app minimum sizes,
-lock/unlock, notifications, icon long presses/folders, and repeated mode changes.
-Automatic fold detection and GNOME Shell 46–50 compatibility need real-device validation.
+These use simulated Shell objects and do not prove live rendering or hardware
+behaviour. Before shipping, boot GNOME on a 2-in-1 and test: folding and
+unfolding, the Quick Settings override, Home paging and pull-down search,
+long-press menus, edit-mode drag/folders, launching from Home/dock/blades/
+notifications, blades gestures and traffic lights, Spaces, Split View and
+Slide Over, rotation, lock/unlock, a full-screen game, and a Shell restart
+in tablet mode (settings must come back).
 
 Recovery: `gnome-extensions disable mutsu-adaptive@mutsu-os`.

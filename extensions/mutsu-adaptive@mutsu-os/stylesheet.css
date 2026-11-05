@@ -1,26 +1,7 @@
-/* Applied only when the adaptive extension adds .mutsu-tablet-home.
- * Desktop overview is untouched. */
-.mutsu-tablet-home .search-entry,
-.mutsu-tablet-home .search-entry-bin {
-  opacity: 0;
-  height: 0;
-  min-height: 0;
-}
+/* Mutsu tablet mode. Everything here applies only to actors the adaptive
+ * extension creates while tablet mode is active; the desktop is untouched. */
 
-.mutsu-tablet-home .workspace-thumbnails {
-  opacity: 0;
-  height: 0;
-  min-height: 0;
-}
-
-.mutsu-tablet-home .app-grid { padding: 180px 32px 24px; }
-.mutsu-tablet-home.mutsu-home-no-widgets .app-grid { padding-top: 24px; }
-.mutsu-tablet-home .overview-icon { border-radius: 22px; }
-.mutsu-tablet-home .dash-background {
-  background-color: rgba(235, 240, 255, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 28px;
-}
+/* ---- Home indicator and bottom-edge chrome ---- */
 .mutsu-home-bar { padding: 9px 40px; background-color: transparent; }
 .mutsu-home-indicator {
   background-color: rgba(255, 255, 255, 0.9);
@@ -28,59 +9,235 @@
   height: 6px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
-.mutsu-switcher { background-color: rgba(19, 24, 43, 0.96); color: white; }
-.mutsu-switcher-content { padding: 24px; spacing: 12px; }
-.mutsu-switcher-heading { spacing: 16px; }
-.mutsu-switcher-title { font-size: 26px; font-weight: bold; }
-.mutsu-switcher-hint { color: #c5cce0; font-size: 14px; }
-.mutsu-switcher-cards { spacing: 28px; padding: 28px 12px; }
-.mutsu-app-card {
-  background-color: #303950;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 24px;
-  padding: 12px;
-  spacing: 12px;
+.mutsu-home-bar-armed .mutsu-home-indicator {
+  background-color: #a4c9b2;
+  height: 8px;
 }
-.mutsu-card-heading { spacing: 10px; }
-.mutsu-card-preview { background-color: #171e30; border-radius: 16px; }
-.mutsu-tablet-button {
-  padding: 12px 24px;
+
+/* ---- Home ---- */
+.mutsu-home { color: white; }
+.mutsu-home-header { spacing: 16px; }
+.mutsu-home-clock-widget {
+  min-width: 180px;
+  padding: 10px 18px;
+  border-radius: 22px;
+  background-color: rgba(24, 30, 28, 0.32);
+}
+.mutsu-home-time { font-size: 34px; font-weight: 300; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45); }
+.mutsu-home-date { font-size: 14px; font-weight: bold; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45); }
+.mutsu-home-search {
+  spacing: 8px;
+  min-width: 220px;
+  padding: 10px 18px;
+  border-radius: 22px;
+  background-color: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+.mutsu-home-search:hover, .mutsu-home-search:focus { background-color: rgba(255, 255, 255, 0.32); }
+.mutsu-home-done {
+  padding: 10px 20px;
+  border-radius: 22px;
+  font-weight: bold;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #1d2421;
+}
+.mutsu-home-pull {
+  spacing: 8px;
+  padding: 10px 18px;
+  border-radius: 22px;
+  background-color: rgba(24, 30, 28, 0.72);
+}
+.mutsu-home-tile { spacing: 4px; padding: 6px 0; border-radius: 22px; }
+.mutsu-home-tile:focus { background-color: rgba(255, 255, 255, 0.18); }
+.mutsu-home-art { border-radius: 22px; }
+.mutsu-home-folder-art {
+  background-color: rgba(255, 255, 255, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.mutsu-home-drop-target .mutsu-home-art {
+  background-color: rgba(255, 255, 255, 0.4);
+  border: 2px solid white;
+}
+.mutsu-home-label {
+  font-size: 12.5px;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.mutsu-running-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.85);
+}
+.mutsu-home-dots { spacing: 9px; padding: 6px 12px; border-radius: 12px;
+  background-color: rgba(24, 30, 28, 0.25); }
+.mutsu-home-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.4);
+}
+.mutsu-home-dot-active { background-color: white; }
+.mutsu-home-dock {
+  spacing: 12px;
+  padding: 10px 14px;
+  border-radius: 30px;
+  background-color: rgba(235, 240, 236, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.mutsu-home-dock-app { border-radius: 18px; padding: 2px; }
+.mutsu-home-dock-app:hover, .mutsu-home-dock-app:focus { background-color: rgba(255, 255, 255, 0.2); }
+.mutsu-home-dock-divider {
+  width: 1px;
+  margin: 8px 2px;
+  background-color: rgba(255, 255, 255, 0.45);
+}
+.mutsu-home-folder-backdrop { background-color: rgba(18, 22, 20, 0.45); }
+.mutsu-home-folder {
+  spacing: 16px;
+  padding: 24px;
+  border-radius: 34px;
+  background-color: rgba(235, 240, 236, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+.mutsu-home-folder-title {
+  font-size: 22px;
+  font-weight: bold;
+  color: white;
+  min-width: 200px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background-color: rgba(0, 0, 0, 0.12);
+  border: none;
+  caret-color: white;
+}
+
+/* ---- Long-press menus ---- */
+.mutsu-touch-menu {
+  padding: 6px;
+  border-radius: 18px;
+  background-color: rgba(250, 250, 248, 0.97);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  color: #1d2421;
+}
+.mutsu-touch-menu-item { padding: 12px 16px; border-radius: 12px; min-height: 22px; }
+.mutsu-touch-menu-item:hover, .mutsu-touch-menu-item:focus { background-color: rgba(0, 0, 0, 0.07); }
+.mutsu-touch-menu-destructive { color: #d1453b; }
+
+/* ---- Multitasking blades ---- */
+.mutsu-blades { background-color: rgba(19, 24, 22, 0.78); color: white; }
+.mutsu-spaces { spacing: 8px; }
+.mutsu-space {
+  spacing: 8px;
+  padding: 8px 16px;
+  border-radius: 18px;
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.mutsu-space-active { background-color: rgba(255, 255, 255, 0.85); color: #1d2421; }
+.mutsu-space-drop { background-color: #a4c9b2; color: #1d2421; }
+.mutsu-space-add { font-weight: bold; min-width: 18px; text-align: center; }
+.mutsu-space-count { font-size: 12px; opacity: 0.75; }
+.mutsu-blades-hint { color: rgba(255, 255, 255, 0.7); font-size: 13px; }
+.mutsu-blade {
+  spacing: 10px;
+  padding: 12px;
+  border-radius: 26px;
+  background-color: rgba(48, 56, 52, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+.mutsu-blade-drop { border: 3px solid #a4c9b2; }
+.mutsu-split-selected { border: 3px solid #a4c9b2; }
+.mutsu-blade-header { spacing: 10px; padding: 2px 4px; }
+.mutsu-blade-title { font-weight: bold; font-size: 15px; }
+.mutsu-blade-count { font-size: 12px; color: rgba(255, 255, 255, 0.7); }
+.mutsu-blade-more {
+  padding: 8px;
+  border-radius: 12px;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.mutsu-blade-actions { spacing: 8px; }
+.mutsu-blade-action {
+  padding: 9px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  background-color: rgba(255, 255, 255, 0.14);
+}
+.mutsu-blade-action:hover, .mutsu-blade-action:focus { background-color: rgba(255, 255, 255, 0.26); }
+.mutsu-pane {
+  spacing: 6px;
+  padding: 6px;
+  border-radius: 16px;
+  background-color: rgba(20, 26, 24, 0.7);
+}
+.mutsu-pane:focus { background-color: rgba(255, 255, 255, 0.12); }
+.mutsu-pane-minimized { opacity: 0.55; }
+.mutsu-pane-bar { spacing: 8px; padding: 2px 4px; }
+.mutsu-pane-title { font-size: 12px; color: rgba(255, 255, 255, 0.85); }
+.mutsu-pane-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.16);
+}
+.mutsu-pane-preview { border-radius: 10px; }
+/* Mac traffic lights, sized for a fingertip. */
+.mutsu-light {
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  margin: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+}
+.mutsu-light-close { background-color: #ff5f57; }
+.mutsu-light-minimize { background-color: #febc2e; }
+.mutsu-light-zoom { background-color: #28c840; }
+.mutsu-light:hover, .mutsu-light:focus { border: 2px solid rgba(255, 255, 255, 0.85); }
+.mutsu-blades-footer { spacing: 12px; }
+.mutsu-blades-button {
+  padding: 12px 28px;
   border-radius: 22px;
   background-color: rgba(255, 255, 255, 0.16);
-  min-height: 24px;
 }
-.mutsu-tablet-button:focus, .mutsu-tablet-button:hover {
-  background-color: rgba(255, 255, 255, 0.28);
-}
-.mutsu-gesture-backdrop { background-color: rgba(19, 24, 43, 0.96); }
+.mutsu-blades-button:hover, .mutsu-blades-button:focus { background-color: rgba(255, 255, 255, 0.28); }
+
+/* ---- Temporary dock (short pull from the bottom edge) ---- */
 .mutsu-touch-dock {
   spacing: 8px;
   padding: 8px 12px;
   border-radius: 28px;
-  background-color: rgba(40, 48, 67, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background-color: rgba(235, 240, 236, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
-.mutsu-dock-app { min-width: 52px; min-height: 52px; padding: 6px; border-radius: 18px; }
+.mutsu-dock-app { min-width: 52px; min-height: 52px; padding: 6px; border-radius: 18px; color: white; }
 .mutsu-dock-app:hover, .mutsu-dock-app:focus { background-color: rgba(255, 255, 255, 0.18); }
-.mutsu-card-actions { spacing: 8px; }
-.mutsu-card-actions .mutsu-tablet-button { padding: 10px 12px; font-size: 13px; }
-.mutsu-split-selected { border: 2px solid #a4c9b2; }
+
+/* ---- Split View and Slide Over ---- */
 .mutsu-split-divider {
-  background-color: rgba(40, 48, 67, 0.92);
+  background-color: rgba(40, 48, 44, 0.92);
   border-radius: 14px;
   color: white;
   font-size: 24px;
 }
-.mutsu-home-widgets {
-  background-color: rgba(32, 42, 50, 0.86);
-  border-radius: 24px;
-  padding: 12px 16px;
-  spacing: 12px;
-  color: white;
+.mutsu-slideover { background-color: transparent; }
+.mutsu-slideover-handle {
+  width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
-.mutsu-home-clock { font-size: 20px; font-weight: bold; }
-.mutsu-home-tools { spacing: 8px; }
-.mutsu-home-tools .mutsu-tablet-button { padding: 12px; }
+
+/* ---- Status bar and Controls ---- */
+.mutsu-status-slim {
+  height: 28px;
+  background-color: rgba(0, 0, 0, 0.28);
+  font-size: 13px;
+}
 .mutsu-tablet-controls .quick-toggle,
 .mutsu-tablet-controls .message,
 .mutsu-tablet-controls .button { min-height: 44px; }
@@ -101,90 +258,3 @@
   font-size: 1.25em;
 }
 #keyboard.mutsu-tablet-keyboard .keyboard-key StIcon { icon-size: 1.25em; }
-
-/* iPad-like Springboard and tablet chrome */
-.mutsu-tablet-home .app-well-app .overview-icon,
-.mutsu-tablet-home .app-folder-icon {
-  icon-size: 72px;
-  border-radius: 22px;
-}
-.mutsu-tablet-home .app-well-app {
-  padding: 8px;
-}
-.mutsu-tablet-home .overview-icon {
-  border-radius: 22px;
-}
-.mutsu-tablet-home .app-well-app .overview-icon StLabel,
-.mutsu-tablet-home .app-folder-icon StLabel {
-  font-size: 13px;
-  margin-top: 6px;
-}
-.mutsu-status-slim #panel {
-  height: 28px;
-  background-color: transparent;
-}
-.mutsu-slideover {
-  background-color: rgba(32, 42, 50, 0.94);
-  border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-.mutsu-app-library {
-  background-color: rgba(19, 24, 43, 0.96);
-  border-radius: 28px;
-  padding: 20px;
-  spacing: 12px;
-  color: white;
-}
-.mutsu-library-group { spacing: 8px; }
-.mutsu-home-widget-card {
-  background-color: rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  padding: 12px 16px;
-  min-width: 120px;
-}
-.mutsu-touch-dock {
-  background-color: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-}
-
-.mutsu-springboard {
-  background-color: rgba(18, 22, 32, 0.97);
-  color: white;
-}
-.mutsu-springboard-column { padding: 28px 20px 16px; spacing: 12px; }
-.mutsu-springboard-search {
-  min-width: 280px;
-  border-radius: 18px;
-  background-color: rgba(255, 255, 255, 0.14);
-  padding: 8px 14px;
-}
-.mutsu-springboard-grid { spacing: 8px; }
-.mutsu-springboard-icon { spacing: 6px; padding: 8px; }
-.mutsu-springboard-button {
-  border-radius: 22px;
-  padding: 6px;
-  background-color: rgba(255, 255, 255, 0.06);
-}
-.mutsu-springboard-label { font-size: 12px; text-align: center; }
-.mutsu-springboard-dots { spacing: 8px; }
-.mutsu-springboard-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 4px;
-  background-color: rgba(255, 255, 255, 0.35);
-}
-.mutsu-springboard-dot-active { background-color: white; }
-.mutsu-springboard-dock { margin-bottom: 18px; }
-.mutsu-slideover-handle {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  min-width: 44px;
-  min-height: 28px;
-  margin: 8px;
-}
-.mutsu-status-slim {
-  height: 28px;
-  background-color: rgba(0, 0, 0, 0.28);
-  font-size: 13px;
-}

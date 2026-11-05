@@ -18,13 +18,13 @@
     </key>
     <key name="open-home-on-tablet" type="b">
       <default>true</default>
-      <summary>Open app grid on tablet transition</summary>
-      <description>When entering tablet mode, show the Show Applications grid as Home.</description>
+      <summary>Go Home on tablet transition</summary>
+      <description>When entering tablet mode, step open apps aside and show the tablet Home screen. They return when tablet mode ends.</description>
     </key>
     <key name="home-widgets" type="b">
       <default>true</default>
-      <summary>Show Home clock and touch shortcuts</summary>
-      <description>Show a local clock/date widget and Search, Controls, Notifications and Keyboard buttons on tablet Home.</description>
+      <summary>Show the Home clock widget</summary>
+      <description>Show a local clock and date at the top of the tablet Home screen.</description>
     </key>
     <key name="automatic-keyboard" type="b">
       <default>true</default>
@@ -45,6 +45,16 @@
       <default>false</default>
       <summary>Lock screen rotation while in tablet mode</summary>
       <description>When true, disables auto-rotation for the duration of tablet mode.</description>
+    </key>
+    <key name="home-layout" type="s">
+      <default>''</default>
+      <summary>Tablet Home arrangement</summary>
+      <description>JSON list of apps and folders in Home order. Empty: build from installed apps (alphabetical, games in a folder).</description>
+    </key>
+    <key name="saved-state" type="s">
+      <default>''</default>
+      <summary>Desktop settings to restore (internal)</summary>
+      <description>Original values of system settings changed for tablet mode, written before each change so they are restored even after a crash.</description>
     </key>
     <key name="gesture-exceptions" type="as">
       <default>[]</default>

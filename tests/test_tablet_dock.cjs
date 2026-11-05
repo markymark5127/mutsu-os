@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
-const source = fs.readFileSync(process.argv[2], 'utf8').replace('export ', '');
+const source = fs.readFileSync(process.argv[2], 'utf8').replace(/^export /gm, '');
 const applyTabletDock = new Function(`${source}; return applyTabletDock;`)();
 const defaults = {'dock-fixed': true, autohide: false, intellihide: true,
     manualhide: false, 'autohide-in-fullscreen': false, 'show-dock-urgent-notify': true};
@@ -36,4 +36,14 @@ failure.set_boolean = (key, value) => {
 };
 assert.throws(() => applyTabletDock(failure), /simulated/);
 assert.deepEqual(failure.user, original, 'failed setup rolls back partial changes');
-console.log('Tablet dock checks passed (auto-hide, fullscreen, Home, restore, older schema, rollback).');
+const journaled = [];
+const journalRestore = applyTabletDock(fakeSettings(), {change: (schema, key, apply) => {
+    const target = fakeSettings();
+    apply(target);
+    journaled.push([schema, key, target.get(key)]);
+}});
+assert.equal(journaled.length, 6, 'every dock key goes through the crash-safe journal');
+assert(journaled.every(([schema]) => schema === 'org.gnome.shell.extensions.dash-to-dock'));
+assert.deepEqual(journaled.find(([, key]) => key === 'autohide'), ['org.gnome.shell.extensions.dash-to-dock', 'autohide', true]);
+journalRestore();
+console.log('Tablet dock checks passed (auto-hide, fullscreen, Home, restore, older schema, rollback, journal).');

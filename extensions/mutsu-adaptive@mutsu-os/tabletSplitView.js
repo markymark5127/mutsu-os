@@ -5,7 +5,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {splitFrames, maximizeWindow, unmaximizeWindow} from './tabletGeometry.js';
 
 export class TabletSplitView {
-    constructor() {
+    constructor(monitor = () => Main.layoutManager.primaryMonitor) {
+        this._monitor = monitor;
         this._pair = null;
         this._signals = [];
         this._divider = new St.Button({style_class: 'mutsu-split-divider',
@@ -133,28 +134,31 @@ export class TabletSplitView {
             return;
         this.clear();
         this._dismissSlide();
-        const monitor = Main.layoutManager.primaryMonitor;
+        const monitor = this._monitor();
         if (!monitor)
             return;
-        const width = Math.round(monitor.width * 0.4);
+        const width = Math.round(Math.min(monitor.width * 0.4, Math.max(360, monitor.width * 0.32)));
         const x = monitor.x + monitor.width - width - 12;
-        const y = monitor.y + 40;
-        const height = monitor.height - 80;
-        window.unmaximize(Meta.MaximizeFlags.BOTH);
+        const y = monitor.y + 72;
+        const height = monitor.height - 112;
+        // Mutter 49 dropped MaximizeFlags; the helper handles both APIs.
+        unmaximizeWindow(window, Meta);
+        window.unminimize();
+        window.make_above?.();
         window.move_resize_frame(false, x, y, width, height);
         Main.activateWindow(window);
-        const card = new St.Widget({style_class: 'mutsu-slideover', reactive: true});
-        card.set_position(x - 4, y - 4);
-        card.set_size(width + 8, height + 8);
-        const handle = new St.Button({
-            style_class: 'mutsu-slideover-handle',
-            accessible_name: 'Dismiss Slide Over',
-            label: '⋯',
-        });
-        handle.connect('clicked', () => this._dismissSlide());
-        card.add_child(handle);
+        // A grab handle above the floating app (not over it, so the app
+        // keeps all of its own input). Swipe right or tap to dismiss.
+        const card = new St.Widget({style_class: 'mutsu-slideover', reactive: true,
+            layout_manager: new Clutter.BinLayout()});
+        card.set_position(x + Math.round(width / 2) - 60, y - 34);
+        card.set_size(120, 28);
+        card.add_child(new St.Widget({style_class: 'mutsu-slideover-handle',
+            x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER}));
+        card.accessible_name = 'Slide Over. Tap or swipe right to dismiss';
         Main.layoutManager.addChrome(card, {affectsStruts: false});
         this._slide = {window, card, x};
+        this._slideUnmanaged = window.connect('unmanaged', () => this._dismissSlide());
         let start = null;
         card.connect('event', (_a, event) => {
             const type = event.type();
@@ -173,7 +177,7 @@ export class TabletSplitView {
             if (type === Clutter.EventType.TOUCH_END || type === Clutter.EventType.BUTTON_RELEASE) {
                 const dx = event.get_coords()[0] - start;
                 start = null;
-                if (dx > 80)
+                if (dx > 80 || Math.abs(dx) < 8)
                     this._dismissSlide();
                 else
                     card.ease({translation_x: 0, duration: 140, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
@@ -188,6 +192,10 @@ export class TabletSplitView {
             return;
         const {window, card} = this._slide;
         this._slide = null;
+        if (this._slideUnmanaged)
+            window.disconnect(this._slideUnmanaged);
+        this._slideUnmanaged = 0;
+        try { window.unmake_above?.(); } catch (e) {}
         card.ease({
             translation_x: 280, opacity: 0, duration: 160,
             mode: Clutter.AnimationMode.EASE_IN_QUAD,
