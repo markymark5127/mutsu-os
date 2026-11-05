@@ -60,6 +60,23 @@ class LiveISOTests(unittest.TestCase):
         self.assertIn("FAILED: QEMU live boot was not confirmed", workflow)
         self.assertIn("mutsu-live-out/qemu-live-boot.log", workflow)
 
+    def test_dd_written_usb_boot_is_patched_and_tested(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        usb_test = ROOT / "packaging/live/test-usb-boot.sh"
+        self.assertTrue(usb_test.is_file())
+        script = usb_test.read_text(encoding="utf-8")
+        self.assertIn("partition_entry=gpt_basdat", workflow)
+        self.assertIn("part_like_isohybrid=on", workflow)
+        self.assertIn("Raw USB UEFI boot smoke test", workflow)
+        self.assertIn("bash packaging/live/test-usb-boot.sh", workflow)
+        self.assertIn("QEMU_LIVE_LOG:", workflow)
+        self.assertIn("qemu-usb-boot.log", workflow)
+        self.assertIn('USB_SMOKE_RESULT: ${{ steps.usb-smoke.outcome }}', workflow)
+        self.assertNotIn("continue-on-error: true", workflow)
+        self.assertIn("-device usb-storage,drive=usb-image,bootindex=1", script)
+        self.assertIn("if=none,id=usb-image,format=raw,readonly=on", script)
+        self.assertIn('grep -aq "login:" "$LOG"', script)
+
     def test_upstream_builder_revision_is_pinned(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("repository: tuna-os/tacklebox", workflow)
