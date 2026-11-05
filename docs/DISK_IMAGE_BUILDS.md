@@ -1,5 +1,54 @@
 # Mutsu OS disk-image builds
 
+## November 5, 2026 — real hardware installer: SELinux + unwanted networking gate
+
+**Observed on a Lenovo booting the Fedora 44 bootc Anaconda installer ISO:**
+the default “Install Mutsu OS” custom GRUB entry hung after systemd printed
+“Unable to fix SELinux security context of /dev/tty*” and
+“Failed to allocate manager object.” Adding `selinux=0` manually to that
+boot entry allowed Anaconda to start. The customized entry had omitted the
+SELinux-disable option present in Image Builder's example generic-ISO
+configuration. `packaging/installer/iso.yaml` now supplies that parameter
+**only to the installer kernel**, not the installed Mutsu OS.
+
+Once in Anaconda, “Begin Installation” stayed disabled because the
+**NetworkSpoke** was incomplete without a network adapter; iPhone USB
+tethering caused it to become complete. The Kickstart itself **was** found
+and parsed (the user later verified Anaconda's bootc command in the
+installer log). This is **not** evidence that the embedded image is missing.
+
+Root cause in upstream Fedora 44 Anaconda: the bootc source module's
+`BootcSourceModule.network_required` property unconditionally returns
+`True`, even when `sourceImgRef` is a local
+`containers-storage:` image. `NetworkSpoke.mandatory` follows the
+payload's `needs_network` property, causing the UI to require a connection.
+
+Mutsu's **installer-only** build patch changes that check only when the
+source reference equals the *exact* embedded alias
+`containers-storage:ghcr.io/markymark5127/mutsu-os:offline-installer-payload`.
+For every remote/unknown image it still requires networking. The
+container build fails if the upstream source format changes instead of
+silently disabling required networking. There is **no** automatic disk
+partitioning, formatting, or unattended installation added by this patch.
+Image Builder's `--bootc-installer-payload-ref` and the verified Kickstart
+continue to embed and select the local image. The installer gains the
+`NetworkManager-wifi` package and `pciutils` for improved hardware
+support and diagnostics; Wi-Fi firmware availability is still
+hardware-specific.
+
+Upstream references:
+- https://osbuild.org/docs/developer-guide/projects/image-builder/advanced/bootc/isos/
+- https://github.com/rhinstaller/anaconda/blob/main/pyanaconda/modules/payloads/source/bootc/bootc.py
+- https://github.com/rhinstaller/anaconda/blob/main/pyanaconda/ui/gui/spokes/network.py
+
+**Validation needed:** New image generation and *real hardware* boot,
+including checking that `NetworkSpoke` no longer blocks installation with
+the network disconnected. This build-time patch is a compatibility
+workaround until upstream Anaconda differentiates local and remote bootc
+sources. Do not erase an existing Fedora disk until the new ISO has been
+tested in a spare VM and backups are verified.
+
+
 ## November 4, 2026 — offline ISO image copy error
 
 The Fedora 44 Anaconda generic-ISO builder successfully generated a manifest,

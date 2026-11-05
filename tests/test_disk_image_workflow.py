@@ -139,12 +139,68 @@ class DiskImageWorkflowTests(unittest.TestCase):
         self.assertIn("containers-storage:%s", containerfile)
         self.assertIn("COPY branding/installer/.buildstamp", containerfile)
         self.assertIn("Install Mutsu OS", iso_yaml)
+        self.assertIn("selinux=0", iso_yaml)
+        self.assertIn("patch-anaconda-offline-network.py", containerfile)
+        self.assertIn(
+            "mutsu-patch-anaconda-offline-network.py --verify", script
+        )
         self.assertIn("MUTSU_OS", iso_yaml)
         self.assertNotIn("clearpart", iso_yaml)
         self.assertNotIn("clearpart", containerfile)
         self.assertIn("packaging/build-installer-iso.sh", self.just)
         self.assertIn("(_rootful_load_image target_image tag)", self.just)
         self.assertNotIn('(_build-bib target_image tag "anaconda-iso"', self.just)
+
+    def test_installer_real_hardware_boot_uses_selinux_workaround(self):
+        iso_yaml = (ROOT / "packaging/installer/iso.yaml").read_text()
+        # Only the *installer* GRUB entry is affected. Never disable SELinux
+        # for the deployed Mutsu OS bootc desktop image.
+        self.assertIn("inst.graphical selinux=0 rhgb quiet", iso_yaml)
+        self.assertNotIn("clearpart", iso_yaml)
+        self.assertNotIn("autopart", iso_yaml)
+
+    def test_fedora_bootc_network_requirement_is_scoped_to_offline_alias(self):
+        import importlib.util
+        from types import SimpleNamespace
+
+        file = ROOT / "packaging/installer/patch-anaconda-offline-network.py"
+        spec = importlib.util.spec_from_file_location(
+            "mutsu_offline_anaconda_patch", file
+        )
+        patcher = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(patcher)
+        upstream = """class BootcSourceModule(object):
+    @property
+    def network_required(self):
+        \"\"\"Does the source require network?\"\"\"
+        return True
+
+    @property
+    def required_space(self):
+        return 0
+"""
+        patched = patcher.patch_source(upstream)
+        self.assertEqual(patched, patcher.patch_source(patched))
+        scope = {}
+        exec(compile(patched, "<anaconda-test>", "exec"), scope)
+        module = scope["BootcSourceModule"]()
+        for ref, expected in (
+            (patcher.OFFLINE_IMAGE_REF, False),
+            ("registry:ghcr.io/markymark5127/mutsu-os:latest", True),
+            ("containers-storage:another-os:latest", True),
+            ("", True),
+        ):
+            with self.subTest(ref=ref):
+                module.configuration = SimpleNamespace(sourceImgRef=ref)
+                self.assertIs(module.network_required, expected)
+        with self.assertRaises(ValueError):
+            patcher.patch_source(upstream.replace("return True", "return False"))
+        self.assertIn("NetworkManager-wifi", (
+            ROOT / "packaging/installer/Containerfile"
+        ).read_text())
+        self.assertIn("pciutils", (
+            ROOT / "packaging/installer/Containerfile"
+        ).read_text())
 
     def test_live_installer_includes_mutsu_artwork(self):
         main_image = (ROOT / ".github/workflows/build.yml").read_text()

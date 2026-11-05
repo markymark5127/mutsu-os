@@ -12,10 +12,18 @@ RUN test -n "$MUTSU_PAYLOAD_SOURCE_REF" && test -n "$MUTSU_PAYLOAD_TARGET_REF" &
     dnf5 install -qy \
       anaconda anaconda-install-img-deps anaconda-dracut \
       dracut-config-generic dracut-network dracut-live \
-      net-tools "$grub_pkg" plymouth \
+      net-tools NetworkManager-wifi pciutils "$grub_pkg" plymouth \
       default-fonts-core-sans default-fonts-other-sans \
       google-noto-sans-cjk-fonts xorrisofs squashfs-tools jq && \
     dnf5 clean all
+
+# Fedora 44 Anaconda marks *every* bootc source network-required, even when
+# the source image is embedded in containers-storage. Make only our verified
+# offline alias optional; leave registry-backed sources network-required.
+# Fail the container build if upstream Anaconda changes this implementation.
+COPY packaging/installer/patch-anaconda-offline-network.py /usr/libexec/mutsu-patch-anaconda-offline-network.py
+RUN python3 /usr/libexec/mutsu-patch-anaconda-offline-network.py && \
+    python3 /usr/libexec/mutsu-patch-anaconda-offline-network.py --verify
 
 RUN install -d /boot/efi && cp -ra /usr/lib/efi/*/*/EFI /boot/efi
 COPY packaging/installer/iso.yaml /usr/lib/image-builder/bootc/iso.yaml

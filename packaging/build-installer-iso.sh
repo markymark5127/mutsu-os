@@ -46,6 +46,9 @@ sudo podman run --rm --entrypoint /bin/sh \
   grep -qx "Product=Mutsu OS" /usr/share/anaconda/.buildstamp
   grep -Fqx -- "$EXPECTED_BOOTC_LINE" /usr/share/anaconda/interactive-defaults.ks
   test -s /usr/lib/image-builder/bootc/iso.yaml
+  python3 /usr/libexec/mutsu-patch-anaconda-offline-network.py --verify
+  grep -Fq "inst.graphical selinux=0" /usr/lib/image-builder/bootc/iso.yaml
+  test -f /usr/bin/lspci
 '
 sudo podman run --rm --privileged \
   --security-opt label=type:unconfined_t \
