@@ -113,6 +113,10 @@ Description=Install bundled Newelle offline before the first login
 After=local-fs.target
 Before=systemd-user-sessions.service
 ConditionPathExists=!/var/lib/mutsu-os/newelle-preinstall-complete
+# Live USB sessions keep /var in RAM: seeding gigabytes there runs the
+# machine out of memory and blocks the login prompt. Skip in live mode
+# (Tacklebox live kernels carry tacklebox.live.squashimg=).
+ConditionKernelCommandLine=!tacklebox.live.squashimg
 
 [Service]
 Type=oneshot

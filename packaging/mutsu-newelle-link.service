@@ -5,6 +5,10 @@ After=graphical-session-pre.target
 PartOf=graphical-session.target
 StartLimitIntervalSec=300
 StartLimitBurst=5
+# Live USB sessions keep /var in RAM: seeding gigabytes there runs the
+# machine out of memory and blocks the login prompt. Skip in live mode
+# (Tacklebox live kernels carry tacklebox.live.squashimg=).
+ConditionKernelCommandLine=!tacklebox.live.squashimg
 # Recheck on login, including users paired by older images without API
 # dependencies. Existing dependencies and the user's token are reused.
 

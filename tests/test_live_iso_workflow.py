@@ -89,6 +89,18 @@ class LiveISOTests(unittest.TestCase):
         self.assertIn("Show end of boot logs", workflow)
         self.assertIn("mutsu-os-live-boot-logs", workflow)
 
+    def test_live_session_skips_heavy_first_boot_seeding(self):
+        # The live ISO's /var is a RAM overlay. Copying the bundled model
+        # (gigabytes) and the Newelle Flatpak there ran QEMU out of memory
+        # and held the login prompt behind a 15-minute start timeout.
+        live = "ConditionKernelCommandLine=!tacklebox.live.squashimg"
+        for name in ("packaging/mutsu-local-model.service",
+                     "packaging/mutsu-newelle-link.service",
+                     "packaging/install-newelle.sh"):
+            self.assertIn(live, (ROOT / name).read_text(encoding="utf-8"), name)
+        model = (ROOT / "packaging/mutsu-local-model.service").read_text(encoding="utf-8")
+        self.assertNotIn("Before=systemd-user-sessions.service", model)
+
     def test_upstream_builder_revision_is_pinned(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("repository: tuna-os/tacklebox", workflow)
