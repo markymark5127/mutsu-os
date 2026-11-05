@@ -49,6 +49,11 @@ sudo podman run --rm --entrypoint /bin/sh \
   python3 /usr/libexec/mutsu-patch-anaconda-offline-network.py --verify
   grep -Fq "inst.graphical selinux=0" /usr/lib/image-builder/bootc/iso.yaml
   test -f /usr/bin/lspci
+  test -x /usr/bin/bootc
+  test -x /usr/libexec/mutsu-bootc-original
+  bash -n /usr/bin/bootc
+  grep -Fq '\''mount --bind "$scratch" /var/tmp'\'' /usr/bin/bootc
+  grep -Fq '\''lost+found'\'' /usr/bin/bootc
 '
 sudo podman run --rm --privileged \
   --security-opt label=type:unconfined_t \
