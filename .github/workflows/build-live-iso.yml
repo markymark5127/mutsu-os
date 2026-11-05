@@ -87,6 +87,25 @@ jobs:
           go-version-file: .tacklebox/go.mod
           cache: false
 
+      # The pinned Tacklebox ISO writer defines an El Torito EFI image but
+      # omits the USB partition-entry flag. Optical boot can therefore work
+      # while DD-written sticks expose only the firmware option.
+      - name: Enable hybrid UEFI USB boot in pinned Tacklebox
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path(".tacklebox/internal/target/iso.go")
+          old = '"-boot_image", "any", "part_like_isohybrid=on",'
+          new = old + '\n\t\t"-boot_image", "isolinux", "partition_entry=gpt_basdat",'
+          content = source.read_text()
+          if content.count(old) != 1:
+              raise SystemExit("Pinned Tacklebox ISO writer changed: review USB patch")
+          source.write_text(content.replace(old, new, 1))
+          print("Enabled EFI partition entry for USB-hybrid ISO")
+          PY
+          grep -F 'partition_entry=gpt_basdat' .tacklebox/internal/target/iso.go
+
       - name: Build Tacklebox
         run: |
           set -euo pipefail
@@ -124,6 +143,8 @@ jobs:
           xorriso -indev mutsu-live-out/mutsu-os-live.iso \
             -report_el_torito plain | tee mutsu-live-out/efi-layout.txt
           grep -Eiq '(EFI|UEFI)' mutsu-live-out/efi-layout.txt
+          xorriso -indev mutsu-live-out/mutsu-os-live.iso \
+            -report_system_area plain | tee mutsu-live-out/usb-layout.txt
           (
             cd mutsu-live-out
             sha256sum mutsu-os-live.iso > MUTSU-LIVE-SHA256SUMS.txt
@@ -150,16 +171,28 @@ jobs:
           bash .tacklebox/scripts/test-live-boot.sh \
             mutsu-live-out/mutsu-os-live.iso 600
 
+      # The above optical-drive test checks El Torito. Real flash drives
+      # written in DD mode boot through the raw USB partition table instead.
+      - name: Raw USB UEFI boot smoke test
+        id: usb-smoke
+        env:
+          QEMU_LIVE_LOG: ${{ github.workspace }}/mutsu-live-out/qemu-usb-boot.log
+        run: |
+          set -euo pipefail
+          bash packaging/live/test-usb-boot.sh \
+            mutsu-live-out/mutsu-os-live.iso 600
+
       - name: Summarize boot test result
         if: always() && steps.iso.outcome == 'success'
         env:
           SMOKE_RESULT: ${{ steps.smoke.outcome }}
+          USB_SMOKE_RESULT: ${{ steps.usb-smoke.outcome }}
         run: |
-          if [[ "$SMOKE_RESULT" == "success" ]]; then
-            echo "QEMU live boot smoke test passed (serial login reached)." >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$SMOKE_RESULT" == "success" && "$USB_SMOKE_RESULT" == "success" ]]; then
+            echo "Both optical and raw USB QEMU UEFI boot tests passed (live login reached)." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::error::QEMU failed to confirm a live boot. Inspect qemu-live-boot.log before writing a USB."
-            echo "FAILED: QEMU live boot was not confirmed. ISO is diagnostic-only and must not be treated as bootable." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::QEMU optical or raw USB boot failed. Inspect both boot logs before writing a USB."
+            echo "FAILED: Live optical/USB boot not fully confirmed. ISO is diagnostic-only, not a verified release." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       # Upload evidence on boot failure so the actual root cause can be investigated.
@@ -173,7 +206,9 @@ jobs:
             mutsu-live-out/MUTSU-LIVE-SHA256SUMS.txt
             mutsu-live-out/MUTSU-LIVE-BUILD-INFO.txt
             mutsu-live-out/efi-layout.txt
+            mutsu-live-out/usb-layout.txt
             mutsu-live-out/qemu-live-boot.log
+            mutsu-live-out/qemu-usb-boot.log
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
