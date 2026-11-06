@@ -23,6 +23,36 @@ export function splitFrames(area, ratio) {
     ];
 }
 
+// Slide Over: a phone-width app floating at the right edge.
+export function slideOverFrame(monitor) {
+    const width = Math.round(Math.min(monitor.width * 0.4, Math.max(360, monitor.width * 0.32)));
+    return {x: monitor.x + monitor.width - width - 12, y: monitor.y + 72,
+        width, height: monitor.height - 112};
+}
+
+// Where an app dragged out of the dock lands. Edges split the screen with
+// the current app; elsewhere above the dock floats it in Slide Over.
+export function dockDropZone(x, y, monitor, dockTop) {
+    if (y > dockTop - 24)
+        return null; // back over the dock: cancel
+    const rel = (x - monitor.x) / monitor.width;
+    if (rel < 0.14)
+        return 'split-left';
+    if (rel > 0.86)
+        return 'split-right';
+    return 'slide';
+}
+
+// Bottom-right grip resize for floating windows, kept on screen and above
+// a usable minimum size.
+export function gripResize(rect, dx, dy, monitor, min = {width: 360, height: 240}) {
+    const maxW = monitor.x + monitor.width - rect.x;
+    const maxH = monitor.y + monitor.height - rect.y;
+    return {x: rect.x, y: rect.y,
+        width: Math.round(Math.max(min.width, Math.min(maxW, rect.width + dx))),
+        height: Math.round(Math.max(min.height, Math.min(maxH, rect.height + dy)))};
+}
+
 export function maximizeWindow(window, Meta) {
     // Mutter 49 removed the flags argument; 46–48 require it.
     if (Meta.MaximizeFlags)

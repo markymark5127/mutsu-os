@@ -79,13 +79,24 @@ several windows are easy to manage.
 - Tap empty space, press Escape or Done to go back; Home goes Home.
 - Keyboard: ←/→ browse, Enter opens, Delete closes, M minimizes.
 
-## Split View and Slide Over
+## Split View, Slide Over and floating windows
 
-A wide divider resizes the pair within 30–70%; tap it to make the active app
-full screen. Closing one app expands the other. Rotation and the on-screen
-keyboard reflow the pair. Slide Over floats an app above the others with a
-grab handle above it (tap or swipe right to dismiss). Fixed-size apps cannot
-be split.
+- **From the dock:** while an app is open, pull up the dock, hold an app and
+  drag it. Drop it at the left or right edge for **Split View** with the
+  current app, or anywhere else above the dock for **Slide Over**. Dragging
+  the app you're already using opens a second window of it.
+- **Split View:** a wide divider resizes the pair within 30–70%; tap it to
+  make the active app full screen. Closing one app expands the other.
+  Rotation and the on-screen keyboard reflow the pair.
+- **Slide Over** is a stack of phone-width apps floating above everything,
+  including a Split View pair, so three apps can be on screen at once. On
+  the handle above the floating app: drag left for the next app in the
+  stack, drag right or tap to tuck the stack away. A tab at the right edge
+  brings it back (tap or drag left). Making a Slide Over app full screen
+  (green button) or moving it into Split View takes it out of the stack.
+- **Floating windows:** the green button floats an app; a round grip at its
+  bottom-right corner resizes it by touch. Move it by dragging its title bar.
+- Fixed-size apps cannot be split or put in Slide Over.
 
 ## Settings safety
 

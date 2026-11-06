@@ -225,6 +225,39 @@
   font-size: 24px;
 }
 .mutsu-slideover { background-color: transparent; }
+.mutsu-slideover-grip {
+  width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.mutsu-slideover-tab {
+  border-radius: 12px 0 0 12px;
+  background-color: rgba(40, 48, 44, 0.85);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.mutsu-slideover-tab-grip {
+  width: 5px;
+  height: 48px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.85);
+}
+.mutsu-resize-grip {
+  border-radius: 22px;
+  background-color: rgba(40, 48, 44, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+}
+.mutsu-drop-zone {
+  border-radius: 24px;
+  border: 2px dashed rgba(255, 255, 255, 0.55);
+  background-color: rgba(30, 36, 33, 0.35);
+}
+.mutsu-drop-zone-active {
+  border: 2px solid #a4c9b2;
+  background-color: rgba(164, 201, 178, 0.35);
+}
+.mutsu-drop-zone-label { color: white; font-weight: bold; font-size: 16px; }
 .mutsu-slideover-handle {
   width: 64px;
   height: 6px;

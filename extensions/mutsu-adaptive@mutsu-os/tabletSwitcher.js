@@ -7,6 +7,7 @@ import {navigationAction} from './tabletGeometry.js';
 import {TabletDockPopup} from './tabletDockPopup.js';
 import {TabletSplitView} from './tabletSplitView.js';
 import {TabletBlades} from './tabletBlades.js';
+import {TabletWindowGrips} from './windowGrips.js';
 
 // Owns the bottom edge: the Home indicator and the system navigation
 // gestures. Kept separate from GNOME's workspace overview.
@@ -25,7 +26,9 @@ export class TabletSwitcher {
         this._hiddenActors = [];
         this._restoreId = 0;
         this._split = new TabletSplitView(monitor);
-        this._dock = new TabletDockPopup(() => this.show(), monitor);
+        this._dock = new TabletDockPopup(() => this.show(), monitor, this._split);
+        this._grips = new TabletWindowGrips({monitor,
+            excluded: window => !!this._split.pair?.includes(window) || this._split.slides.includes(window)});
         this._blades = new TabletBlades({monitor, split: this._split, home: () => this._home()});
         this._bar = new St.Button({style_class: 'mutsu-home-bar',
             accessible_name: 'Home. Swipe up and hold for multitasking',
@@ -312,6 +315,7 @@ export class TabletSwitcher {
         this.hide();
         this._resetPreview();
         this._blades.destroy();
+        this._grips.destroy();
         this._dock.destroy();
         this._split.destroy();
         global.stage.disconnect(this._eventId);

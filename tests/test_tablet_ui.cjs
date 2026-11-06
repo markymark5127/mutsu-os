@@ -426,3 +426,76 @@ blades.show();
 assert.equal(homes, 1, 'no windows left: go Home');
 assert.equal(display.handlerCount, 0, 'blades disconnect display signals');
 console.log('Multitasking blades checks passed (per-app blades, panes, traffic lights, swipe close/minimize, Spaces drop, Split View, keyboard, cleanup).');
+
+// ---- Pull-up dock: drag an app to a screen edge / Slide Over -------------
+const geo2 = load('tabletGeometry.js', ['dockDropZone', 'gripResize', 'isWindowMaximized'], {});
+const arranged = [];
+const fakeSplit = {pair: null, slides: [], arrange: (l, r) => arranged.push(['split', l, r]),
+    slideOver: w => arranged.push(['slide', w])};
+const current = {name: 'current', is_skip_taskbar: () => false};
+const otherWin = {name: 'other', is_skip_taskbar: () => false};
+apps[4].windows.push(otherWin); // Files has a window
+display.focus_window = current;
+display.handlerCount; // display is an Emitter with focus_window
+const stageEmitter = new Emitter();
+const globalDock = {display, stage: stageEmitter};
+favorites.list = ['org.gnome.Nautilus.desktop'];
+const layoutDock = Object.assign(layoutManager, {addChrome: a => uiGroup.add_child(a), removeChrome: a => uiGroup.remove_child(a)});
+const {TabletDockPopup} = load('tabletDockPopup.js', ['TabletDockPopup'], {Clutter, GLib, Shell, St,
+    AppFavorites, Main: {...Main, layoutManager: layoutDock}, dockDropZone: geo2.dockDropZone,
+    ...router, windowForApp: (app, cb) => cb(app.get_windows()[0]), global: globalDock});
+const popup = new TabletDockPopup(() => {}, () => monitor, fakeSplit);
+popup.show();
+const dockRoot = popup._box;
+const filesButton = all(dockRoot).find(a => a._mutsuApp?.get_id() === 'org.gnome.Nautilus.desktop');
+const dsend = (type, x, y, t) => dockRoot.emit('captured-event', {type: () => type,
+    get_coords: () => [x, y], get_time: () => t, get_event_sequence: () => 1,
+    get_source: () => filesButton, get_button: () => 1});
+dockRoot.set_position(400, 688);
+dsend('TOUCH_BEGIN', 420, 700, 0);
+runTimers();
+assert(popup._zones.visible, 'drop zones appear while carrying an app');
+dsend('TOUCH_UPDATE', 60, 300, 600);
+dsend('TOUCH_END', 60, 300, 650);
+assert.deepEqual(arranged.at(-1), ['split', otherWin, current], 'left edge: Split View, new app on the left');
+popup.show();
+dsend('TOUCH_BEGIN', 420, 700, 1000);
+runTimers();
+dsend('TOUCH_UPDATE', 640, 300, 1600);
+dsend('TOUCH_END', 640, 300, 1650);
+assert.deepEqual(arranged.at(-1), ['slide', otherWin], 'middle: Slide Over');
+popup.show();
+const count = arranged.length;
+dsend('TOUCH_BEGIN', 420, 700, 2000);
+runTimers();
+dsend('TOUCH_END', 425, 702, 2600);
+assert.equal(arranged.length, count, 'dropped back on the dock: nothing happens');
+popup.destroy();
+console.log('Pull-up dock checks passed (carry, drop zones, edge Split View, Slide Over, cancel).');
+
+// ---- Floating window resize grip -----------------------------------------
+const floatWin = Object.assign(new Emitter(), {minimized: false, maximized: false,
+    get_window_type: () => 0, is_skip_taskbar: () => false, is_fullscreen: () => false,
+    is_maximized() { return this.maximized; }, allows_resize: () => true,
+    rect: {x: 200, y: 150, width: 600, height: 400}, get_frame_rect() { return {...this.rect}; },
+    move_resize_frame(_u, x, y, width, height) { this.rect = {x, y, width, height}; this.emit('size-changed'); }});
+display.focus_window = floatWin;
+const {TabletWindowGrips} = load('windowGrips.js', ['TabletWindowGrips'], {Clutter,
+    Meta: {WindowType: {NORMAL: 0}}, St, Main: {...Main, layoutManager: layoutDock},
+    isWindowMaximized: geo2.isWindowMaximized, gripResize: geo2.gripResize, global: globalDock});
+const grips = new TabletWindowGrips({monitor: () => monitor, excluded: () => false});
+assert.equal(grips._grip.visible, true, 'floating window gets a resize grip');
+assert.deepEqual([grips._grip.x, grips._grip.y], [770, 520], 'at its bottom-right corner');
+const gev = (type, x, y) => grips._grip.emit('event', {type: () => type, get_coords: () => [x, y],
+    get_button: () => 1, get_event_sequence: () => 1});
+gev('TOUCH_BEGIN', 790, 540);
+gev('TOUCH_UPDATE', 890, 600);
+gev('TOUCH_END', 890, 600);
+assert.deepEqual(floatWin.rect, {x: 200, y: 150, width: 700, height: 460}, 'dragging the grip resizes');
+assert.deepEqual([grips._grip.x, grips._grip.y], [870, 580], 'grip follows the corner');
+floatWin.maximized = true;
+floatWin.emit('size-changed');
+assert.equal(grips._grip.visible, false, 'full-screen windows have no grip');
+grips.destroy();
+assert.equal(floatWin.handlerCount, 0);
+console.log('Resize grip checks passed (shown for floating windows, resize, follow, hidden when full screen).');

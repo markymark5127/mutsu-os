@@ -3,8 +3,10 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const folder = process.argv[2];
 const geometry = fs.readFileSync(path.join(folder,'tabletGeometry.js'),'utf8').replace(/export /g,'');
-const {splitFrames, navigationAction, maximizeWindow, unmaximizeWindow} =
-    new Function(`${geometry}; return {splitFrames,navigationAction,maximizeWindow,unmaximizeWindow};`)();
+const {splitFrames, navigationAction, maximizeWindow, unmaximizeWindow, isWindowMaximized,
+    slideOverFrame, dockDropZone, gripResize} =
+    new Function(`${geometry}; return {splitFrames,navigationAction,maximizeWindow,unmaximizeWindow,
+        isWindowMaximized,slideOverFrame,dockDropZone,gripResize};`)();
 for (const area of [{x:100,y:24,width:1200,height:800}, {x:0,y:30,width:768,height:990}]) {
     for (const ratio of [0,0.3,0.5,0.7,1]) {
         const [left,right] = splitFrames(area,ratio);
@@ -48,15 +50,26 @@ const Main={overview:Object.assign(new Emitter(),{visible:false,hide(){this.visi
     layoutManager:Object.assign(new Emitter(),{monitors:[{}],primaryIndex:0,keyboardBox:keyboard,
         addChrome(){},removeChrome(){},getWorkAreaForMonitor:()=>area}),
     activateWindow(window){globalMock.display.focus_window=window;},notify(){}};
-const Clutter={ActorAlign:{CENTER:0},EventType:{TOUCH_BEGIN:1,TOUCH_UPDATE:2,TOUCH_END:3,
+const Clutter={BinLayout:class{},ActorAlign:{CENTER:0},EventType:{TOUCH_BEGIN:1,TOUCH_UPDATE:2,TOUCH_END:3,
     TOUCH_CANCEL:4,BUTTON_PRESS:5,BUTTON_RELEASE:6,MOTION:7},EVENT_STOP:1,EVENT_PROPAGATE:0};
 const splitSource=fs.readFileSync(path.join(folder,'tabletSplitView.js'),'utf8')
-    .replace(/^import .*;\r?\n/gm,'').replace('export ','');
-const Split=new Function('Clutter','Meta','St','Main','global','splitFrames','maximizeWindow','unmaximizeWindow',
-    `${splitSource};return TabletSplitView;`)(Clutter,{}, {Button,Label:class{}},Main,globalMock,
-    splitFrames,maximizeWindow,unmaximizeWindow);
+    .replace(/^import [\s\S]*?;\r?\n/gm,'').replace(/^export /gm,'');
+class ChromeWidget extends Button {
+    constructor(props={}){super();Object.assign(this,props);this.visible=true;this.translation_x=0;}
+    add_child(){} contains(source){return source===this;}
+}
+const GLibMock={PRIORITY_DEFAULT:0,SOURCE_REMOVE:false,idle_add:(_p,fn)=>fn(),
+    timeout_add:(_p,_ms,fn)=>fn(),timeout_add_seconds:()=>1,source_remove(){}};
+const loadSplit=()=>new Function('Clutter','GLib','Meta','Shell','St','Main','global','splitFrames',
+    'maximizeWindow','unmaximizeWindow','isWindowMaximized','slideOverFrame',
+    `${splitSource};return TabletSplitView;`)(Clutter,GLibMock,{},{},
+    {Button,Label:class{},Widget:ChromeWidget},Main,globalMock,
+    splitFrames,maximizeWindow,unmaximizeWindow,isWindowMaximized,slideOverFrame);
+const Split=loadSplit();
 function window(){return Object.assign(new Emitter(),{allows_resize:()=>true,get_monitor:()=>0,
-    get_workspace:()=>({}),unmake_fullscreen(){},unmaximize(){},maximize(){this.maximized=true;},
+    get_workspace:()=>({}),unmake_fullscreen(){},unmaximize(){this.maximized=false;},
+    maximize(){this.maximized=true;},is_maximized(){return !!this.maximized;},is_skip_taskbar:()=>false,
+    minimize(){this.minimized=true;},make_above(){this.above=true;},unmake_above(){this.above=false;},
     move_to_monitor(){},change_workspace(){},unminimize(){this.minimized=false;},
     move_resize_frame(_user,x,y,width,height){this.frame={x,y,width,height};},
     get_transient_for:()=>null});}
@@ -91,7 +104,7 @@ assert.equal(Main.sessionMode.signals.size,0);
 console.log('Tablet layout checks passed (gesture choices, portrait, divider ratios, keyboard, lock, close, teardown).');
 
 const switcherSource=fs.readFileSync(path.join(folder,'tabletSwitcher.js'),'utf8')
-    .replace(/^import .*;\r?\n/gm,'').replace('export ','');
+    .replace(/^import [\s\S]*?;\r?\n/gm,'').replace('export ','');
 const Switcher=new Function('Main','Meta','global',`${switcherSource};return TabletSwitcher;`)(
     Main,{TabList:{NORMAL_ALL:0},WindowType:{NORMAL:0}},globalMock);
 const first={is_skip_taskbar:()=>false,get_window_type:()=>0};
@@ -124,7 +137,7 @@ const journal={change(schema,key,apply){journalCalls.push(['change',schema,key])
     revert(schema,key){journalCalls.push(['revert',schema,key]);}};
 let keyboardDestroyed=false;
 const sessionSource=fs.readFileSync(path.join(folder,'tabletSession.js'),'utf8')
-    .replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'');
+    .replace(/^import [\s\S]*?;\r?\n/gm,'').replace(/^export /gm,'');
 const Session=new Function('Main','TabletKeyboard',`${sessionSource};return TabletSession;`)(
     Main,class {destroy(){keyboardDestroyed=true;}});
 const session=new Session(preferences,journal);
@@ -136,26 +149,60 @@ assert.equal(keyboardDestroyed,true);
 assert.equal(quickActor.classes.has('mutsu-tablet-controls'),false);
 console.log('Tablet session checks passed (native automatic keyboard, controls, cleanup).');
 
-// Slide Over keeps the floating app's own input: only a small handle is chrome.
+// Slide Over: a stack, independent of Split View (three apps on screen).
 const chrome=[];
 Main.layoutManager.addChrome=actor=>chrome.push(actor);
 Main.layoutManager.removeChrome=actor=>chrome.splice(chrome.indexOf(actor),1);
-class Widget extends Box {
-    set_position(x,y){this.x=x;this.y=y;} set_size(w,h){this.width=w;this.height=h;}
-    ease(p){Object.assign(this,p);p.onComplete?.();}
-}
-const SlideSplit=new Function('Clutter','Meta','St','Main','global','splitFrames','maximizeWindow','unmaximizeWindow',
-    `${splitSource};return TabletSplitView;`)(
-    {...Clutter,BinLayout:class{},AnimationMode:{EASE_OUT_QUAD:1,EASE_IN_QUAD:2}},{},
-    {Button,Label:class{},Widget},Main,globalMock,splitFrames,maximizeWindow,unmaximizeWindow);
-const slider=new SlideSplit(()=>({x:0,y:0,width:1280,height:800}));
-const floating=Object.assign(window(),{is_skip_taskbar:()=>false,make_above(){this.above=true;},
-    unmake_above(){this.above=false;},minimize(){this.minimized=true;}});
-slider.slideOver(floating);
-const handle=chrome.find(a=>a instanceof Widget);
-assert(handle.height<=40 && handle.y+handle.height<=floating.frame.y,'handle sits above the app, not over it');
-assert.equal(floating.above,true,'slide over floats above the full-screen app');
-floating.emit('unmanaged');
-assert.equal(chrome.includes(handle),false,'closing the app removes its handle');
-slider.destroy();
-console.log('Slide Over checks passed (handle outside the app, keep-above, close cleanup).');
+area={x:0,y:24,width:1280,height:776};
+const multi=new (loadSplit())(()=>({x:0,y:0,width:1280,height:800}));
+const a=window(),b=window(),c=window(),d=window();
+multi.arrange(a,b);
+assert.equal(multi.slideOver(c),true);
+assert.deepEqual(multi.pair,[a,b],'Slide Over keeps the split pair: three apps at once');
+assert.equal(c.above,true,'Slide Over floats above the split');
+const frame=slideOverFrame({x:0,y:0,width:1280,height:800});
+assert.deepEqual(c.frame,frame,'phone-width at the right edge');
+const handle=multi._handle;
+assert(handle.visible && handle.y+28<=frame.y,'handle sits above the app, not over it');
+multi.slideOver(d);
+assert.deepEqual(multi.slides,[d,c],'stack, newest on top');
+assert.equal(c.minimized,true,'others in the stack wait off screen');
+const drag=(actor,from,to)=>{
+    const ev=(type,x)=>({type:()=>type,get_coords:()=>[x,0],get_source:()=>actor,
+        get_event_sequence:()=>1,get_button:()=>1});
+    globalMock.stage.emit('captured-event',ev(Clutter.EventType.TOUCH_BEGIN,from));
+    globalMock.stage.emit('captured-event',ev(Clutter.EventType.TOUCH_UPDATE,(from+to)/2));
+    globalMock.stage.emit('captured-event',ev(Clutter.EventType.TOUCH_END,to));
+};
+// Each handler connected on global.stage receives the events.
+drag(handle,500,380);
+assert.deepEqual(multi.slides,[c,d],'drag the handle left: next app in the stack');
+assert.equal(c.minimized,false);assert.equal(d.minimized,true);
+drag(handle,500,620);
+assert.equal(c.minimized,true,'drag right: tuck the stack away');
+assert.equal(multi._tab.visible,true,'edge tab appears');
+assert.equal(handle.visible,false);
+drag(multi._tab,1270,1200);
+assert.equal(c.minimized,false,'drag the tab left: Slide Over is back');
+assert.equal(multi._tab.visible,false);
+c.emit('unmanaged');
+assert.deepEqual(multi.slides,[d],'closing a Slide Over app removes it from the stack');
+assert.equal(d.minimized,false,'and shows the next one');
+multi.arrange(d,a);
+assert.deepEqual(multi.slides,[],'moving a Slide Over app into Split View takes it out of the stack');
+assert.equal(d.above,false);
+multi.destroy();
+assert.equal(chrome.length,0,'divider, handle and tab removed');
+console.log('Multitasking checks passed (split + slide over together, stack, next, tuck away, edge tab, close, move to split).');
+
+// Dock drag targets and floating-window resize.
+const screen={x:0,y:0,width:1280,height:800};
+assert.equal(dockDropZone(40,300,screen,690),'split-left');
+assert.equal(dockDropZone(1250,300,screen,690),'split-right');
+assert.equal(dockDropZone(640,300,screen,690),'slide');
+assert.equal(dockDropZone(640,700,screen,690),null,'back over the dock cancels');
+assert.deepEqual(gripResize({x:100,y:100,width:600,height:400},50,-300,screen),
+    {x:100,y:100,width:650,height:240},'minimum size kept');
+assert.deepEqual(gripResize({x:100,y:100,width:600,height:400},2000,2000,screen),
+    {x:100,y:100,width:1180,height:700},'stays on screen');
+console.log('Dock drop zones and resize grip checks passed.');
