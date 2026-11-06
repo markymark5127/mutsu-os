@@ -86,6 +86,7 @@
   border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 }
+.mutsu-home-dock-drop { border: 2px solid white; background-color: rgba(235, 240, 236, 0.4); }
 .mutsu-home-dock-app { border-radius: 18px; padding: 2px; }
 .mutsu-home-dock-app:hover, .mutsu-home-dock-app:focus { background-color: rgba(255, 255, 255, 0.2); }
 .mutsu-home-dock-divider {

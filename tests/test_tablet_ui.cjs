@@ -32,8 +32,10 @@ class Actor extends Emitter {
         this.children = [];
         this.parent = null;
         this.classes = new Set(String(props.style_class ?? '').split(' ').filter(Boolean));
-        if (props.layout_manager)
+        if (props.layout_manager) {
             this.layout_manager = props.layout_manager;
+            props.layout_manager.owner = this;
+        }
     }
     add_child(c) { c.parent = this; this.children.push(c); }
     insert_child_above(c) { this.add_child(c); }
@@ -79,7 +81,7 @@ class Actor extends Emitter {
 class Entry extends Actor {
     constructor(p) { super(p); this.clutter_text = Object.assign(new Emitter(), {set_selection() {}}); }
 }
-class Grid { attach() {} }
+class Grid { attach(child) { this.owner?.add_child(child); } }
 const St = {Widget: Actor, BoxLayout: Actor, Label: Actor, Icon: Actor, Button: Actor, Entry};
 const T = ['TOUCH_BEGIN', 'TOUCH_UPDATE', 'TOUCH_END', 'TOUCH_CANCEL', 'BUTTON_PRESS',
     'BUTTON_RELEASE', 'MOTION', 'KEY_PRESS'];
@@ -135,6 +137,8 @@ const favorites = Object.assign(new Emitter(), {list: ['org.gnome.Nautilus.deskt
     getFavorites() { return this.list.map(id => appSystem.lookup_app(id)); },
     isFavorite(id) { return this.list.includes(id); },
     addFavorite(id) { this.list.push(id); this.emit('changed'); },
+    addFavoriteAtPos(id, pos) { this.list.splice(pos, 0, id); this.emit('changed'); },
+    moveFavoriteToPos(id, pos) { this.list = this.list.filter(x => x !== id); this.list.splice(pos, 0, id); this.emit('changed'); },
     removeFavorite(id) { this.list = this.list.filter(x => x !== id); this.emit('changed'); }});
 const AppFavorites = {getAppFavorites: () => favorites};
 const settings = Object.assign(new Emitter(), {values: {'home-layout': '', 'home-widgets': true},
@@ -157,7 +161,7 @@ const home = new TabletHome({settings, monitor: () => monitor, search: () => sea
 const root = backgroundGroup.children.at(-1);
 assert(root.classes.has('mutsu-home'), 'Home lives in the background layer, behind windows');
 const saved = JSON.parse(settings.values['home-layout']);
-assert(saved.items.some(i => i.name === 'Games'), 'first run builds a layout with a Games folder');
+assert(saved.pages.flat().some(i => i.name === 'Games'), 'first run builds a layout with a Games folder');
 const all = node => [node, ...node.children.flatMap(all)];
 const find = pred => all(root).find(pred);
 const tile = id => find(a => a._mutsuItem === id);
@@ -235,6 +239,48 @@ send('TOUCH_END', 5, 790, 2450, root);
 runTimers();
 assert(!find(a => a instanceof Entry), 'tapping outside closes the folder');
 assert(settings.values['home-layout'].includes('"Play"'), 'folder rename is saved');
+
+// Drag an app out of a folder.
+const games2 = new HomeLayout(settings.values['home-layout']).items.find(i => typeof i !== 'string');
+tap(tile(itemId(games2)), 2500);
+const inFolder = all(root).find(a => a.accessible_name === 'Lutris' && !a._mutsuItem);
+assert(inFolder, 'folder shows its apps');
+const [lx, ly] = inFolder.get_transformed_position();
+send('TOUCH_BEGIN', lx + 5, ly + 5, 2600, inFolder);
+runTimers();
+send('TOUCH_UPDATE', lx + 60, ly + 60, 3200, inFolder);
+assert(home.editing, 'dragging out of a folder enters edit mode');
+assert(!find(a => a instanceof Entry), 'the folder closes while dragging out');
+send('TOUCH_END', m.gridX + 5, m.gridY + 5, 3300, root);
+runTimers();
+let lay = new HomeLayout(settings.values['home-layout']);
+assert.equal(lay.items[0], 'net.lutris.Lutris.desktop', 'app dragged out of the folder onto the grid');
+assert(!lay.items.some(i => typeof i !== 'string' && i.apps.includes('net.lutris.Lutris.desktop')));
+
+// Drag a grid app into the dock (edit mode: drag starts at once).
+const dockBox = find(a => a.classes.has('mutsu-home-dock'));
+const editor = tile('org.gnome.TextEditor.desktop');
+const [ex, ey] = editor.get_transformed_position();
+send('TOUCH_BEGIN', ex + 5, ey + 5, 3400, editor);
+send('TOUCH_UPDATE', ex + 40, ey + 5, 3420, editor);
+const [dkx, dky] = dockBox.get_transformed_position();
+send("TOUCH_UPDATE", dkx + 90, dky + 10, 3450, editor);
+send("TOUCH_END", dkx + 90, dky + 10, 3460, editor);
+runTimers();
+assert(favorites.isFavorite('org.gnome.TextEditor.desktop'), 'dropping on the dock adds the app');
+assert.equal(favorites.list.at(-1), 'org.gnome.TextEditor.desktop', 'at the slot under the finger');
+// Drag it back off the dock onto the grid: removed from the dock only.
+const dockApp = find(a => a._mutsuDockApp === 'org.gnome.TextEditor.desktop');
+const [ax, ay] = dockApp.get_transformed_position();
+send('TOUCH_BEGIN', ax + 5, ay + 5, 3500, dockApp);
+send('TOUCH_UPDATE', ax + 5, ay - 40, 3520, dockApp);
+send('TOUCH_UPDATE', m.gridX + 50, m.gridY + 50, 3550, dockApp);
+send('TOUCH_END', m.gridX + 50, m.gridY + 50, 3560, dockApp);
+runTimers();
+assert(!favorites.isFavorite('org.gnome.TextEditor.desktop'), 'dragging off the dock removes it from the dock');
+assert(new HomeLayout(settings.values['home-layout']).items.includes('org.gnome.TextEditor.desktop'),
+    '...and the app stays on Home');
+tap(find(a => a.accessible_name === 'Done editing Home Screen'), 3600);
 
 // Page swipe with finger tracking.
 for (let i = 0; i < 40; i++)

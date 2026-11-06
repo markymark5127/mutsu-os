@@ -14,6 +14,7 @@ import {applyTabletDock, DOCK_SCHEMA} from './tabletDock.js';
 import {TabletSession} from './tabletSession.js';
 import {SettingsJournal} from './settingsJournal.js';
 import {PostureMonitor} from './posture.js';
+import {setTabletWindowChrome} from './windowChrome.js';
 import {maximizeWindow, unmaximizeWindow, isWindowMaximized, resolveTablet} from './tabletGeometry.js';
 
 // Mutsu OS core desktop/tablet mode, enabled by default for new users.
@@ -108,6 +109,8 @@ export default class MutsuAdaptiveExtension extends Extension {
             log('Mutsu Adaptive: restoring desktop settings left over from an interrupted tablet session');
             this._journal.restore();
         }
+        // Likewise never leave tablet-size window controls on the desktop.
+        setTabletWindowChrome(false);
 
         this._buildIndicator();
         this._qsToggle = null;
@@ -302,6 +305,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             return;
         this._inTablet = true;
         this._applyTouchSettings();
+        setTabletWindowChrome(true);
         this._home = new TabletHome({
             settings: this._settings,
             monitor: () => this._tabletMonitor(),
@@ -349,6 +353,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._removeWindowSizing();
         this._unparkWindows();
         this._journal.restore();
+        setTabletWindowChrome(false);
         this._slimStatusBar(false);
         log('Mutsu Adaptive: left tablet mode');
     }

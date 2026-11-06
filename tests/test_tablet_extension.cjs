@@ -85,6 +85,7 @@ class MenuButton extends Actor {
 class QuickToggle extends Emitter { constructor() { super(); this.checked = false; this.visible = true; } destroy() {} }
 
 const instances = {home: 0, switcher: 0, session: 0};
+const chrome = [];
 let lastHome = null;
 class TabletHome { constructor() { instances.home++; lastHome = this; this.reveals = 0; }
     reveal() { this.reveals++; } setEditing() {} destroy() { instances.home--; } }
@@ -120,13 +121,14 @@ const Extension = class { constructor() { this.uuid = 'mutsu-adaptive@mutsu-os';
 const Ext = new Function('Extension', 'Main', 'PanelMenu', 'PopupMenu', 'QuickSettings', 'St', 'Gio', 'GLib',
     'Meta', 'Clutter', 'TabletSwitcher', 'TabletHome', 'applyTabletDock', 'DOCK_SCHEMA', 'TabletSession',
     'SettingsJournal', 'PostureMonitor', 'maximizeWindow', 'unmaximizeWindow', 'isWindowMaximized',
-    'resolveTablet', 'global', 'log', 'TextDecoder',
+    'resolveTablet', 'global', 'log', 'TextDecoder', 'setTabletWindowChrome',
     `${source}; return MutsuAdaptiveExtension;`)(
     Extension, Main, {Button: MenuButton}, {PopupSeparatorMenuItem: class {}, Ornament: {CHECK: 'check', NONE: 'none'}},
     {QuickToggle}, {Icon: Actor}, Gio, GLib, {TabList: {NORMAL_ALL: 0}, WindowType: {NORMAL: 0}},
     {}, TabletSwitcher, TabletHome, () => () => {}, 'org.gnome.shell.extensions.dash-to-dock',
     TabletSession, SettingsJournal, PostureMonitor, geometry.maximizeWindow, geometry.unmaximizeWindow,
-    geometry.isWindowMaximized, geometry.resolveTablet, globalMock, () => {}, TextDecoder);
+    geometry.isWindowMaximized, geometry.resolveTablet, globalMock, () => {}, TextDecoder,
+    on => chrome.push(on));
 
 dconf['org.gnome.shell.extensions.touchshell/bottom-edge-swipe-activation'] = "'always'";
 const before = makeWindow();
@@ -150,6 +152,7 @@ assert(ext.values['saved-state'].includes('text-scaling-factor'), 'originals sav
 assert.equal(before.minimized, true, 'open apps step aside: Home');
 assert.equal(before.maximized, true, 'apps go full screen');
 assert(panel.classes.has('mutsu-status-slim'));
+assert.deepEqual(chrome, [false, true], 'desktop controls reset at start, finger-sized in tablet');
 
 // New window: maximized once shown; a fixed-size one is left alone.
 const created = makeWindow();
@@ -174,6 +177,7 @@ assert.equal(dconf['org.gnome.desktop.interface/text-scaling-factor'], undefined
 assert.equal(dconf['org.gnome.shell.extensions.touchshell/bottom-edge-swipe-activation'], "'always'",
     'Touchshell restored to the user value');
 assert.equal(ext.values['saved-state'], '{}');
+assert.equal(chrome.at(-1), false, 'window controls back to desktop size');
 // Next real posture change clears the override.
 seat.touch_mode = false; seat.emit('notify::touch-mode'); flush();
 seat.touch_mode = true; seat.emit('notify::touch-mode'); flush();

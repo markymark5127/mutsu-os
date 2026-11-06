@@ -203,9 +203,12 @@ export class TabletHome {
 
         this._renderHeader(m, widgets);
 
+        const before = this._layout.serialize();
         this._pages = this._layout.pages(m.perPage);
-        if (this._editing && this._pages.at(-1).length >= m.perPage)
-            this._pages.push([]);
+        if (this._layout.serialize() !== before)
+            this._save(); // rotation/smaller grid moved overflow to the next page
+        if (this._editing && this._pages.at(-1).length)
+            this._pages.push([]); // room to drop onto a new page
         this._page = Math.min(this._page, this._pages.length - 1);
         this._viewport = new St.Widget({clip_to_allocation: true, x: 0, y: m.gridY,
             width: monitor.width, height: m.gridH});
@@ -372,9 +375,15 @@ export class TabletHome {
             column.add_child(dot);
             button.add_child(column);
             makeTappable(button, () => this._launch(app), app.get_name());
-            button._mutsuLongPress = () => {
+            button._mutsuDockApp = app.get_id();
+            button._mutsuLongPress = state => {
+                if (this._editing) {
+                    this._startDrag(button, state, {id: app.get_id(), fromDock: true});
+                    return true;
+                }
                 this._appMenu(app, button);
-                return false;
+                this._heldDock = app.get_id(); // moving the finger picks it up
+                return true;
             };
             dock.add_child(button);
         };
@@ -513,7 +522,9 @@ export class TabletHome {
                     this._save();
                     this._render();
                 }}]);
-                return false;
+                // Moving the finger drags the app out of the folder.
+                this._heldFolderApp = {folderId: id, appId};
+                return true;
             };
             grid.layout_manager.attach(tile, i % cols, Math.floor(i / cols), 1, 1);
         });
@@ -586,8 +597,11 @@ export class TabletHome {
             return false;
         if (this._editing) {
             const tile = findHandler(s.source, this._root, '_mutsuLongPress');
-            if (tile?._mutsuItem) {
-                this._startDrag(tile, s);
+            if (tile?._mutsuItem || tile?._mutsuDockApp) {
+                if (tile._mutsuItem)
+                    this._startDrag(tile, s);
+                else
+                    this._startDrag(tile, s, {id: tile._mutsuDockApp, fromDock: true});
                 this._gesture = 'icon';
                 return true;
             }
@@ -656,6 +670,30 @@ export class TabletHome {
             this._moveDrag(s);
             return;
         }
+        if (Math.hypot(dx, dy) > 12 && this._heldFolderApp) {
+            const {folderId, appId} = this._heldFolderApp;
+            this._heldFolderApp = null;
+            this._menu.close();
+            if (this._layout.removeFromFolder(folderId, appId))
+                this._save();
+            this._editing = true;
+            this._render();
+            const tile = this._tiles.get(appId)?.tile;
+            if (tile)
+                this._startDrag(tile, s);
+            return;
+        }
+        if (Math.hypot(dx, dy) > 12 && this._heldDock) {
+            const id = this._heldDock;
+            this._heldDock = null;
+            this._menu.close();
+            this._editing = true;
+            this._render();
+            const button = this._dock.get_children().find(b => b._mutsuDockApp === id);
+            if (button)
+                this._startDrag(button, s, {id, fromDock: true});
+            return;
+        }
         if (this._heldTile && Math.hypot(dx, dy) > 12) {
             const id = this._heldTile._mutsuItem;
             this._heldTile = null;
@@ -670,6 +708,8 @@ export class TabletHome {
 
     heldEnd(s) {
         this._heldTile = null;
+        this._heldDock = null;
+        this._heldFolderApp = null;
         if (this._drag) {
             this._moveDrag(s);
             this._endDrag(true);
@@ -687,6 +727,8 @@ export class TabletHome {
 
     cancel() {
         this._heldTile = null;
+        this._heldDock = null;
+        this._heldFolderApp = null;
         if (this._gesture === 'page')
             this._goToPage(this._page);
         if (this._gesture === 'pull') {
@@ -700,25 +742,46 @@ export class TabletHome {
 
     // ---- dragging icons in edit mode ----------------------------------------
 
-    _startDrag(tile, s) {
-        if (this._drag || !tile._mutsuItem)
+    _startDrag(actor, s, {id = actor._mutsuItem, fromDock = false} = {}) {
+        if (this._drag || !id)
             return;
-        const id = tile._mutsuItem;
         const info = this._tiles.get(id);
-        if (!info)
+        if (!fromDock && !info)
             return;
-        const m = this._metrics;
-        const [tx, ty] = tile.get_transformed_position();
-        const clone = new Clutter.Clone({source: tile, opacity: 230});
-        clone.set_size(...tile.get_size());
+        const [tx, ty] = actor.get_transformed_position();
+        const clone = new Clutter.Clone({source: actor, opacity: 230});
+        clone.set_size(...actor.get_size());
         this._dragLayer.add_child(clone);
         clone.set_position(tx - this._monitor.x, ty - this._monitor.y);
         clone.set_pivot_point(0.5, 0.5);
         clone.ease({scale_x: 1.15, scale_y: 1.15, duration: 120,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD});
-        this._drag = {id, tile, clone, offsetX: s.x - tx, offsetY: s.y - ty,
-            target: info.page * m.perPage + info.index, onto: null, flipTimer: 0, ontoTimer: 0};
-        tile.opacity = 0;
+        this._drag = {id, actor, clone, fromDock, offsetX: s.x - tx, offsetY: s.y - ty,
+            target: info ? {page: info.page, index: info.index} : null,
+            dock: fromDock ? this._dockIndex(s.x) : null,
+            onto: null, flipTimer: 0, ontoTimer: 0};
+        actor.opacity = 0;
+    }
+
+    // Is the finger over the Home dock? Returns the favourites slot or null.
+    _dockIndex(x, y = null) {
+        const dock = this._dock;
+        if (!dock)
+            return null;
+        const [dx, dy] = dock.get_transformed_position();
+        const [dw, dh] = dock.get_transformed_size();
+        if (y !== null && (y < dy - 24 || y > dy + dh + 24 || x < dx - 24 || x > dx + dw + 24))
+            return null;
+        let index = 0;
+        for (const child of dock.get_children()) {
+            if (!child._mutsuDockApp || !this._favorites.isFavorite(child._mutsuDockApp))
+                continue;
+            const [cx] = child.get_transformed_position();
+            const [cw] = child.get_transformed_size();
+            if (x > cx + cw / 2 && child._mutsuDockApp !== this._drag?.id)
+                index++;
+        }
+        return index;
     }
 
     _moveDrag(s) {
@@ -729,6 +792,18 @@ export class TabletHome {
         const x = s.x - this._monitor.x;
         const y = s.y - this._monitor.y;
         d.clone.set_position(x - d.offsetX, y - d.offsetY);
+
+        // Over the dock: apps only (folders cannot go in the dock).
+        const dockSlot = d.id.startsWith('folder:') ? null : this._dockIndex(s.x, s.y);
+        if (dockSlot !== null) {
+            d.dock = dockSlot;
+            this._dock.add_style_class_name('mutsu-home-dock-drop');
+            this._clearFolderIntent(d);
+            return;
+        }
+        d.dock = null;
+        this._dock?.remove_style_class_name('mutsu-home-dock-drop');
+
         // Hold at a screen edge to move to the neighbouring page.
         const edge = x < EDGE_FLIP_PX ? -1 : x > this._monitor.width - EDGE_FLIP_PX ? 1 : 0;
         if (edge && !d.flipTimer) {
@@ -741,6 +816,7 @@ export class TabletHome {
                     if (next === this._pages.length)
                         this._pages.push([]);
                     this._goToPage(next);
+                    d.target = null;
                     this._previewReorder();
                 }
             });
@@ -748,15 +824,15 @@ export class TabletHome {
             this._cancelLater(d.flipTimer);
             d.flipTimer = 0;
         }
+
+        const page = this._pages[this._page] ?? [];
         const slot = slotAt(x, y, m);
-        const index = Math.min(this._page * m.perPage + slot.index, this._layout.items.length - 1);
-        const under = this._layout.items[index];
+        const under = page[slot.index];
         const underId = under === undefined ? null : itemId(under);
         const canFolder = slot.onto && underId && underId !== d.id && !d.id.startsWith('folder:');
         if (canFolder) {
             if (d.onto !== underId) {
-                this._cancelLater(d.ontoTimer);
-                this._setDropTarget(null);
+                this._clearFolderIntent(d);
                 d.onto = underId;
                 d.ontoTimer = this._later(FOLDER_HOVER_MS, () => {
                     d.ontoTimer = 0;
@@ -766,16 +842,23 @@ export class TabletHome {
             }
             return;
         }
-        if (d.onto) {
-            this._cancelLater(d.ontoTimer);
-            d.onto = null;
-            this._setDropTarget(null);
-        }
-        const target = Math.min(this._page * m.perPage + slot.index, this._layout.items.length - 1);
-        if (target !== d.target) {
-            d.target = target;
+        this._clearFolderIntent(d);
+        // Items flow from the top-left: past the last icon means "at the end".
+        const others = page.filter(item => itemId(item) !== d.id).length;
+        const index = Math.min(slot.index, others);
+        if (!d.target || d.target.page !== this._page || d.target.index !== index) {
+            d.target = {page: this._page, index};
             this._previewReorder();
         }
+    }
+
+    _clearFolderIntent(d) {
+        if (!d.onto)
+            return;
+        this._cancelLater(d.ontoTimer);
+        d.ontoTimer = 0;
+        d.onto = null;
+        this._setDropTarget(null);
     }
 
     _setDropTarget(id) {
@@ -789,19 +872,21 @@ export class TabletHome {
             this._drag.folderReady = id;
     }
 
-    // Slide the other icons on this page into the order a drop would produce.
+    // Slide the icons on the current page into the order a drop would give.
     _previewReorder() {
         const d = this._drag;
         const m = this._metrics;
-        const order = this._layout.items.map(itemId).filter(id => id !== d.id);
-        order.splice(Math.max(0, Math.min(order.length, d.target)), 0, d.id);
-        order.forEach((id, i) => {
+        const page = (this._pages[this._page] ?? []).map(itemId).filter(id => id !== d.id);
+        if (d.target && d.target.page === this._page)
+            page.splice(Math.max(0, Math.min(page.length, d.target.index)), 0, d.id);
+        page.forEach((id, i) => {
             const info = this._tiles.get(id);
             if (!info || id === d.id)
                 return;
-            const page = Math.floor(i / m.perPage);
-            const pos = this._slotPosition(i % m.perPage, m);
-            info.tile.ease({x: page * this._monitor.width + pos.x, y: pos.y, duration: 180,
+            const pos = this._slotPosition(i, m);
+            const visible = i < m.perPage; // pushed to the next page on drop
+            info.tile.ease({x: this._page * this._monitor.width + pos.x, y: pos.y,
+                opacity: visible ? 255 : 0, duration: 180,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD});
         });
     }
@@ -815,14 +900,23 @@ export class TabletHome {
         this._cancelLater(d.ontoTimer);
         let changed = false;
         if (commit) {
-            if (d.folderReady && d.folderReady === d.onto) {
+            if (d.dock !== null) {
+                // Into (or around) the dock. The app stays on the grid too.
+                if (this._favorites.isFavorite(d.id))
+                    this._favorites.moveFavoriteToPos(d.id, d.dock);
+                else
+                    this._favorites.addFavoriteAtPos(d.id, d.dock);
+            } else if (d.fromDock) {
+                // Dragged off the dock onto the grid: remove it from the dock.
+                this._favorites.removeFavorite(d.id);
+            } else if (d.folderReady && d.folderReady === d.onto) {
                 const a = this._app(d.id);
                 const targetId = d.folderReady;
                 const b = targetId.startsWith('folder:') ? null : this._app(targetId);
                 changed = this._layout.dropOnto(d.id, targetId,
                     a && b ? this._folderName(a, b) : 'Folder');
-            } else {
-                changed = this._layout.move(d.id, d.target);
+            } else if (d.target) {
+                changed = this._layout.move(d.id, d.target.page, d.target.index);
             }
         }
         d.clone.destroy();

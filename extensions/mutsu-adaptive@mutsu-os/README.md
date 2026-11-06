@@ -32,8 +32,14 @@ covers it; when no app is in the way, Home shows through.
 - **Edit mode** (long-press then drag, long-press the wallpaper, or the menu):
   icons jiggle; drag to reorder, hold at a screen edge to change page, drop
   an app onto another to make a folder or onto a folder to join it. Tap Done.
-- Folders open in place; tap the name to rename. Long-press inside a folder
-  to remove an app from it.
+- **Pages are kept**: an app stays on the page you drop it on. A full page
+  pushes its last app to the next page; a smaller grid after rotation does
+  the same instead of reshuffling everything.
+- **Dock dragging**: drag an app onto the dock to add it (at the slot under
+  your finger), along the dock to reorder, or off the dock to remove it.
+  The app stays on Home either way. Folders cannot go in the dock.
+- Folders open in place; tap the name to rename. Hold an app inside a
+  folder and drag to pull it out onto Home (or use Remove from Folder).
 - First run is alphabetical with games gathered into a Games folder (Steam
   stays on the grid). Reset from the extension preferences.
 
@@ -50,7 +56,9 @@ covers it; when no app is in the way, Home shows through.
 ## Apps and windows
 
 Apps open full screen (maximized) and keep their traffic lights:
-close, minimize, and zoom. Zoom floats a window and it stays floating.
+close, minimize, and zoom. While folded, GTK 4 apps get finger-sized
+traffic lights and a taller title bar (apps opened after folding; GTK reads
+this style when an app starts). Zoom floats a window and it stays floating.
 Windows that were open before tablet mode get their desktop size back when
 tablet mode ends; apps you sent Home come back too.
 

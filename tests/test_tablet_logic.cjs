@@ -90,7 +90,11 @@ const games = itemId(layout.items[3]);
 const restored = new HomeLayout(layout.serialize());
 assert.deepEqual(restored.items, layout.items, 'round trip');
 assert.deepEqual(new HomeLayout('{broken').items, [], 'corrupt setting is ignored');
-assert.equal(restored.move('steam.desktop', 0), true);
+// Version 1 (flat list) layouts migrate and split by grid size.
+const v1 = new HomeLayout(JSON.stringify({version: 1, items: ['a', 'b', 'c', 'd', 'e']}));
+assert.deepEqual(v1.pages(2), [['a', 'b'], ['c', 'd'], ['e']], 'v1 layout split into pages');
+assert(v1.serialize().includes('"pages"'));
+assert.equal(restored.move('steam.desktop', 0, 0), true);
 assert.equal(restored.items[0], 'steam.desktop');
 assert.equal(restored.dropOnto('org.mozilla.firefox.desktop', 'org.gnome.Nautilus.desktop'), true);
 const created = restored.items.find(item => typeof item !== 'string' && item.name === 'Folder');
@@ -114,9 +118,25 @@ assert(!restored.folder(games), 'folder with one remaining app dissolves');
 assert.equal(restored.items.at(-1), 'new.app.desktop', 'new installs appended');
 assert.equal(restored.sync(['org.mozilla.firefox.desktop',
     'net.lutris.Lutris.desktop', 'new.app.desktop']), false, 'stable when nothing changed');
-const many = new HomeLayout('');
-many.items = Array.from({length: 25}, (_, i) => `a${i}.desktop`);
-assert.deepEqual(many.pages(10).map(p => p.length), [10, 10, 5]);
+
+// Pages are kept: an app stays on the page you put it on.
+const paged = new HomeLayout(JSON.stringify({version: 2, pages: [['a', 'b', 'c'], ['d']]}));
+assert.deepEqual(paged.pages(3), [['a', 'b', 'c'], ['d']]);
+assert.equal(paged.move('a', 1, 1), true);
+assert.deepEqual(paged.pages(3), [['b', 'c'], ['d', 'a']], 'moved to page 2, page 1 keeps a gap at the end');
+paged.move('b', 2, 0);
+assert.deepEqual(paged.pages(3), [['c'], ['d', 'a'], ['b']], 'dropping past the last page creates one');
+paged.move('c', 1, 0);
+assert.deepEqual(paged.pages(3), [['c', 'd', 'a'], ['b']], 'emptied pages disappear');
+paged.move('b', 0, 0);
+assert.deepEqual(paged.pages(3), [['b', 'c', 'd'], ['a']], 'full page pushes its last app to the next page');
+assert.deepEqual(paged.pages(2), [['b', 'c'], ['d', 'a']], 'smaller grid after rotation cascades overflow');
+assert.deepEqual(paged.locate('a'), {page: 1, index: 1});
+const folderPaged = new HomeLayout(JSON.stringify({version: 2,
+    pages: [['x'], [{id: '7', name: 'F', apps: ['p', 'q', 'r']}, 'y']]}));
+folderPaged.removeFromFolder('folder:7', 'q');
+assert.deepEqual(folderPaged.pages(4)[1].map(itemId), ['folder:7', 'q', 'y'],
+    'app dragged out of a folder lands beside it on the same page');
 assert.deepEqual(new HomeLayout('').pages(10), [[]], 'empty Home still has a page');
 console.log('Home layout checks passed (seed, games folder, reorder, folders, sync, paging, persistence).');
 
@@ -287,3 +307,11 @@ assert.equal(findHandler(label, surface, '_mutsuTap'), icon);
 router.destroy();
 assert.equal(surface.handler, null);
 console.log('Touch router checks passed (tap, swipe-on-icon, hold-drag, slow tap, entries, multi-touch, menus).');
+
+const {withImport, TABLET_CSS} = load('windowChrome.js', ['withImport', 'TABLET_CSS'], {Gio: {}, GLib: {}});
+assert.equal(withImport(''), "@import url('mutsu-tablet.css');\n");
+assert.equal(withImport("@import url('mutsu-theme.css');\n"),
+    "@import url('mutsu-theme.css');\n@import url('mutsu-tablet.css');\n", 'after the theme so it wins');
+assert.equal(withImport("x\n@import url('mutsu-tablet.css');\n"), null, 'imported once');
+assert(/windowcontrols > button \{\s*min-width: 28px;/.test(TABLET_CSS), 'finger-sized traffic lights');
+console.log('Tablet window-control checks passed (import once, after theme, finger size).');
