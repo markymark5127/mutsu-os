@@ -37,8 +37,6 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
         this._switch(behavior, settings, 'rotation-lock', 'Lock rotation',
             'Stop auto-rotate while in tablet mode');
         this._switch(behavior, settings, 'home-widgets', 'Home clock', 'Time and date on Home');
-        this._switch(behavior, settings, 'automatic-keyboard', 'On-screen keyboard',
-            'Show the native keyboard for text fields in tablet mode');
 
         const home = new Adw.PreferencesGroup({title: 'Home Screen'});
         page.add(home);

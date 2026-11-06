@@ -28,8 +28,8 @@
     </key>
     <key name="automatic-keyboard" type="b">
       <default>true</default>
-      <summary>Enable the on-screen keyboard in tablet mode</summary>
-      <description>Use GNOME's native text-field keyboard handling while in tablet mode. Restore the previous accessibility setting on exit.</description>
+      <summary>Unused (kept for compatibility)</summary>
+      <description>GNOME shows its on-screen keyboard automatically after touch input and hides it when a hardware keyboard is used; tablet mode no longer forces it.</description>
     </key>
     <key name="touch-text-scale" type="d">
       <default>1.15</default>

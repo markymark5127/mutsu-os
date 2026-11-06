@@ -81,7 +81,7 @@ be split.
 
 ## Settings safety
 
-Every system setting tablet mode changes (text size, on-screen keyboard,
+Every system setting tablet mode changes (text size,
 rotation lock, Dash to Dock, Touchshell gestures) is recorded on disk
 *before* it is changed. If GNOME Shell crashes or you log out in tablet mode,
 your desktop settings are restored the next time the extension starts. A
