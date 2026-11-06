@@ -128,18 +128,13 @@ const sessionSource=fs.readFileSync(path.join(folder,'tabletSession.js'),'utf8')
 const Session=new Function('Main','TabletKeyboard',`${sessionSource};return TabletSession;`)(
     Main,class {destroy(){keyboardDestroyed=true;}});
 const session=new Session(preferences,journal);
-assert.deepEqual(journalCalls.slice(0,2),[['change','org.gnome.desktop.a11y.applications',
-    'screen-keyboard-enabled'],['set','screen-keyboard-enabled',true]],
-    'tablet enables native text-field keyboard through the crash-safe journal');
+assert.deepEqual(journalCalls,[],
+    'the on-screen keyboard is left to GNOME: shown after touch, hidden when a hardware keyboard is used');
 assert(quickActor.classes.has('mutsu-tablet-controls'),'larger touch targets in Controls');
-preferences.values['automatic-keyboard']=false;preferences.emit('changed::automatic-keyboard');
-assert.deepEqual(journalCalls.at(-1),['revert','org.gnome.desktop.a11y.applications',
-    'screen-keyboard-enabled'],'turning the preference off restores the user value at once');
 session.destroy();
 assert.equal(keyboardDestroyed,true);
 assert.equal(quickActor.classes.has('mutsu-tablet-controls'),false);
-assert.equal(preferences.signals.size,0);
-console.log('Tablet session checks passed (keyboard preference via journal, controls, cleanup).');
+console.log('Tablet session checks passed (native automatic keyboard, controls, cleanup).');
 
 // Slide Over keeps the floating app's own input: only a small handle is chrome.
 const chrome=[];
