@@ -67,8 +67,10 @@ export class TabletSplitView {
     // ---- Split View ----------------------------------------------------------
 
     arrange(left, right) {
-        if (!left || !right || left === right ||
-            !left.allows_resize() || !right.allows_resize()) {
+        // Mutter reports a maximized window as not resizable, and every app is
+        // maximized in tablet mode; only fixed-size windows are refused.
+        const resizable = w => isWindowMaximized(w) || w.allows_resize();
+        if (!left || !right || left === right || !resizable(left) || !resizable(right)) {
             Main.notify('Split View', 'Choose two different resizable app windows.');
             return false;
         }
@@ -144,7 +146,8 @@ export class TabletSplitView {
 
     // Add a window to the top of the Slide Over stack and show it.
     slideOver(window) {
-        if (!window || window.is_skip_taskbar() || !window.allows_resize())
+        if (!window || window.is_skip_taskbar() ||
+            !(isWindowMaximized(window) || window.allows_resize()))
             return false;
         if (this._pair?.includes(window)) {
             const other = this._pair.find(w => w !== window);

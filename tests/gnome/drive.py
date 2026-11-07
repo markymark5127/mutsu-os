@@ -233,8 +233,18 @@ def window_flow():
             w.forEach(x => x.unminimize()); Main.activateWindow(w[1]); globalThis.__mutsuFocus = w[1];
             globalThis.__mutsuOther = w[0]; return true; }})()""")
         wait(1)
+        js(f"""(() => {{ const e = {T}.ext(); const orig = e._arrangeForTablet.bind(e);
+            e._arrangeForTablet = () => {{
+                globalThis.__mutsuArrange = {{visible: e._visibleWindows().map(w => w.get_title()),
+                    focus: global.display.focus_window?.get_title() ?? null,
+                    goHome: e._settings.get_boolean('open-home-on-tablet')}};
+                try {{ orig(); }} catch (err) {{ globalThis.__mutsuArrange.error = `${{err}}`; throw err; }}
+            }}; return true; }})()""")
         js(f"{T}.ext()._settings.set_string('mode', 'always-tablet')")
         wait(3)
+        st0 = js(f"""(() => {{ const e = {T}.ext();
+            return {{visible: e._visibleWindows().map(w => w.get_title()),
+                focus: global.display.focus_window?.get_title() ?? null}}; }})()""")
         st = js(f"""(() => {{ const f = globalThis.__mutsuFocus, o = globalThis.__mutsuOther;
             return {{focusMin: f.minimized, focusMax: f.is_maximized?.() ?? !!f.get_maximized?.(),
                 otherMin: o.minimized}}; }})()""")
@@ -242,6 +252,8 @@ def window_flow():
             ({title: w.get_title(), type: w.get_window_type(), resizable: w.allows_resize(),
               skip: w.is_skip_taskbar(), transient: !!w.get_transient_for(), min: w.minimized}))""")
         st["windows"] = info
+        st["afterFold"] = st0
+        st["arrange"] = js("globalThis.__mutsuArrange ?? null")
         record(S, "app in use stays open full screen", st.get("focusMin") is False and st.get("focusMax") is True, st)
         record(S, "other apps wait in multitasking", st.get("otherMin") is True, st)
         split = js(f"""(() => {{ const s = {T}.ext()._switcher.split;
@@ -258,11 +270,24 @@ def window_flow():
         js(f"{T}.ext()._switcher.hide()")
         wait(1)
         record("Multitasking", "multitasking closes", js(f"{T}.ext()._switcher.visible") is False)
-        js(f"""(() => {{ const t = {T}, m = t.ext()._tabletMonitor();
-            t.swipe(m.x + m.width / 2, m.y + m.height - 4, m.x + m.width / 2, m.y + m.height * 0.55, 350, 900);
-            return true; }})()""")
+        pre = js(f"""(() => {{ const t = {T}, s = t.ext()._switcher, m = t.ext()._tabletMonitor();
+            globalThis.__mutsuNav = [];
+            for (const [obj, name, label] of [[s, 'show', 'switcher'], [s._dock, 'show', 'dock'],
+                [s, '_quickSwitch', 'quick'], [s, '_finishPreview', 'finish']]) {{
+                const orig = obj[name].bind(obj);
+                obj[name] = (...a) => {{ globalThis.__mutsuNav.push(label); return orig(...a); }};
+            }}
+            const x = m.x + m.width / 2, y = m.y + m.height - 4;
+            const target = global.stage.get_actor_at_pos(imports.gi.Clutter.PickMode.REACTIVE, x, y);
+            const info = {{modal: Main.modalCount, suppressed: s._suppressed(), enabled: s._gesturesEnabled(),
+                keyboard: Main.layoutManager.keyboardBox.visible, bar: s._bar.visible,
+                barRect: [...s._bar.get_transformed_position(), ...s._bar.get_transformed_size()],
+                target: `${{target}}`, focus: global.display.focus_window?.get_title()}};
+            t.swipe(x, y, x, m.y + m.height * 0.55, 350, 900);
+            return info; }})()""")
         wait(2.5)
-        gesture = js(f"({{blades: {T}.ext()._switcher.visible}})")
+        gesture = js(f"({{blades: {T}.ext()._switcher.visible, nav: globalThis.__mutsuNav, drag: !!{T}.ext()._switcher._drag}})")
+        gesture["before"] = pre
         record("Multitasking", "swipe up and hold opens multitasking", gesture.get("blades") is True, gesture)
         js(f"{T}.ext()._switcher.hide()")
         wait(1)
