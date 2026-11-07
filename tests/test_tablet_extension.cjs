@@ -16,7 +16,7 @@ class Emitter {
     get count() { return this._h.size; }
 }
 const geometry = new Function(`${strip('tabletGeometry.js')}; return {resolveTablet, maximizeWindow,
-    unmaximizeWindow, isWindowMaximized, hingeTablet};`)();
+    unmaximizeWindow, isWindowMaximized, hingeTablet, planTabletEntry, planTabletExit};`)();
 const {SettingsJournal} = new Function(`${strip('settingsJournal.js')}; return {SettingsJournal};`)();
 const {PostureMonitor} = new Function('hingeTablet',
     `${strip('posture.js')}; return {PostureMonitor};`)(geometry.hingeTablet);
@@ -57,7 +57,7 @@ const Gio = {
     FileQueryInfoFlags: {NONE: 0}, Subprocess: {new: () => ({})}, SubprocessFlags: {NONE: 0},
 };
 
-const ext = Object.assign(new Emitter(), {values: {'mode': 'automatic', 'saved-state': '', 'open-home-on-tablet': true,
+const ext = Object.assign(new Emitter(), {values: {'mode': 'automatic', 'saved-state': '', 'open-home-on-tablet': false,
     'touch-text-scale': 1.15, 'rotation-lock': false, 'collapse-dock-in-tablet': true,
     'enable-experimental-gestures': true, 'automatic-keyboard': true, 'gesture-exceptions': []}});
 Object.assign(ext, {get_string(k) { return this.values[k]; }, get_boolean(k) { return this.values[k]; },
@@ -122,13 +122,14 @@ const Ext = new Function('Extension', 'Main', 'PanelMenu', 'PopupMenu', 'QuickSe
     'Meta', 'Clutter', 'TabletSwitcher', 'TabletHome', 'applyTabletDock', 'DOCK_SCHEMA', 'TabletSession',
     'SettingsJournal', 'PostureMonitor', 'maximizeWindow', 'unmaximizeWindow', 'isWindowMaximized',
     'resolveTablet', 'global', 'log', 'TextDecoder', 'setTabletWindowChrome',
+    'planTabletEntry', 'planTabletExit', 'logError',
     `${source}; return MutsuAdaptiveExtension;`)(
     Extension, Main, {Button: MenuButton}, {PopupSeparatorMenuItem: class {}, Ornament: {CHECK: 'check', NONE: 'none'}},
     {QuickToggle}, {Icon: Actor}, Gio, GLib, {TabList: {NORMAL_ALL: 0}, WindowType: {NORMAL: 0}},
     {}, TabletSwitcher, TabletHome, () => () => {}, 'org.gnome.shell.extensions.dash-to-dock',
     TabletSession, SettingsJournal, PostureMonitor, geometry.maximizeWindow, geometry.unmaximizeWindow,
     geometry.isWindowMaximized, geometry.resolveTablet, globalMock, () => {}, TextDecoder,
-    on => chrome.push(on));
+    on => chrome.push(on), geometry.planTabletEntry, geometry.planTabletExit, e => { throw e; });
 
 dconf['org.gnome.shell.extensions.touchshell/bottom-edge-swipe-activation'] = "'always'";
 const before = makeWindow();
@@ -149,8 +150,9 @@ assert.equal(dconf['org.gnome.shell.extensions.touchshell/bottom-edge-swipe-acti
     'Touchshell schema opened safely and its bottom edge handed to Mutsu');
 assert.equal(dconf['org.gnome.desktop.a11y.applications/screen-keyboard-enabled'], true);
 assert(ext.values['saved-state'].includes('text-scaling-factor'), 'originals saved to disk first');
-assert.equal(before.minimized, true, 'open apps step aside: Home');
-assert.equal(before.maximized, true, 'apps go full screen');
+assert.equal(before.minimized, false, 'the app in use stays open');
+assert.equal(before.maximized, true, '...full screen');
+assert.equal(wasMax.minimized, true, 'other apps wait in multitasking');
 assert(panel.classes.has('mutsu-status-slim'));
 assert.deepEqual(chrome, [false, true], 'desktop controls reset at start, finger-sized in tablet');
 
@@ -169,7 +171,8 @@ e._toggleManual();
 flush();
 assert.equal(instances.home, 0, 'toggle leaves tablet mode while folded');
 assert.equal(ext.values.mode, 'automatic', 'Automatic is not lost');
-assert.equal(before.minimized, false, 'apps sent Home come back on the desktop');
+assert.equal(before.minimized, false, 'the app on screen stays on the desktop');
+assert.equal(wasMax.minimized, true, 'apps in multitasking stay minimized');
 assert.equal(before.maximized, false, 'pre-existing windows get their desktop size back');
 assert.equal(wasMax.maximized, true, '...and maximized ones stay maximized');
 assert.equal(created.maximized, true, 'windows opened in tablet mode stay as they are');

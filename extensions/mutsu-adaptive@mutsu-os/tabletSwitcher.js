@@ -3,7 +3,7 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {navigationAction} from './tabletGeometry.js';
+import {navigationAction, sameSequence} from './tabletGeometry.js';
 import {TabletDockPopup} from './tabletDockPopup.js';
 import {TabletSplitView} from './tabletSplitView.js';
 import {TabletBlades} from './tabletBlades.js';
@@ -147,7 +147,7 @@ export class TabletSwitcher {
             return Clutter.EVENT_STOP;
         }
         const drag = this._drag;
-        if (!drag || drag.sequence !== sequence)
+        if (!drag || !sameSequence(drag.sequence, sequence))
             return Clutter.EVENT_PROPAGATE;
         if (type === Clutter.EventType.TOUCH_CANCEL) {
             this._resetPreview();

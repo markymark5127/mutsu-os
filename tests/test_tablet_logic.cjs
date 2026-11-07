@@ -11,7 +11,7 @@ const load = (file, names, deps = {}) => {
     return new Function(...Object.keys(deps), `${source}; return {${names.join(',')}};`)(
         ...Object.values(deps));
 };
-const g = load('tabletGeometry.js', ['homeMetrics', 'slotAt', 'pageSnap', 'classifyDrag',
+const g = load('tabletGeometry.js', ['sameSequence', 'planTabletEntry', 'planTabletExit', 'homeMetrics', 'slotAt', 'pageSnap', 'classifyDrag',
     'pullDownAllowed', 'bladeTransform', 'groupWindows', 'hingeTablet', 'resolveTablet',
     'isWindowMaximized']);
 
@@ -69,6 +69,27 @@ assert.equal(g.resolveTablet({mode: 'always-desktop', seatTouch: true}), false);
 assert.equal(g.resolveTablet({mode: 'always-tablet'}), true);
 assert.equal(g.isWindowMaximized({is_maximized: () => true}), true, 'Mutter 49');
 assert.equal(g.isWindowMaximized({get_maximized: () => 3}), true, 'Mutter 46-48');
+// Folding/unfolding with apps open.
+{
+    const [a, b, c] = ['a', 'b', 'c'];
+    let p = g.planTabletEntry([a, b, c], b);
+    assert.equal(p.foreground, b, 'focused app becomes the full-screen app');
+    assert.deepEqual(p.minimize, [a, c], 'the rest go to multitasking');
+    p = g.planTabletEntry([a, b, c], null);
+    assert.equal(p.foreground, a, 'no focus: most recent app');
+    p = g.planTabletEntry([a, b, c], a, w => (w === a ? c : null));
+    assert.deepEqual(p.pair, [a, c], 'a tiled pair stays together');
+    assert.deepEqual(p.minimize, [b]);
+    assert.equal(g.planTabletEntry([], null).foreground, null, 'nothing open: Home');
+    assert.deepEqual(g.planTabletExit([a, b, c], b), [a, c], 'unfold: only the app on screen stays');
+    assert.deepEqual(g.planTabletExit([a, b, c], a, [a, b]), [c], 'Split View pair stays tiled');
+    assert.deepEqual(g.planTabletExit([a, b, c], c, [a, b]), [a, b], 'a Slide Over focus wins');
+    assert.deepEqual(g.planTabletExit([], null), []);
+    const seq = n => ({get_slot: () => n});
+    assert(g.sameSequence(seq(1), seq(1)), 'one finger across fresh GJS wrappers');
+    assert(!g.sameSequence(seq(1), seq(2)), 'two fingers differ');
+    assert(g.sameSequence(null, null) && !g.sameSequence(null, seq(1)));
+}
 console.log('Tablet geometry checks passed (grid, slots, paging, drags, pull search, blades, posture).');
 
 // Home layout model.
@@ -230,7 +251,7 @@ let pending = null;
 const GLibMock = {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false,
     timeout_add: (_p, _ms, fn) => { pending = fn; return 5; }, source_remove: () => { pending = null; }};
 const {TouchRouter, findHandler} = load('touchRouter.js', ['TouchRouter', 'findHandler'],
-    {Clutter: ClutterMock, GLib: GLibMock, classifyDrag: g.classifyDrag});
+    {Clutter: ClutterMock, GLib: GLibMock, classifyDrag: g.classifyDrag, sameSequence: g.sameSequence});
 class Actor {
     constructor(parent = null) { this.parent = parent; }
     get_parent() { return this.parent; }
@@ -257,7 +278,7 @@ const delegate = {
 const router = new TouchRouter(surface, delegate);
 const ev = (type, x, y, time, source = label, sequence = 1) => surface.handler(surface, {
     type: () => type, get_coords: () => [x, y], get_time: () => time,
-    get_event_sequence: () => sequence, get_source: () => source, get_button: () => 1});
+    get_event_sequence: () => (sequence === null ? null : {get_slot: () => sequence}), get_source: () => source, get_button: () => 1});
 ev('TOUCH_BEGIN', 100, 100, 0);
 ev('TOUCH_END', 103, 102, 80);
 assert.equal(taps, 1, 'tap on a label reaches its tile');

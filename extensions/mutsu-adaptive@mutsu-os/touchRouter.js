@@ -1,6 +1,6 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
-import {classifyDrag} from './tabletGeometry.js';
+import {classifyDrag, sameSequence} from './tabletGeometry.js';
 
 // One recogniser per touch surface (Home, multitasking). Tap targets are
 // plain actors carrying `_mutsuTap` / `_mutsuLongPress` callbacks instead of
@@ -78,7 +78,7 @@ export class TouchRouter {
         }
 
         const s = this._state;
-        if (!s || s.sequence !== sequence)
+        if (!s || !sameSequence(s.sequence, sequence))
             return s ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
         if (s.consumed) {
             if (end || type === T.TOUCH_CANCEL)

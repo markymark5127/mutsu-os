@@ -147,11 +147,11 @@ const settings = Object.assign(new Emitter(), {values: {'home-layout': '', 'home
     set_string(k, v) { this.values[k] = v; this.emit(`changed::${k}`); }});
 
 const geometry = load('tabletGeometry.js', ['homeMetrics', 'slotAt', 'pageSnap', 'pullDownAllowed',
-    'PULL_SEARCH_PX', 'classifyDrag', 'bladeTransform', 'groupWindows', 'isWindowMaximized',
+    'PULL_SEARCH_PX', 'classifyDrag', 'sameSequence', 'bladeTransform', 'groupWindows', 'isWindowMaximized',
     'maximizeWindow', 'unmaximizeWindow'], {});
 const {HomeLayout, itemId} = load('homeLayout.js', ['HomeLayout', 'itemId'], {});
 const router = load('touchRouter.js', ['TouchRouter', 'makeTappable', 'findHandler'],
-    {Clutter, GLib, classifyDrag: geometry.classifyDrag});
+    {Clutter, GLib, classifyDrag: geometry.classifyDrag, sameSequence: geometry.sameSequence});
 const {TouchMenu} = load('touchMenu.js', ['TouchMenu'], {Clutter, St, makeTappable: router.makeTappable, vbox});
 let searches = 0;
 const {TabletHome} = load('tabletHome.js', ['TabletHome'], {Clutter, GLib, Gio, Shell, St, Main,

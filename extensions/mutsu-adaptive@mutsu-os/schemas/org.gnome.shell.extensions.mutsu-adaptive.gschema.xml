@@ -17,9 +17,9 @@
       <description>iPad-style bottom and top edge gestures. On by default in tablet mode.</description>
     </key>
     <key name="open-home-on-tablet" type="b">
-      <default>true</default>
-      <summary>Go Home on tablet transition</summary>
-      <description>When entering tablet mode, step open apps aside and show the tablet Home screen. They return when tablet mode ends.</description>
+      <default>false</default>
+      <summary>Always go Home on tablet transition</summary>
+      <description>When true, folding sends every open app to multitasking and shows Home. When false (default), the focused app stays open full screen (a tiled pair becomes Split View) and the other apps wait in multitasking.</description>
     </key>
     <key name="home-widgets" type="b">
       <default>true</default>

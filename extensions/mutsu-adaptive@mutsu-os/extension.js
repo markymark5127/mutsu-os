@@ -15,7 +15,8 @@ import {TabletSession} from './tabletSession.js';
 import {SettingsJournal} from './settingsJournal.js';
 import {PostureMonitor} from './posture.js';
 import {setTabletWindowChrome} from './windowChrome.js';
-import {maximizeWindow, unmaximizeWindow, isWindowMaximized, resolveTablet} from './tabletGeometry.js';
+import {maximizeWindow, unmaximizeWindow, isWindowMaximized, resolveTablet,
+    planTabletEntry, planTabletExit} from './tabletGeometry.js';
 
 // Mutsu OS core desktop/tablet mode, enabled by default for new users.
 // Mac-first desktop; folding a 2-in-1 into tablet posture switches to an
@@ -86,6 +87,16 @@ function listDir(path) {
     return names;
 }
 
+// The window tiled beside this one on the desktop (Super+Left/Right), if any.
+function tilePartner(window) {
+    try {
+        const match = window.get_tile_match?.();
+        if (match && !match.minimized)
+            return match;
+    } catch (e) {}
+    return null;
+}
+
 export default class MutsuAdaptiveExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
@@ -94,7 +105,6 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._debounceSource = 0;
         this._pendingTablet = null;
         this._signals = [];
-        this._parked = new Map();
         this._searchBusy = 0;
 
         // Crash-safe journal: if the Shell died mid-tablet-mode, put the
@@ -343,8 +353,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         })]);
         Main.overview.hide();
         this._slimStatusBar(true);
-        if (this._settings.get_boolean('open-home-on-tablet'))
-            this._goHome();
+        start('open apps', () => this._arrangeForTablet());
         log('Mutsu Adaptive: entered tablet mode');
     }
 
@@ -355,6 +364,11 @@ export default class MutsuAdaptiveExtension extends Extension {
         for (const [object, id] of this._tabletSignals ?? [])
             object.disconnect(id);
         this._tabletSignals = [];
+        try {
+            this._arrangeForDesktop();
+        } catch (error) {
+            logError(error, 'Mutsu Adaptive: arranging windows for the desktop failed');
+        }
         for (const part of ['_switcher', '_home', '_session']) {
             try {
                 this[part]?.destroy();
@@ -364,7 +378,6 @@ export default class MutsuAdaptiveExtension extends Extension {
             this[part] = null;
         }
         this._removeWindowSizing();
-        this._unparkWindows();
         this._journal.restore();
         setTabletWindowChrome(false);
         this._slimStatusBar(false);
@@ -432,6 +445,49 @@ export default class MutsuAdaptiveExtension extends Extension {
 
     // Every visible app on the tablet screen steps aside; Home is behind
     // them. They come back with the desktop when tablet mode ends.
+    // Visible app windows on the tablet monitor, most recently used first.
+    _visibleWindows() {
+        const monitor = this._tabletMonitor();
+        const index = Main.layoutManager.monitors.indexOf(monitor);
+        return global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null).filter(window =>
+            !window.minimized && !window.is_skip_taskbar() && !isSearchWindow(window) &&
+            window.get_window_type() === Meta.WindowType.NORMAL &&
+            (index < 0 || window.get_monitor() === index) &&
+            (window.is_on_all_workspaces() || window.get_workspace()?.active));
+    }
+
+    // Folding: the focused app stays as the full-screen app (a tiled pair
+    // becomes Split View); the rest go to multitasking. No app open: Home.
+    _arrangeForTablet() {
+        if (this._settings.get_boolean('open-home-on-tablet')) {
+            this._goHome();
+            return;
+        }
+        const plan = planTabletEntry(this._visibleWindows(), global.display.focus_window, tilePartner);
+        for (const window of plan.minimize)
+            window.minimize();
+        if (!plan.foreground) {
+            this._home?.reveal();
+            return;
+        }
+        if (plan.pair) {
+            const [left, right] = [...plan.pair].sort((a, b) =>
+                a.get_frame_rect().x - b.get_frame_rect().x);
+            if (this._switcher?.split?.arrange(left, right))
+                return;
+        }
+        if (plan.foreground.allows_resize?.() && !isWindowMaximized(plan.foreground))
+            maximizeWindow(plan.foreground, Meta);
+    }
+
+    // Unfolding: what is on screen stays; apps waiting in multitasking stay
+    // minimized and anything else still showing joins them.
+    _arrangeForDesktop() {
+        const pair = this._switcher?.split?.pair ?? null;
+        for (const window of planTabletExit(this._visibleWindows(), global.display.focus_window, pair))
+            window.minimize();
+    }
+
     _goHome() {
         this._switcher?.hide();
         const monitor = this._tabletMonitor();
@@ -443,42 +499,11 @@ export default class MutsuAdaptiveExtension extends Extension {
                 continue;
             if (!window.get_workspace()?.active && !window.is_on_all_workspaces())
                 continue;
-            this._park(window);
             window.minimize();
         }
         this._home?.reveal();
     }
 
-    _park(window) {
-        if (this._parked.has(window))
-            return;
-        const ids = [
-            window.connect('notify::minimized', () => {
-                if (!window.minimized)
-                    this._unpark(window);
-            }),
-            window.connect('unmanaged', () => this._unpark(window)),
-        ];
-        this._parked.set(window, ids);
-    }
-
-    _unpark(window) {
-        const ids = this._parked.get(window);
-        if (!ids)
-            return;
-        this._parked.delete(window);
-        for (const id of ids)
-            window.disconnect(id);
-    }
-
-    _unparkWindows() {
-        for (const window of [...this._parked.keys()]) {
-            this._unpark(window);
-            try {
-                window.unminimize();
-            } catch (e) {}
-        }
-    }
 
     // Apps open full screen (maximized, keeping their traffic lights). The
     // green button floats a window, and it stays floating: nothing fights it.

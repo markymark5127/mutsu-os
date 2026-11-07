@@ -4,7 +4,7 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {splitFrames, maximizeWindow, unmaximizeWindow, isWindowMaximized,
+import {sameSequence, splitFrames, maximizeWindow, unmaximizeWindow, isWindowMaximized,
     slideOverFrame} from './tabletGeometry.js';
 
 // Split View (two apps side by side) and Slide Over (a stack of narrow apps
@@ -282,7 +282,7 @@ export class TabletSplitView {
             return Clutter.EVENT_PROPAGATE;
         }
         const drag = this._drag;
-        if (!drag || drag.sequence !== sequence)
+        if (!drag || !sameSequence(drag.sequence, sequence))
             return Clutter.EVENT_PROPAGATE;
         const dx = x - drag.x;
         if (type === T.TOUCH_CANCEL) {

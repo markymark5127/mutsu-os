@@ -190,3 +190,47 @@ export function resolveTablet({mode, override = null, seatTouch = false, hardwar
         return !!override;
     return !!seatTouch || hardware === true;
 }
+
+// Entering tablet mode: the app on top becomes the full-screen app, and
+// every other open window steps into multitasking (minimized). A tiled pair
+// stays together as Split View. `windows` are the visible windows of the
+// tablet monitor, most recently used first.
+export function planTabletEntry(windows, focus, partnerOf = () => null) {
+    const top = windows.includes(focus) ? focus : windows[0] ?? null;
+    if (!top)
+        return {foreground: null, pair: null, minimize: []};
+    const partner = partnerOf(top);
+    const pair = partner && partner !== top && windows.includes(partner) ? [top, partner] : null;
+    const keep = pair ?? [top];
+    return {foreground: top, pair, minimize: windows.filter(w => !keep.includes(w))};
+}
+
+// Leaving tablet mode: what is on screen stays (the full-screen app, or the
+// Split View pair when one of them has focus); everything else that is
+// still showing (Slide Over, apps behind) goes to minimized.
+export function planTabletExit(windows, focus, pair = null) {
+    let keep;
+    if (pair && pair.includes(focus))
+        keep = pair;
+    else if (windows.includes(focus))
+        keep = [focus];
+    else
+        keep = windows.slice(0, 1);
+    return windows.filter(w => !keep.includes(w));
+}
+
+// GJS hands out a new wrapper object for the same touch sequence on every
+// event, so `a === b` is false for one finger's begin and end. Compare the
+// touch slot instead; with no slot API, any two touches count as the same
+// finger (routers track one finger at a time).
+export function sameSequence(a, b) {
+    if (a === b)
+        return true;
+    if (!a || !b)
+        return false;
+    try {
+        if (typeof a.get_slot === 'function' && typeof b.get_slot === 'function')
+            return a.get_slot() === b.get_slot();
+    } catch (e) {}
+    return true;
+}

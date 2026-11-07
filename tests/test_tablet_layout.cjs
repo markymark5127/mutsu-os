@@ -4,9 +4,9 @@ const assert = require('node:assert/strict');
 const folder = process.argv[2];
 const geometry = fs.readFileSync(path.join(folder,'tabletGeometry.js'),'utf8').replace(/export /g,'');
 const {splitFrames, navigationAction, maximizeWindow, unmaximizeWindow, isWindowMaximized,
-    slideOverFrame, dockDropZone, gripResize} =
+    slideOverFrame, dockDropZone, gripResize, sameSequence} =
     new Function(`${geometry}; return {splitFrames,navigationAction,maximizeWindow,unmaximizeWindow,
-        isWindowMaximized,slideOverFrame,dockDropZone,gripResize};`)();
+        isWindowMaximized,slideOverFrame,dockDropZone,gripResize,sameSequence};`)();
 for (const area of [{x:100,y:24,width:1200,height:800}, {x:0,y:30,width:768,height:990}]) {
     for (const ratio of [0,0.3,0.5,0.7,1]) {
         const [left,right] = splitFrames(area,ratio);
@@ -61,10 +61,10 @@ class ChromeWidget extends Button {
 const GLibMock={PRIORITY_DEFAULT:0,SOURCE_REMOVE:false,idle_add:(_p,fn)=>fn(),
     timeout_add:(_p,_ms,fn)=>fn(),timeout_add_seconds:()=>1,source_remove(){}};
 const loadSplit=()=>new Function('Clutter','GLib','Meta','Shell','St','Main','global','splitFrames',
-    'maximizeWindow','unmaximizeWindow','isWindowMaximized','slideOverFrame',
+    'maximizeWindow','unmaximizeWindow','isWindowMaximized','slideOverFrame','sameSequence',
     `${splitSource};return TabletSplitView;`)(Clutter,GLibMock,{},{},
     {Button,Label:class{},Widget:ChromeWidget},Main,globalMock,
-    splitFrames,maximizeWindow,unmaximizeWindow,isWindowMaximized,slideOverFrame);
+    splitFrames,maximizeWindow,unmaximizeWindow,isWindowMaximized,slideOverFrame,sameSequence);
 const Split=loadSplit();
 function window(){return Object.assign(new Emitter(),{allows_resize:()=>true,get_monitor:()=>0,
     get_workspace:()=>({}),unmake_fullscreen(){},unmaximize(){this.maximized=false;},

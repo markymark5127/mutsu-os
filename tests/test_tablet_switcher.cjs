@@ -16,9 +16,9 @@ const focus = {fullscreen: false, is_fullscreen() { return this.fullscreen; }};
 const globalMock = {display: {focus_window: focus}};
 const geometry = fs.readFileSync(path.join(path.dirname(process.argv[2]), 'tabletGeometry.js'), 'utf8')
     .replace(/export /g, '');
-const navigationAction = new Function(`${geometry}; return navigationAction;`)();
-const Switcher = new Function('Clutter','Main','GLib','global','navigationAction',
-    `${source}; return TabletSwitcher;`)(Clutter, Main, GLib, globalMock, navigationAction);
+const {navigationAction, sameSequence} = new Function(`${geometry}; return {navigationAction, sameSequence};`)();
+const Switcher = new Function('Clutter','Main','GLib','global','navigationAction','sameSequence',
+    `${source}; return TabletSwitcher;`)(Clutter, Main, GLib, globalMock, navigationAction, sameSequence);
 const state = Object.create(Switcher.prototype);
 let homes = 0, shows = 0, docks = 0;
 const switches = [];
@@ -32,7 +32,8 @@ Object.assign(state, {_drag: null, _suppressed: () => false, _gesturesEnabled: (
     _shrinkIntoHome() {}});
 function send(type, x, y, time, sequence = 1) {
     return state._event({type: () => type, get_coords: () => [x, y], get_time: () => time,
-        get_event_sequence: () => sequence, get_button: () => 1});
+        get_event_sequence: () => ({get_slot: () => sequence}), // new wrapper per event, like GJS
+        get_button: () => 1});
 }
 state._gesturesEnabled = () => false;
 assert.equal(send('TOUCH_BEGIN',500,760,0),0, 'edge interception requires opt-in');

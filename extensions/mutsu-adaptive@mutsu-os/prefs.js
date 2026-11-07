@@ -28,8 +28,8 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
 
         const behavior = new Adw.PreferencesGroup({title: 'When in tablet mode'});
         page.add(behavior);
-        this._switch(behavior, settings, 'open-home-on-tablet', 'Go Home when folding',
-            'Open apps step aside and return when you unfold');
+        this._switch(behavior, settings, 'open-home-on-tablet', 'Always go Home when folding',
+            'Off: the app you were using stays open full screen; the rest wait in multitasking');
         this._switch(behavior, settings, 'enable-experimental-gestures', 'Bottom swipe gestures',
             'Short pull: Dock · Swipe: Home · Swipe and hold: Multitasking · Sideways: switch apps');
         this._switch(behavior, settings, 'collapse-dock-in-tablet', 'Hide the desktop dock',
