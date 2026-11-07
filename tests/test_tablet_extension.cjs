@@ -189,6 +189,17 @@ assert.equal(instances.home, 0);
 ext.set_string('mode', 'automatic'); flush();
 assert.equal(instances.home, 1, 'Automatic while folded means tablet');
 
+// The Quick Settings toggle from a forced mode returns to Automatic, so
+// folding keeps working afterwards.
+ext.set_string('mode', 'always-desktop'); flush();
+e._toggleManual(); flush();
+assert.equal(ext.values.mode, 'automatic', 'toggle never leaves a forced mode behind');
+assert.equal(instances.home, 1, 'toggle turned tablet mode on');
+seat.touch_mode = false; seat.emit('notify::touch-mode'); flush();
+assert.equal(instances.home, 0, 'unfolding after the toggle follows the hinge');
+seat.touch_mode = true; seat.emit('notify::touch-mode'); flush();
+assert.equal(instances.home, 1, 'folding after the toggle follows the hinge');
+
 // Locking keeps tablet mode; only chrome hides.
 sessionMode.isLocked = true; sessionMode.emit('updated');
 assert.equal(instances.home, 1, 'lock does not tear tablet mode down');

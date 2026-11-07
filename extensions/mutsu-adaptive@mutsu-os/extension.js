@@ -226,14 +226,14 @@ export default class MutsuAdaptiveExtension extends Extension {
     // lasts until the hardware posture next changes, so Automatic is never
     // silently lost. In a forced mode it flips between the forced modes.
     _toggleManual() {
-        const mode = this._settings.get_string('mode');
-        const target = this._pendingTablet ?? this._inTablet;
-        if (mode === 'automatic') {
-            this._override = !target;
-            this._evaluate();
-        } else {
-            this._setMode(mode === 'always-tablet' ? 'always-desktop' : 'always-tablet');
-        }
+        const want = !(this._pendingTablet ?? this._inTablet);
+        // The toggle never leaves the laptop stuck in a forced mode: it
+        // returns to Automatic and overrides only until the next fold.
+        // ("Always Tablet/Desktop" stay available in the status menu.)
+        if (this._settings.get_string('mode') !== 'automatic')
+            this._setMode('automatic');
+        this._override = want;
+        this._evaluate();
     }
 
     _evaluate(immediate = false) {
