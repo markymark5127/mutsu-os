@@ -16,6 +16,21 @@ from aidesktop.onboarding import is_setup_done
 if is_setup_done():
     raise SystemExit(0)
 
+
+def live_session() -> bool:
+    # The live USB keeps nothing after shutdown, so personal setup belongs
+    # on the installed system's first login, not here.
+    try:
+        with open("/proc/cmdline", encoding="utf-8") as stream:
+            return any(arg.startswith("tacklebox.live.squashimg")
+                       for arg in stream.read().split())
+    except OSError:
+        return False
+
+
+if live_session():
+    raise SystemExit(0)
+
 lock_path = os.path.join(
     os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "mutsu-welcome.lock"
 )
