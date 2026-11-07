@@ -207,7 +207,8 @@ def tablet_flow():
     wait(3)
     left = js(f"({{inTablet: {T}.ext()._inTablet, home: !!{T}.ext()._home, saved: {T}.ext()._settings.get_string('saved-state')}})")
     record(S, "leaves tablet mode cleanly", left.get("inTablet") is False and not left.get("home") and left.get("saved") in ("", "{}"), left)
-    js(f"{T}.ext()._settings.set_string('mode', 'automatic')")
+    # Not 'automatic': the virtual touchscreen puts Mutter in touch mode.
+    js(f"{T}.ext()._settings.set_string('mode', 'always-desktop')")
 
 
 def window_flow():
@@ -270,6 +271,8 @@ def window_flow():
         js(f"{T}.ext()._switcher.hide()")
         wait(1)
         record("Multitasking", "multitasking closes", js(f"{T}.ext()._switcher.visible") is False)
+        js("Main.keyboard.close?.(); true")  # the on-screen keyboard owns the bottom edge while open
+        wait(1.5)
         pre = js(f"""(() => {{ const t = {T}, s = t.ext()._switcher, m = t.ext()._tabletMonitor();
             globalThis.__mutsuNav = [];
             for (const [obj, name, label] of [[s, 'show', 'switcher'], [s._dock, 'show', 'dock'],
@@ -296,7 +299,6 @@ def window_flow():
         wait(3)
         back = js("""({a: globalThis.__mutsuOther.minimized, b: globalThis.__mutsuFocus.minimized})""")
         record(S, "unfolding keeps the split pair on screen", back.get("a") is False and back.get("b") is False, back)
-        js(f"{T}.ext()._settings.set_string('mode', 'automatic')")
     finally:
         for p in procs:
             p.terminate()
