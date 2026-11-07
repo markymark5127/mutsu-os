@@ -240,7 +240,8 @@ if release:
 # controlled separately via product.img / .buildstamp.
 patch = {
     "NAME": '"Mutsu OS"',
-    "PRETTY_NAME": '"Mutsu OS"',
+    # Shown in Settings > About and boot entries.
+    "PRETTY_NAME": '"Mutsu OS 1.0 (Shibui)"',
     "VERSION": '"1.0 (Shibui)"',
     "VARIANT": '"Shibui"',
     "VARIANT_ID": '"shibui"',
@@ -326,10 +327,6 @@ cat > /usr/share/gnome-shell/theme/mutsu/gnome-shell.css <<'CSS'
 CSS
 
 # Rebuild so Nautilus sees user-desktop without waiting for a manual cache.
-if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-  gtk-update-icon-cache -f /usr/share/icons/MutsuJapandi || true
-  gtk-update-icon-cache -f /usr/share/icons/MutsuCyberpunk || true
-fi
 
 
 # Core app icons, so Files, Settings, Terminal, Software and Text Editor
@@ -340,6 +337,10 @@ for theme in japandi cyberpunk; do
   [[ -d "$src" ]] || continue
   install -d -m0755 "$dest"
   cp -a "$src/." "$dest/"
+  # Bazzite's GNOME terminal is Ptyxis (org.gnome.Ptyxis), not GNOME Terminal.
+  if [[ -f "$dest/org.gnome.Terminal.svg" ]]; then
+    install -m0644 "$dest/org.gnome.Terminal.svg" "$dest/org.gnome.Ptyxis.svg"
+  fi
 done
 
 # Sound theme. Quiet tones; inherits freedesktop for anything we do not ship.
@@ -349,12 +350,33 @@ if [[ -d "$brand/sounds/MutsuJapandi" ]]; then
 fi
 
 # Cursor sources and font preference. Adwaita remains the fallback cursor.
-if [[ -d "$brand/cursors/japandi" ]]; then
-  install -d -m0755 /usr/share/icons/MutsuJapandi/cursors
-  cp -a "$brand/cursors/japandi/." /usr/share/icons/MutsuJapandi/cursors/
+# GNOME only reads Xcursor files, so the SVG is converted at build time
+# (hotspot = arrow tip at 4,2 on the 32 px drawing). Cursors not drawn yet
+# fall back to Adwaita through the theme's Inherits line.
+if [[ -s "$brand/cursors/japandi/left_ptr.svg" ]]; then
+  cursors=/usr/share/icons/MutsuJapandi/cursors
+  install -d -m0755 "$cursors"
+  python3 "$brand/cursors/build-xcursor.py" \
+    "$brand/cursors/japandi/left_ptr.svg" "$cursors/left_ptr" 4 2
+  for alias in default arrow top_left_arrow left_arrow; do
+    ln -sfn left_ptr "$cursors/$alias"
+  done
 fi
 if [[ -s "$brand/fonts/60-mutsu-fonts.conf" ]]; then
   install -Dm0644 "$brand/fonts/60-mutsu-fonts.conf" /etc/fonts/conf.d/60-mutsu-fonts.conf
+fi
+# GNOME's own interface (menus, windows, top bar) uses the font-name
+# setting, not the fontconfig preference above. Point it at Inter only when
+# the font is really installed, so a missing package cannot break text.
+if command -v fc-list >/dev/null 2>&1 && fc-list : family | tr ',' '\n' | grep -qx 'Inter'; then
+  install -d -m0755 /etc/dconf/db/mutsu.d
+  cat > /etc/dconf/db/mutsu.d/41-mutsu-fonts <<'DCONF'
+[org/gnome/desktop/interface]
+font-name='Inter 11'
+document-font-name='Inter 11'
+DCONF
+else
+  echo >&2 'Inter is not installed; GNOME keeps its default interface font.'
 fi
 
 # Default avatars and the boot-menu picture.
@@ -364,6 +386,14 @@ if [[ -d "$brand/avatars" ]]; then
 fi
 if [[ -s "$brand/grub/mutsu-grub.svg" ]]; then
   install -Dm0644 "$brand/grub/mutsu-grub.svg" /usr/share/backgrounds/mutsu/mutsu-grub.svg
+fi
+
+# Build the icon caches last, after every icon above is in place. OSTree
+# images set all file times to the same value, so GTK cannot tell that a
+# cache built earlier is stale and would silently miss newer icons.
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+  gtk-update-icon-cache -f /usr/share/icons/MutsuJapandi || true
+  gtk-update-icon-cache -f /usr/share/icons/MutsuCyberpunk || true
 fi
 
 # Brand guide and release notes stay on the installed system.

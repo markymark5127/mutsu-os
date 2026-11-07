@@ -6,6 +6,9 @@ COPY system_files /system_files
 # Base Image
 FROM ghcr.io/ublue-os/bazzite-gnome:stable
 RUN dnf5 install -y plymouth-plugin-script librsvg2-tools && test -f /usr/lib64/plymouth/script.so
+# Brand typeface (SIL OFL, from Fedora). Optional: if the package is
+# unavailable the build continues and GNOME keeps its default font.
+RUN dnf5 install -y rsms-inter-fonts || echo 'Inter font package unavailable; keeping the default font.'
 COPY branding/ /tmp/mutsu-brand-assets/
 COPY packaging/install-branding.sh /tmp/mutsu-install-branding.sh
 RUN bash /tmp/mutsu-install-branding.sh && \

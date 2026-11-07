@@ -21,7 +21,7 @@ On a NEW 60+ GB virtual disk (never use a daily-driver disk):
 - [ ] Verify Mutsu branding in the live installer, including sidebar/labels.
 - [ ] Create an account interactively; finish install, remove ISO, and reboot.
 - [ ] Login to GNOME and check `cat /usr/lib/os-release` includes
-      `PRETTY_NAME="Mutsu OS"` with base OS compatibility IDs intact.
+      `PRETTY_NAME="Mutsu OS 1.0 (Shibui)"` with base OS compatibility IDs intact.
 - [ ] Check Mutsu logo in About and GDM; inspect `journalctl --user -b`
       if branding fails.
 - [ ] First GNOME login shows the **Japandi wallpaper, light GNOME
