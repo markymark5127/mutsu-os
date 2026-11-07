@@ -209,7 +209,14 @@ def tablet_flow():
     wait(3)
     left = js(f"({{inTablet: {T}.ext()._inTablet, home: !!{T}.ext()._home, saved: {T}.ext()._settings.get_string('saved-state')}})")
     record(S, "leaves tablet mode cleanly", left.get("inTablet") is False and not left.get("home") and left.get("saved") in ("", "{}"), left)
-    # Not 'automatic': the virtual touchscreen puts Mutter in touch mode.
+    # Automatic follows Mutter's touch mode (the virtual touchscreen counts).
+    js(f"{T}.ext()._settings.set_string('mode', 'automatic')")
+    wait(3)
+    auto = js(f"""(() => {{ const seat = global.stage.get_context().get_backend().get_default_seat();
+        return {{touchMode: seat.touch_mode, inTablet: {T}.ext()._inTablet,
+            posture: {T}.ext()._posture?.description}}; }})()""")
+    record(S, "Automatic follows the hinge / touch mode", auto.get("inTablet") == auto.get("touchMode"), auto)
+    # From here on use forced modes: the virtual touchscreen keeps touch mode on.
     js(f"{T}.ext()._settings.set_string('mode', 'always-desktop')")
 
 
