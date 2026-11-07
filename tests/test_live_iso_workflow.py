@@ -101,6 +101,20 @@ class LiveISOTests(unittest.TestCase):
         model = (ROOT / "packaging/mutsu-local-model.service").read_text(encoding="utf-8")
         self.assertNotIn("Before=systemd-user-sessions.service", model)
 
+    def test_live_usb_logs_in_automatically(self):
+        # Tacklebox only adds its live user when a recipe lists
+        # live_customize scripts; Mutsu's recipe has none, so the image
+        # sets up liveuser itself, only on the live USB.
+        unit = (ROOT / "packaging/mutsu-live-session.service").read_text(encoding="utf-8")
+        self.assertIn("ConditionKernelCommandLine=tacklebox.live.squashimg", unit)
+        self.assertIn("Before=display-manager.service", unit)
+        script = (ROOT / "packaging/live-session-setup.sh").read_text(encoding="utf-8")
+        for needle in ('AutomaticLogin', 'passwd --delete', 'lock-enabled=false', 'useradd'):
+            self.assertIn(needle, script)
+        containerfile = (ROOT / "Containerfile").read_text(encoding="utf-8")
+        self.assertIn("systemctl enable mutsu-hostname.service mutsu-live-session.service", containerfile)
+        self.assertIn("Finished mutsu-live-session.service", WORKFLOW.read_text(encoding="utf-8"))
+
     def test_upstream_builder_revision_is_pinned(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("repository: tuna-os/tacklebox", workflow)

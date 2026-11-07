@@ -1,0 +1,14 @@
+[Unit]
+Description=Mutsu live USB session (automatic login as liveuser)
+# Only on the live USB: Tacklebox live kernels carry tacklebox.live.squashimg=.
+ConditionKernelCommandLine=tacklebox.live.squashimg
+After=local-fs.target systemd-tmpfiles-setup.service
+Before=display-manager.service gdm.service accounts-daemon.service systemd-user-sessions.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/mutsu-os/live-session-setup.sh
+
+[Install]
+WantedBy=multi-user.target graphical.target

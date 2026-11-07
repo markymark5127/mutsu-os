@@ -208,9 +208,12 @@ COPY branding/terminal/ /tmp/mutsu-terminal-assets/
 COPY packaging/install-terminal-branding.sh /tmp/mutsu-install-terminal-branding.sh
 COPY packaging/ensure-mutsu-hostname.sh /usr/libexec/mutsu-os/ensure-mutsu-hostname.sh
 COPY packaging/mutsu-hostname.service /usr/lib/systemd/system/mutsu-hostname.service
+# Live USB only: passwordless liveuser with automatic login (no-op installed).
+COPY packaging/live-session-setup.sh /usr/libexec/mutsu-os/live-session-setup.sh
+COPY packaging/mutsu-live-session.service /usr/lib/systemd/system/mutsu-live-session.service
 RUN bash /tmp/mutsu-install-terminal-branding.sh && \
-    chmod 0755 /usr/libexec/mutsu-os/ensure-mutsu-hostname.sh && \
-    systemctl enable mutsu-hostname.service && \
+    chmod 0755 /usr/libexec/mutsu-os/ensure-mutsu-hostname.sh /usr/libexec/mutsu-os/live-session-setup.sh && \
+    systemctl enable mutsu-hostname.service mutsu-live-session.service && \
     rm -rf /tmp/mutsu-terminal-assets /tmp/mutsu-install-terminal-branding.sh
 
 ### USER-FACING MUTSU IDENTITY
