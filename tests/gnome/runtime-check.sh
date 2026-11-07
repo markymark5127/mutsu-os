@@ -31,4 +31,10 @@ for schemas in "$XDG_DATA_HOME"/gnome-shell/extensions/*/schemas; do
     glib-compile-schemas "$schemas"
 done
 
+# The Shell needs a system bus at startup (time limits, login manager).
+mkdir -p /run/dbus
+if [ ! -S /run/dbus/system_bus_socket ]; then
+    dbus-daemon --system --fork --nopidfile 2>&1 || dbus-daemon --system --fork 2>&1 || true
+fi
+
 exec dbus-run-session -- bash "$SRC/tests/gnome/session.sh" "$SRC" "$OUT"
