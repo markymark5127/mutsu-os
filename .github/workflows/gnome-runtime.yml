@@ -1,0 +1,76 @@
+---
+# Loads every bundled Shell extension in the real GNOME Shell shipped in the
+# published Mutsu image (headless Wayland), drives tablet mode with synthetic
+# touch input and fails on any extension error. Uses this commit's extensions
+# on top of the latest image, so extension fixes are checked in minutes
+# without waiting for an image rebuild.
+name: GNOME runtime check
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'extensions/**'
+      - 'tests/gnome/**'
+      - '.github/workflows/gnome-runtime.yml'
+  workflow_run:
+    workflows: ["Build container image"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Published image tag to run against'
+        default: latest
+        required: true
+
+concurrency:
+  group: gnome-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free runner disk space
+        uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6
+
+      - name: Pull published Mutsu image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ inputs.image_tag || 'latest' }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | podman login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          image="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]'):$IMAGE_TAG"
+          podman pull "$image"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+
+      - name: Run extensions in real GNOME Shell
+        run: |
+          mkdir -p out
+          podman run --rm --network none \
+            -v "$PWD:/src:ro,z" -v "$PWD/out:/out:z" \
+            --entrypoint /bin/bash "$IMAGE" /src/tests/gnome/runtime-check.sh /src /out
+
+      - name: Report
+        if: always()
+        run: |
+          [ -f out/report.md ] && cat out/report.md >> "$GITHUB_STEP_SUMMARY" || true
+          [ -f out/report.md ] && cat out/report.md || true
+
+      - name: Upload Shell log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnome-runtime-${{ github.run_id }}
+          path: out/
+          if-no-files-found: warn
