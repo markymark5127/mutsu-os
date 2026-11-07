@@ -138,8 +138,8 @@ def tablet_flow():
     if js(f"Main.extensionManager.lookup('{ADAPTIVE}')?.state") != 1:
         record(S, "Mutsu Adaptive is active", False, "skipping tablet checks")
         return
-    helpers = js(HELPERS + "; true")
-    record(S, "virtual touchscreen", helpers is True, helpers)
+    ok, value = _eval_raw(HELPERS.strip() + ";\ntypeof globalThis.__mutsuTest")
+    record(S, "virtual touchscreen", ok and "object" in value, value)
     T = "globalThis.__mutsuTest"
 
     js(f"{T}.ext()._settings.set_string('mode', 'always-tablet')")
