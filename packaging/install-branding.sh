@@ -341,6 +341,10 @@ for theme in japandi cyberpunk; do
   if [[ -f "$dest/org.gnome.Terminal.svg" ]]; then
     install -m0644 "$dest/org.gnome.Terminal.svg" "$dest/org.gnome.Ptyxis.svg"
   fi
+  # Bazzite's app store is Bazaar (it replaced GNOME Software in 2025).
+  if [[ -f "$dest/org.gnome.Software.svg" ]]; then
+    install -m0644 "$dest/org.gnome.Software.svg" "$dest/io.github.kolunmi.Bazaar.svg"
+  fi
 done
 
 # Sound theme. Quiet tones; inherits freedesktop for anything we do not ship.

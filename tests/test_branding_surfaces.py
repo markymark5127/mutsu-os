@@ -31,6 +31,7 @@ class BrandingSurfacesTest(unittest.TestCase):
 
     def test_terminal_icon_covers_ptyxis(self):
         self.assertIn("org.gnome.Ptyxis.svg", SCRIPT)
+        self.assertIn("io.github.kolunmi.Bazaar.svg", SCRIPT)
 
     def test_interface_font_only_set_when_installed(self):
         self.assertIn("fc-list : family", SCRIPT)
