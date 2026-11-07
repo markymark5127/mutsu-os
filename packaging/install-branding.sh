@@ -241,10 +241,14 @@ if release:
 patch = {
     "NAME": '"Mutsu OS"',
     "PRETTY_NAME": '"Mutsu OS"',
-    "VERSION": '""',
-    "VARIANT": '""',
-    "VARIANT_ID": '""',
+    "VERSION": '"1.0 (Shibui)"',
+    "VARIANT": '"Shibui"',
+    "VARIANT_ID": '"shibui"',
     "LOGO": "mutsu-os-logo",
+    "HOME_URL": '"https://github.com/markymark5127/mutsu-os"',
+    "SUPPORT_URL": '"https://github.com/markymark5127/mutsu-os/discussions"',
+    "BUG_REPORT_URL": '"https://github.com/markymark5127/mutsu-os/issues"',
+    "DOCUMENTATION_URL": '"https://github.com/markymark5127/mutsu-os/blob/main/branding/docs/RELEASE_NOTES.md"',
 }
 # Preserve the original VERSION_ID so the image builder can parse
 # "{ID}-{VERSION_ID}" (e.g. bazzite-44). Do not blank it.
@@ -326,6 +330,46 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
   gtk-update-icon-cache -f /usr/share/icons/MutsuJapandi || true
   gtk-update-icon-cache -f /usr/share/icons/MutsuCyberpunk || true
 fi
+
+
+# Core app icons, so Files, Settings, Terminal, Software and Text Editor
+# match the sage folders instead of stock GNOME.
+for theme in japandi cyberpunk; do
+  src="$brand/icons/apps/$theme"
+  dest="/usr/share/icons/Mutsu${theme^}/scalable/apps"
+  [[ -d "$src" ]] || continue
+  install -d -m0755 "$dest"
+  cp -a "$src/." "$dest/"
+done
+
+# Sound theme. Quiet tones; inherits freedesktop for anything we do not ship.
+if [[ -d "$brand/sounds/MutsuJapandi" ]]; then
+  install -d -m0755 /usr/share/sounds/MutsuJapandi
+  cp -a "$brand/sounds/MutsuJapandi/." /usr/share/sounds/MutsuJapandi/
+fi
+
+# Cursor sources and font preference. Adwaita remains the fallback cursor.
+if [[ -d "$brand/cursors/japandi" ]]; then
+  install -d -m0755 /usr/share/icons/MutsuJapandi/cursors
+  cp -a "$brand/cursors/japandi/." /usr/share/icons/MutsuJapandi/cursors/
+fi
+if [[ -s "$brand/fonts/60-mutsu-fonts.conf" ]]; then
+  install -Dm0644 "$brand/fonts/60-mutsu-fonts.conf" /etc/fonts/conf.d/60-mutsu-fonts.conf
+fi
+
+# Default avatars and the boot-menu picture.
+if [[ -d "$brand/avatars" ]]; then
+  install -d -m0755 /usr/share/pixmaps/faces
+  cp -a "$brand/avatars/." /usr/share/pixmaps/faces/
+fi
+if [[ -s "$brand/grub/mutsu-grub.svg" ]]; then
+  install -Dm0644 "$brand/grub/mutsu-grub.svg" /usr/share/backgrounds/mutsu/mutsu-grub.svg
+fi
+
+# Brand guide and release notes stay on the installed system.
+install -d -m0755 /usr/share/doc/mutsu-os
+install -Dm0644 "$brand/docs/BRAND_GUIDE.md" /usr/share/doc/mutsu-os/BRAND_GUIDE.md
+install -Dm0644 "$brand/docs/RELEASE_NOTES.md" /usr/share/doc/mutsu-os/RELEASE_NOTES.md
 
 printf 'Mutsu OS image branding installed: GNOME logo, OS display name, login logo, wallpapers, Anaconda sidebar, and Plymouth theme.\n'
 

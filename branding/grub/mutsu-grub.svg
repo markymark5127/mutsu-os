@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="#F3EFE7"/>
+  <circle cx="960" cy="430" r="120" fill="#788773"/>
+  <text x="960" y="700" text-anchor="middle" font-family="sans-serif" font-size="72" fill="#232823">Mutsu OS</text>
+</svg>

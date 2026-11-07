@@ -1,0 +1,8 @@
+[Sound Theme]
+Name=Mutsu Japandi
+Comment=Quiet sage tones for Mutsu OS
+Inherits=freedesktop
+Directories=stereo
+
+[stereo]
+OutputProfile=stereo

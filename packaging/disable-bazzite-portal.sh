@@ -63,6 +63,7 @@ hide_app() {
 
 for f in \
   /usr/share/applications/*bazzite* \
+  /usr/share/applications/*buddy* \
   /usr/share/applications/*yafti* \
   /usr/share/applications/system-update.desktop \
   /usr/share/applications/*updater*.desktop \
