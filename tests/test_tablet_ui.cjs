@@ -83,6 +83,7 @@ class Entry extends Actor {
 }
 class Grid { attach(child) { this.owner?.add_child(child); } }
 const St = {Widget: Actor, BoxLayout: Actor, Label: Actor, Icon: Actor, Button: Actor, Entry};
+const vbox = props => new Actor(props);
 const T = ['TOUCH_BEGIN', 'TOUCH_UPDATE', 'TOUCH_END', 'TOUCH_CANCEL', 'BUTTON_PRESS',
     'BUTTON_RELEASE', 'MOTION', 'KEY_PRESS'];
 const Clutter = {EventType: Object.fromEntries(T.map(t => [t, t])), EVENT_STOP: 1, EVENT_PROPAGATE: 0,
@@ -151,10 +152,10 @@ const geometry = load('tabletGeometry.js', ['homeMetrics', 'slotAt', 'pageSnap',
 const {HomeLayout, itemId} = load('homeLayout.js', ['HomeLayout', 'itemId'], {});
 const router = load('touchRouter.js', ['TouchRouter', 'makeTappable', 'findHandler'],
     {Clutter, GLib, classifyDrag: geometry.classifyDrag});
-const {TouchMenu} = load('touchMenu.js', ['TouchMenu'], {Clutter, St, makeTappable: router.makeTappable});
+const {TouchMenu} = load('touchMenu.js', ['TouchMenu'], {Clutter, St, makeTappable: router.makeTappable, vbox});
 let searches = 0;
 const {TabletHome} = load('tabletHome.js', ['TabletHome'], {Clutter, GLib, Gio, Shell, St, Main,
-    AppFavorites, ...geometry, HomeLayout, itemId, ...router, TouchMenu});
+    AppFavorites, ...geometry, HomeLayout, itemId, ...router, TouchMenu, vbox});
 
 // ---- Home ---------------------------------------------------------------------
 const home = new TabletHome({settings, monitor: () => monitor, search: () => searches++});
@@ -354,7 +355,7 @@ const split = {arrange: (a, b) => splits.push(['split', a, b]), slideOver: w => 
 let homes = 0;
 const {TabletBlades} = load('tabletBlades.js', ['TabletBlades'], {Clutter, GLib, Meta: {TabList: {NORMAL_ALL: 0},
     WindowType: {NORMAL: 0}, MaximizeFlags: null}, Shell, St, Main, ...geometry, ...router,
-    global: globalMock});
+    global: globalMock, vbox});
 const blades = new TabletBlades({monitor: () => monitor, split, home: () => homes++});
 blades.show();
 const broot = uiGroup.children.at(-1);
@@ -443,7 +444,7 @@ favorites.list = ['org.gnome.Nautilus.desktop'];
 const layoutDock = Object.assign(layoutManager, {addChrome: a => uiGroup.add_child(a), removeChrome: a => uiGroup.remove_child(a)});
 const {TabletDockPopup} = load('tabletDockPopup.js', ['TabletDockPopup'], {Clutter, GLib, Shell, St,
     AppFavorites, Main: {...Main, layoutManager: layoutDock}, dockDropZone: geo2.dockDropZone,
-    ...router, windowForApp: (app, cb) => cb(app.get_windows()[0]), global: globalDock});
+    ...router, windowForApp: (app, cb) => cb(app.get_windows()[0]), global: globalDock, vbox});
 const popup = new TabletDockPopup(() => {}, () => monitor, fakeSplit);
 popup.show();
 const dockRoot = popup._box;

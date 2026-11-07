@@ -304,21 +304,32 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (this._inTablet)
             return;
         this._inTablet = true;
-        this._applyTouchSettings();
-        setTabletWindowChrome(true);
-        this._home = new TabletHome({
+        // Each part starts on its own: one failing (for example after a GNOME
+        // API change) must not leave tablet mode half-started with no Home,
+        // gestures or menu actions. Errors go to the journal with a stack.
+        const start = (name, fn) => {
+            try {
+                return fn();
+            } catch (error) {
+                logError(error, `Mutsu Adaptive: ${name} failed to start`);
+                return null;
+            }
+        };
+        start('touch settings', () => this._applyTouchSettings());
+        start('window controls', () => setTabletWindowChrome(true));
+        this._home = start('Home', () => new TabletHome({
             settings: this._settings,
             monitor: () => this._tabletMonitor(),
             search: () => this._openSearch(),
-        });
-        this._session = new TabletSession(this._settings, this._journal);
+        }));
+        this._session = start('touch session', () => new TabletSession(this._settings, this._journal));
         // TabletSwitcher owns the bottom edge to avoid competing recognizers.
-        this._switcher = new TabletSwitcher(
+        this._switcher = start('gestures and multitasking', () => new TabletSwitcher(
             () => this._goHome(),
             () => this._gestureSuppressed(),
             () => this._settings.get_boolean('enable-experimental-gestures'),
-            () => this._tabletMonitor());
-        this._installWindowSizing();
+            () => this._tabletMonitor()));
+        start('window sizing', () => this._installWindowSizing());
         this._tabletSignals = [];
         // GNOME's overview has no role in tablet mode: Super / hot corner go Home.
         this._tabletSignals.push([Main.overview, Main.overview.connect('showing', () => {
@@ -344,12 +355,14 @@ export default class MutsuAdaptiveExtension extends Extension {
         for (const [object, id] of this._tabletSignals ?? [])
             object.disconnect(id);
         this._tabletSignals = [];
-        this._switcher?.destroy();
-        this._switcher = null;
-        this._home?.destroy();
-        this._home = null;
-        this._session?.destroy();
-        this._session = null;
+        for (const part of ['_switcher', '_home', '_session']) {
+            try {
+                this[part]?.destroy();
+            } catch (error) {
+                logError(error, `Mutsu Adaptive: ${part} cleanup failed`);
+            }
+            this[part] = null;
+        }
         this._removeWindowSizing();
         this._unparkWindows();
         this._journal.restore();

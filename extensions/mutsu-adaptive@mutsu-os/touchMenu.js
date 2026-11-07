@@ -1,6 +1,7 @@
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import {makeTappable} from './touchRouter.js';
+import {vbox} from './stCompat.js';
 
 // Long-press quick-actions menu (iPadOS style), shown inside a touch surface
 // so its taps go through that surface's TouchRouter.
@@ -16,7 +17,7 @@ export class TouchMenu {
     // items: [{label, action, destructive?}] ; anchor: {x, y, width, height}
     open(items, anchor, bounds) {
         this.close();
-        const box = new St.BoxLayout({vertical: true, style_class: 'mutsu-touch-menu',
+        const box = vbox({style_class: 'mutsu-touch-menu',
             reactive: true});
         for (const item of items) {
             const row = new St.BoxLayout({style_class: item.destructive

@@ -9,6 +9,7 @@ import {homeMetrics, slotAt, pageSnap, pullDownAllowed, PULL_SEARCH_PX} from './
 import {HomeLayout, itemId} from './homeLayout.js';
 import {TouchRouter, makeTappable, findHandler} from './touchRouter.js';
 import {TouchMenu} from './touchMenu.js';
+import {vbox} from './stCompat.js';
 
 const FOLDER_NAMES = {
     Game: 'Games', AudioVideo: 'Media', Audio: 'Music', Video: 'Video',
@@ -271,7 +272,7 @@ export class TabletHome {
         const header = new St.BoxLayout({style_class: 'mutsu-home-header',
             x: m.gridX, y: m.headerY, width: this._monitor.width - m.gridX * 2});
         if (widgets) {
-            const clock = new St.BoxLayout({vertical: true, style_class: 'mutsu-home-clock-widget'});
+            const clock = vbox({style_class: 'mutsu-home-clock-widget'});
             this._time = new St.Label({style_class: 'mutsu-home-time'});
             this._date = new St.Label({style_class: 'mutsu-home-date'});
             clock.add_child(this._time);
@@ -319,7 +320,7 @@ export class TabletHome {
     }
 
     _tile(item, size) {
-        const tile = new St.BoxLayout({vertical: true, style_class: 'mutsu-home-tile',
+        const tile = vbox({style_class: 'mutsu-home-tile',
             width: size + 40});
         const art = new St.Widget({style_class: 'mutsu-home-art', width: size, height: size,
             x_align: Clutter.ActorAlign.CENTER, layout_manager: new Clutter.BinLayout()});
@@ -367,7 +368,7 @@ export class TabletHome {
         const add = app => {
             const button = new St.Widget({style_class: 'mutsu-home-dock-app',
                 layout_manager: new Clutter.BinLayout()});
-            const column = new St.BoxLayout({vertical: true});
+            const column = vbox({});
             column.add_child(this._icon(app, m.dockIcon));
             const dot = new St.Widget({style_class: 'mutsu-running-dot',
                 x_align: Clutter.ActorAlign.CENTER});
@@ -495,7 +496,7 @@ export class TabletHome {
         const cols = Math.min(4, Math.max(3, Math.ceil(Math.sqrt(folder.apps.length))));
         const tileW = m.icon + 40;
         const panelW = cols * (tileW + 16) + 48;
-        const panel = new St.BoxLayout({vertical: true, style_class: 'mutsu-home-folder',
+        const panel = vbox({style_class: 'mutsu-home-folder',
             width: panelW});
         const title = new St.Entry({text: folder.name, style_class: 'mutsu-home-folder-title',
             can_focus: true, x_align: Clutter.ActorAlign.CENTER});
@@ -508,7 +509,7 @@ export class TabletHome {
             const app = this._app(appId);
             if (!app)
                 return;
-            const tile = new St.BoxLayout({vertical: true, style_class: 'mutsu-home-tile',
+            const tile = vbox({style_class: 'mutsu-home-tile',
                 width: tileW});
             const art = new St.Widget({width: m.icon, height: m.icon,
                 x_align: Clutter.ActorAlign.CENTER, layout_manager: new Clutter.BinLayout()});

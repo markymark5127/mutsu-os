@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {bladeTransform, groupWindows, isWindowMaximized, maximizeWindow, unmaximizeWindow}
     from './tabletGeometry.js';
 import {TouchRouter, makeTappable, findHandler} from './touchRouter.js';
+import {vbox} from './stCompat.js';
 
 const SWIPE_ACTION_PX = 110;
 const MAX_PANES = 3;
@@ -206,7 +207,7 @@ export class TabletBlades {
     }
 
     _blade(group, index) {
-        const blade = new St.BoxLayout({vertical: true, style_class: 'mutsu-blade',
+        const blade = vbox({style_class: 'mutsu-blade',
             width: this._bladeW, height: this._bladeH, reactive: true});
         blade._mutsuBlade = group;
         const header = new St.BoxLayout({style_class: 'mutsu-blade-header'});
@@ -253,7 +254,7 @@ export class TabletBlades {
     }
 
     _pane(window, height) {
-        const pane = new St.BoxLayout({vertical: true, style_class: window.minimized
+        const pane = vbox({style_class: window.minimized
             ? 'mutsu-pane mutsu-pane-minimized' : 'mutsu-pane', height});
         pane._mutsuWindow = window;
         const bar = new St.BoxLayout({style_class: 'mutsu-pane-bar'});

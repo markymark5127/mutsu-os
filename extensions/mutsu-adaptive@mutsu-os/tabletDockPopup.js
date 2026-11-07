@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {dockDropZone} from './tabletGeometry.js';
 import {TouchRouter, makeTappable, findHandler} from './touchRouter.js';
 import {windowForApp} from './tabletSplitView.js';
+import {vbox} from './stCompat.js';
 
 // Temporary touch dock (short pull from the bottom edge). Does not pin
 // Dash-to-Dock or reserve screen space.
@@ -128,8 +129,8 @@ export class TabletDockPopup {
         this._zones.set_size(monitor.width, monitor.height);
         const edge = Math.round(monitor.width * 0.14);
         const make = (name, label, x, width) => {
-            const zone = new St.BoxLayout({style_class: 'mutsu-drop-zone', x, y: 48,
-                width, height: monitor.height - 200, vertical: true});
+            const zone = vbox({style_class: 'mutsu-drop-zone', x, y: 48,
+                width, height: monitor.height - 200});
             zone.add_child(new St.Widget({y_expand: true}));
             zone.add_child(new St.Label({text: label, x_align: Clutter.ActorAlign.CENTER,
                 style_class: 'mutsu-drop-zone-label'}));
