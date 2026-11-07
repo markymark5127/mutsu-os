@@ -34,7 +34,7 @@ export class TabletSwitcher {
             accessible_name: 'Home. Swipe up and hold for multitasking',
             child: new St.Widget({style_class: 'mutsu-home-indicator'})});
         this._bar.connect('clicked', () => this._home());
-        Main.layoutManager.addChrome(this._bar, {affectsInputRegion: true});
+        Main.layoutManager.addChrome(this._bar); // GNOME 51 rejects affectsInputRegion; input is tracked by default
         this._monitorId = Main.layoutManager.connect('monitors-changed', () => {
             this.hide();
             this._dock.hide();

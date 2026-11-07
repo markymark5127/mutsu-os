@@ -46,7 +46,6 @@ const ActionBar = GObject.registerClass(
 class ActionBar extends St.BoxLayout {
     _init() {
         super._init({
-            vertical: false,
             style: [
                 'background-color: rgba(40,40,40,0.95);',
                 'border-radius: 12px;',
@@ -422,7 +421,6 @@ export class TextActionFab {
             ].join(' '),
         });
         const box = new St.BoxLayout({
-            vertical: false,
             style: 'spacing: 6px;',
         });
         const icon = new St.Icon({

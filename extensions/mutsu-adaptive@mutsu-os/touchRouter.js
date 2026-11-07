@@ -69,7 +69,10 @@ export class TouchRouter {
             const time = event.get_time();
             this._state = {sequence, source, x, y, startX: x, startY: y, kind: null,
                 held: false, lastX: x, lastTime: time, velocity: 0};
-            this._timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, LONG_PRESS_MS, () => {
+            // Low priority: when the Shell is busy (live USB, first Home
+            // render) a finger lift already queued must be handled before
+            // the hold timer, or a quick tap turns into a long press.
+            this._timer = GLib.timeout_add(GLib.PRIORITY_LOW ?? GLib.PRIORITY_DEFAULT, LONG_PRESS_MS, () => {
                 this._timer = 0;
                 this._longPress();
                 return GLib.SOURCE_REMOVE;

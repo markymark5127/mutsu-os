@@ -31,6 +31,18 @@ class ExtensionShellVersionTest(unittest.TestCase):
                         and not line.strip().startswith("//"):
                     self.fail(f"{script.relative_to(ROOT)}: {line.strip()}")
 
+    def test_no_options_gnome_51_rejects(self):
+        # GNOME 51 throws on St.BoxLayout's removed `vertical` property and on
+        # addChrome's removed `affectsInputRegion` option. Either one stops the
+        # part of the extension that uses it from starting.
+        for script in EXTENSIONS.rglob("*.js"):
+            if "prefs" in script.parts or script.name == "prefs.js":
+                continue
+            for line in script.read_text(encoding="utf-8", errors="replace").splitlines():
+                code = line.split("//")[0]
+                if re.search(r"\bvertical:\s*(true|false)", code) or "affectsInputRegion" in code:
+                    self.fail(f"{script.relative_to(ROOT)}: {line.strip()}")
+
 
 if __name__ == "__main__":
     unittest.main()
