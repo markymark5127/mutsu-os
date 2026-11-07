@@ -10,7 +10,8 @@ export const TabletModeMonitor = GObject.registerClass({
 }, class TabletModeMonitor extends GObject.Object {
     _init() {
         super._init();
-        this._seat = Clutter.get_default_backend().get_default_seat();
+        // GNOME 51 removed Clutter.get_default_backend(); use the stage's context.
+        this._seat = (global.stage.get_context?.()?.get_backend?.() ?? Clutter.get_default_backend()).get_default_seat();
         this._seat.connectObject(
             'notify::touch-mode',
             () => this.emit('changed'),

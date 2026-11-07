@@ -227,7 +227,8 @@ class TopLevelMenuButton extends PanelMenu.Button {
     }
 
     _virtualKeyboard() {
-        this._keyboard ??= Clutter.get_default_backend().get_default_seat()
+        // GNOME 51 removed Clutter.get_default_backend(); use the stage's context.
+        this._keyboard ??= (global.stage.get_context?.()?.get_backend?.() ?? Clutter.get_default_backend()).get_default_seat()
             .create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
         return this._keyboard;
     }
