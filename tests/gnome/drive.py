@@ -153,11 +153,13 @@ def tablet_flow():
     state = js(f"""(() => {{ const e = {T}.ext(); const h = e._home;
         return {{inTablet: e._inTablet, home: !!h, switcher: !!e._switcher, session: !!e._session,
             homeVisible: !!h?._root?.visible && !!h?._root?.mapped,
+            keyboard: Main.layoutManager.keyboardBox.visible, keyFocus: `${{global.stage.key_focus}}`,
             tiles: h?._tiles?.size ?? 0}}; }})()""")
     record(S, "enters tablet mode", state.get("inTablet"), state)
     record(S, "Home is built and on screen", state.get("home") and state.get("homeVisible") and state.get("tiles", 0) > 0, state)
     record(S, "gestures/multitasking started", state.get("switcher"), state)
     record(S, "touch session started", state.get("session"), state)
+    record(S, "on-screen keyboard stays closed on Home", state.get("keyboard") is False, state)
     if not state.get("home"):
         return
 
@@ -284,6 +286,8 @@ def window_flow():
             const target = global.stage.get_actor_at_pos(imports.gi.Clutter.PickMode.REACTIVE, x, y);
             const info = {{modal: Main.modalCount, suppressed: s._suppressed(), enabled: s._gesturesEnabled(),
                 keyboard: Main.layoutManager.keyboardBox.visible, bar: s._bar.visible,
+                keyFocus: `${{global.stage.key_focus}}`, kbVisible: Main.keyboard.visible,
+                imFocus: !!Main.inputMethod?.currentFocus, imHasFocus: Main.inputMethod?.hasPreedit?.() ?? null,
                 barRect: [...s._bar.get_transformed_position(), ...s._bar.get_transformed_size()],
                 target: `${{target}}`, focus: global.display.focus_window?.get_title()}};
             t.swipe(x, y, x, m.y + m.height * 0.55, 350, 900);
