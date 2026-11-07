@@ -212,15 +212,13 @@ def tablet_flow():
 
 def window_flow():
     S = "Apps when folding"
-    candidates = (["gnome-text-editor", "--new-window", "--ignore-session"], ["gnome-calculator"],
-                  ["gnome-system-monitor"], ["gtk4-demo"], ["gnome-font-viewer"],
-                  ["zenity", "--text-info", "--text=Mutsu test", "--width=500", "--height=400"])
-    client = next((c for c in candidates if shutil.which(c[0])), None)
-    if client is None:
-        record(S, "test app available", False, "no GTK test app in the image")
+    if not shutil.which("gjs"):
+        record(S, "test app available", False, "no gjs in the image")
         return
-    record(S, f"test app: {client[0]}", True)
-    procs = [subprocess.Popen(client, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for _ in range(2)]
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test-window.js")
+    procs = [subprocess.Popen(["gjs", "-m", script, name], stdout=subprocess.DEVNULL,
+                              stderr=open(os.path.join(OUT, f"test-window-{name}.log"), "w"))
+             for name in ("Alpha", "Beta")]
     try:
         for _ in range(30):
             wait(1)
