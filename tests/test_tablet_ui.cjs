@@ -150,7 +150,7 @@ const geometry = load('tabletGeometry.js', ['homeMetrics', 'slotAt', 'pageSnap',
     'PULL_SEARCH_PX', 'classifyDrag', 'sameSequence', 'bladeTransform', 'groupWindows', 'isWindowMaximized',
     'maximizeWindow', 'unmaximizeWindow'], {});
 const {HomeLayout, itemId} = load('homeLayout.js', ['HomeLayout', 'itemId'], {});
-const router = load('touchRouter.js', ['TouchRouter', 'makeTappable', 'findHandler'],
+const router = load('touchRouter.js', ['TouchRouter', 'makeTappable', 'findHandler', 'eventActor'],
     {Clutter, GLib, classifyDrag: geometry.classifyDrag, sameSequence: geometry.sameSequence});
 const {TouchMenu} = load('touchMenu.js', ['TouchMenu'], {Clutter, St, makeTappable: router.makeTappable, vbox});
 let searches = 0;

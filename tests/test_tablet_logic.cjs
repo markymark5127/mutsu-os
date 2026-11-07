@@ -325,6 +325,15 @@ ev('TOUCH_END', 100, 100, 1950);
 assert.equal(outside, 1, 'tap outside an open menu closes it');
 assert.equal(taps, 2, '...without activating what was underneath');
 assert.equal(findHandler(label, surface, '_mutsuTap'), icon);
+// GNOME 45+: touch/click events have no source; the stage knows the target.
+router.modal = null;
+globalThis.global = {stage: {get_event_actor: event => event.actor}};
+surface.handler(surface, {type: () => 'TOUCH_BEGIN', get_coords: () => [100, 100], get_time: () => 3000,
+    get_event_sequence: () => ({get_slot: () => 4}), get_source: () => null, actor: label, get_button: () => 1});
+surface.handler(surface, {type: () => 'TOUCH_END', get_coords: () => [100, 100], get_time: () => 3050,
+    get_event_sequence: () => ({get_slot: () => 4}), get_source: () => null, actor: label, get_button: () => 1});
+delete globalThis.global;
+assert.equal(taps, 3, 'tap finds its target through the stage when the event has no source');
 router.destroy();
 assert.equal(surface.handler, null);
 console.log('Touch router checks passed (tap, swipe-on-icon, hold-drag, slow tap, entries, multi-touch, menus).');

@@ -5,7 +5,7 @@ import St from 'gi://St';
 import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {dockDropZone} from './tabletGeometry.js';
-import {TouchRouter, makeTappable, findHandler} from './touchRouter.js';
+import {TouchRouter, makeTappable, findHandler, eventActor} from './touchRouter.js';
 import {windowForApp} from './tabletSplitView.js';
 import {vbox} from './stCompat.js';
 
@@ -32,7 +32,7 @@ export class TabletDockPopup {
         this._eventId = global.stage.connect('captured-event', (_stage, event) => {
             if (this._box.visible && !this._carry && [Clutter.EventType.BUTTON_PRESS,
                 Clutter.EventType.TOUCH_BEGIN].includes(event.type()) &&
-                !this._box.contains(event.get_source()))
+                !this._box.contains(eventActor(event)))
                 this.hide();
             return Clutter.EVENT_PROPAGATE;
         });

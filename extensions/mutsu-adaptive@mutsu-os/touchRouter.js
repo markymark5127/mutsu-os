@@ -17,6 +17,13 @@ import {classifyDrag, sameSequence} from './tabletGeometry.js';
 
 export const LONG_PRESS_MS = 480;
 
+// The actor under the finger or pointer. Since GNOME 45, Clutter events only
+// carry a source for enter/leave; for touches and clicks get_source() is
+// null, so every tap and hold lost its target.
+export function eventActor(event) {
+    return globalThis.global?.stage?.get_event_actor?.(event) ?? event.get_source?.() ?? null;
+}
+
 export function findHandler(source, root, name) {
     for (let actor = source; actor; actor = actor.get_parent?.()) {
         if (actor[name])
@@ -52,7 +59,7 @@ export class TouchRouter {
             return Clutter.EVENT_PROPAGATE;
         const sequence = touch ? event.get_event_sequence() : null;
         const [x, y] = event.get_coords();
-        const source = event.get_source();
+        const source = eventActor(event);
 
         if (begin) {
             if (this._state)

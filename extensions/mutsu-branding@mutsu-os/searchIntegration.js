@@ -76,7 +76,7 @@ export class SearchIntegration {
             const frame = search.get_frame_rect();
             const actor = search.get_compositor_private();
             // Popovers can extend beyond the toplevel rectangle.
-            const inside = actor?.contains(event.get_source()) ||
+            const inside = actor?.contains((globalThis.global?.stage?.get_event_actor?.(event) ?? event.get_source?.() ?? null)) ||
                 (x >= frame.x && x < frame.x + frame.width &&
                  y >= frame.y && y < frame.y + frame.height);
             if (!inside)

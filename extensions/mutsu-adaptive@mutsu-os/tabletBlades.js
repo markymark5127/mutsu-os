@@ -47,7 +47,8 @@ export class TabletBlades {
             x: m.x, y: m.y, width: m.width, height: m.height});
         Main.layoutManager.uiGroup.add_child(root);
         this._grab = Main.pushModal(root, {actionMode: Shell.ActionMode.POPUP});
-        if (!this._grab.get_seat_state()) {
+        // get_seat_state() is gone in newer Clutter; pushModal no longer fails that way.
+        if (this._grab?.get_seat_state && !this._grab.get_seat_state()) {
             Main.popModal(this._grab);
             this._grab = null;
             root.destroy();

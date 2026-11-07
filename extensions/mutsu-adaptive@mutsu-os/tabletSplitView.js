@@ -271,7 +271,7 @@ export class TabletSplitView {
         const sequence = touch ? event.get_event_sequence() : null;
         const [x] = event.get_coords();
         if (begin && (touch || event.get_button() === 1)) {
-            const source = event.get_source();
+            const source = (globalThis.global?.stage?.get_event_actor?.(event) ?? event.get_source?.() ?? null); // see touchRouter.eventActor
             for (const [kind, actor] of [['divider', this._divider], ['handle', this._handle],
                 ['tab', this._tab]]) {
                 if (actor.visible && actor.contains(source)) {
