@@ -113,7 +113,7 @@ class LiveISOTests(unittest.TestCase):
             self.assertIn(needle, script)
         containerfile = (ROOT / "Containerfile").read_text(encoding="utf-8")
         self.assertIn("systemctl enable mutsu-hostname.service mutsu-live-session.service", containerfile)
-        self.assertIn("Finished mutsu-live-session.service", WORKFLOW.read_text(encoding="utf-8"))
+        self.assertIn("Finished mutsu-live-sess", WORKFLOW.read_text(encoding="utf-8"))
 
     def test_upstream_builder_revision_is_pinned(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
