@@ -82,6 +82,12 @@ globalThis.__mutsuTest ??= (() => {
         log: [],
         tap(x, y, ms = 60) { touch.notify_touch_down(now(), 0, x, y); later(ms, () => touch.notify_touch_up(now(), 0)); },
         hold(x, y, ms = 900) { t.tap(x, y, ms); },
+        holdDrag(x, y, dx, dy, ms = 800) {
+            touch.notify_touch_down(now(), 0, x, y);
+            for (let i = 1; i <= 8; i++)
+                later(ms + i * 30, () => touch.notify_touch_motion(now(), 0, x + dx * i / 8, y + dy * i / 8));
+            later(ms + 400, () => touch.notify_touch_up(now(), 0));
+        },
         swipe(x0, y0, x1, y1, ms = 300, pause = 0) {
             touch.notify_touch_down(now(), 0, x0, y0);
             const steps = 12;
@@ -169,33 +175,28 @@ def tablet_flow():
     record(S, "tap does not start jiggle mode", after.get("editing") is False, after)
     record(S, "touch router is free after a tap", after.get("stuck") is False, after)
 
-    # Hold on the wallpaper: jiggle mode. Then tap Done.
-    js(f"""(() => {{ const t = {T}, h = t.ext()._home, m = h._monitor;
-        t.hold(m.x + Math.round(m.width / 2), m.y + Math.round(m.height * 0.62)); return true; }})()""")
+    # Hold an icon: its menu opens. Hold and drag: jiggle mode. Then tap Done.
+    js(f"""(() => {{ const t = {T}, h = t.ext()._home;
+        const entry = [...h._tiles.values()].find(v => v.page === h._page && v.tile._mutsuLongPress);
+        const [x, y] = t.center(entry.tile); t.hold(x, y); return true; }})()""")
     wait(2)
-    record(S, "hold starts jiggle mode", js(f"{T}.ext()._home.editing") is True)
+    menu = js(f"{T}.ext()._home._menu.isOpen")
+    record(S, "hold on an icon opens its menu", menu is True, menu)
+    js(f"{T}.ext()._home._menu.close()")
+    wait(1)
+    js(f"""(() => {{ const t = {T}, h = t.ext()._home;
+        const entry = [...h._tiles.values()].find(v => v.page === h._page && v.tile._mutsuLongPress);
+        const [x, y] = t.center(entry.tile); t.holdDrag(x, y, 40, 0); return true; }})()""")
+    wait(2.5)
+    record(S, "hold and drag starts jiggle mode", js(f"{T}.ext()._home.editing") is True)
     done = js(f"""(() => {{ const t = {T}, h = t.ext()._home;
         const done = t.find(h._root, a => a.accessible_name === 'Done editing Home Screen');
         if (!done) return {{error: 'no Done button'}};
         const [x, y] = t.center(done); t.tap(x, y); return {{x, y}}; }})()""")
     wait(1.5)
-    record(S, "Done leaves jiggle mode", js(f"{T}.ext()._home.editing") is False, done)
-
-    # Multitasking: open/close directly, then by gesture.
-    shown = js(f"(() => {{ const s = {T}.ext()._switcher; s.show(); return s.visible; }})()")
-    wait(1)
-    record(S, "multitasking opens", shown is True, shown)
-    js(f"{T}.ext()._switcher.hide()")
-    wait(1)
-    record(S, "multitasking closes", js(f"{T}.ext()._switcher.visible") is False)
-    js(f"""(() => {{ const t = {T}, m = t.ext()._tabletMonitor();
-        t.swipe(m.x + m.width / 2, m.y + m.height - 4, m.x + m.width / 2, m.y + m.height * 0.55, 350, 900);
-        return true; }})()""")
-    wait(2.5)
-    gesture = js(f"({{blades: {T}.ext()._switcher.visible}})")
-    record(S, "swipe up and hold opens multitasking", gesture.get("blades") is True, gesture)
-    js(f"{T}.ext()._switcher.hide()")
-    wait(1)
+    record(S, "Done leaves jiggle mode", isinstance(done, dict) and "error" not in done
+           and js(f"{T}.ext()._home.editing") is False, done)
+    record(S, "touch still works after jiggle mode", js(f"{T}.ext()._home._router.active") is False)
 
     # Dock popup and pull-down search entry points.
     dock = js(f"(() => {{ const s = {T}.ext()._switcher; s._dock.show(); const v = s._dock._box.visible; s._dock.hide(); return v; }})()")
@@ -211,12 +212,14 @@ def tablet_flow():
 
 def window_flow():
     S = "Apps when folding"
-    client = next((c for c in (["zenity", "--info", "--text=Mutsu test"],
-                               ["gnome-calculator"], ["gnome-text-editor", "--new-window"])
-                   if shutil.which(c[0])), None)
+    candidates = (["gnome-text-editor", "--new-window", "--ignore-session"], ["gnome-calculator"],
+                  ["gnome-system-monitor"], ["gtk4-demo"], ["gnome-font-viewer"],
+                  ["zenity", "--text-info", "--text=Mutsu test", "--width=500", "--height=400"])
+    client = next((c for c in candidates if shutil.which(c[0])), None)
     if client is None:
-        record(S, "test app available", False, "no zenity / gnome-calculator / gnome-text-editor in image")
+        record(S, "test app available", False, "no GTK test app in the image")
         return
+    record(S, f"test app: {client[0]}", True)
     procs = [subprocess.Popen(client, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for _ in range(2)]
     try:
         for _ in range(30):
@@ -237,6 +240,10 @@ def window_flow():
         st = js(f"""(() => {{ const f = globalThis.__mutsuFocus, o = globalThis.__mutsuOther;
             return {{focusMin: f.minimized, focusMax: f.is_maximized?.() ?? !!f.get_maximized?.(),
                 otherMin: o.minimized}}; }})()""")
+        info = js("""global.display.get_tab_list(imports.gi.Meta.TabList.NORMAL_ALL, null).map(w =>
+            ({title: w.get_title(), type: w.get_window_type(), resizable: w.allows_resize(),
+              skip: w.is_skip_taskbar(), transient: !!w.get_transient_for(), min: w.minimized}))""")
+        st["windows"] = info
         record(S, "app in use stays open full screen", st.get("focusMin") is False and st.get("focusMax") is True, st)
         record(S, "other apps wait in multitasking", st.get("otherMin") is True, st)
         split = js(f"""(() => {{ const s = {T}.ext()._switcher.split;
@@ -246,6 +253,22 @@ def window_flow():
             ax: globalThis.__mutsuOther.get_frame_rect().x, bx: globalThis.__mutsuFocus.get_frame_rect().x})""")
         record(S, "Split View shows both apps side by side", split is True and sp.get("a") is False
                and sp.get("b") is False and sp.get("ax") != sp.get("bx"), {"arrange": split, **sp})
+        # Multitasking: open/close directly, then by gesture.
+        shown = js(f"(() => {{ const s = {T}.ext()._switcher; s.show(); return s.visible; }})()")
+        wait(1)
+        record("Multitasking", "multitasking opens", shown is True, shown)
+        js(f"{T}.ext()._switcher.hide()")
+        wait(1)
+        record("Multitasking", "multitasking closes", js(f"{T}.ext()._switcher.visible") is False)
+        js(f"""(() => {{ const t = {T}, m = t.ext()._tabletMonitor();
+            t.swipe(m.x + m.width / 2, m.y + m.height - 4, m.x + m.width / 2, m.y + m.height * 0.55, 350, 900);
+            return true; }})()""")
+        wait(2.5)
+        gesture = js(f"({{blades: {T}.ext()._switcher.visible}})")
+        record("Multitasking", "swipe up and hold opens multitasking", gesture.get("blades") is True, gesture)
+        js(f"{T}.ext()._switcher.hide()")
+        wait(1)
+
         js(f"{T}.ext()._settings.set_string('mode', 'always-desktop')")
         wait(3)
         back = js("""({a: globalThis.__mutsuOther.minimized, b: globalThis.__mutsuFocus.minimized})""")
