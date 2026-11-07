@@ -368,15 +368,23 @@ fi
 # GNOME's own interface (menus, windows, top bar) uses the font-name
 # setting, not the fontconfig preference above. Point it at Inter only when
 # the font is really installed, so a missing package cannot break text.
-if command -v fc-list >/dev/null 2>&1 && fc-list : family | tr ',' '\n' | grep -qx 'Inter'; then
+# Fedora's rsms-inter-fonts 4.x installs the variable font, whose family is
+# "Inter Variable"; older/static builds use "Inter".
+inter_family=''
+if command -v fc-list >/dev/null 2>&1; then
+  families=$(fc-list : family | tr ',' '\n')
+  for candidate in 'Inter' 'Inter Variable'; do
+    if grep -qx "$candidate" <<<"$families"; then inter_family=$candidate; break; fi
+  done
+fi
+if [[ -n "$inter_family" ]]; then
   install -d -m0755 /etc/dconf/db/mutsu.d
-  cat > /etc/dconf/db/mutsu.d/41-mutsu-fonts <<'DCONF'
-[org/gnome/desktop/interface]
-font-name='Inter 11'
-document-font-name='Inter 11'
-DCONF
+  printf "[org/gnome/desktop/interface]\nfont-name='%s 11'\ndocument-font-name='%s 11'\n" \
+    "$inter_family" "$inter_family" > /etc/dconf/db/mutsu.d/41-mutsu-fonts
+  echo "GNOME interface font: $inter_family"
 else
   echo >&2 'Inter is not installed; GNOME keeps its default interface font.'
+  fc-list : family | grep -i inter >&2 || true
 fi
 
 # Default avatars and the boot-menu picture.

@@ -23,7 +23,7 @@ def content(path: str) -> str:
     return p.read_text(encoding="utf-8") if p.is_file() else ""
 
 os_release = content("/usr/lib/os-release")
-require('PRETTY_NAME="Mutsu OS"' in os_release, "Mutsu OS PRETTY_NAME not set")
+require('PRETTY_NAME="Mutsu OS' in os_release, "Mutsu OS PRETTY_NAME not set")
 require('NAME="Mutsu OS"' in os_release, "Mutsu OS NAME not set")
 require(
     not Path("/etc/skel/.config/autostart/bazzite-portal.desktop").exists(),

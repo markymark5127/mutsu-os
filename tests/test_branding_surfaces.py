@@ -34,7 +34,8 @@ class BrandingSurfacesTest(unittest.TestCase):
 
     def test_interface_font_only_set_when_installed(self):
         self.assertIn("fc-list : family", SCRIPT)
-        self.assertIn("font-name='Inter 11'", SCRIPT)
+        self.assertIn("font-name='%s 11'", SCRIPT)
+        self.assertIn("'Inter Variable'", SCRIPT)
         self.assertIn("rsms-inter-fonts", (ROOT / "Containerfile").read_text(encoding="utf-8"))
 
     def test_version_is_visible(self):
