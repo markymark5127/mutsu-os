@@ -45,7 +45,7 @@ export class TabletSplitView {
             this._drag = null;
             this._sync();
         });
-        this._connect(Main.layoutManager.keyboardBox, 'notify::visible', () => this._layout());
+        this._connect(Main.keyboard, 'visibility-changed', () => this._layout());
         this._connect(Main.layoutManager.keyboardBox, 'notify::height', () => this._layout());
     }
 
@@ -113,7 +113,7 @@ export class TabletSplitView {
         const work = Main.layoutManager.getWorkAreaForMonitor(this._splitMonitor);
         const area = {x: work.x, y: work.y, width: work.width, height: work.height};
         const keyboard = Main.layoutManager.keyboardBox;
-        if (keyboard.visible && keyboard.height > 0 &&
+        if (Main.keyboard?.visible && keyboard.height > 0 &&
             this._splitMonitor === (Main.layoutManager.keyboardIndex ?? Main.layoutManager.primaryIndex))
             area.height = Math.max(200, area.height - keyboard.height);
         this._area = area;
@@ -131,7 +131,7 @@ export class TabletSplitView {
         const focus = global.display.focus_window;
         const locked = Main.sessionMode.isLocked || Main.overview.visible;
         const visible = !!this._pair && !locked && !this._pair.some(w => w.minimized) &&
-            !Main.layoutManager.keyboardBox.visible &&
+            !Main.keyboard?.visible &&
             this._pair.some(w => w === focus || focus?.get_transient_for() === w ||
                 this._slides[0] === focus);
         this._divider.visible = visible;

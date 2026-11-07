@@ -50,8 +50,10 @@ export class TabletSwitcher {
             this._drag = null;
             this._resetPreview();
         });
-        this._keyboardId = Main.layoutManager.keyboardBox.connect('notify::visible', () => {
-            const visible = Main.layoutManager.keyboardBox.visible;
+        // Main.keyboard.visible, not keyboardBox.visible: the box is shown at
+        // startup and stays visible until the keyboard has opened once.
+        this._keyboardId = Main.keyboard.connect('visibility-changed', () => {
+            const visible = !!Main.keyboard.visible;
             this._syncBar();
             if (visible) {
                 this._drag = null;
@@ -98,7 +100,7 @@ export class TabletSwitcher {
 
     _syncBar() {
         this._bar.visible = !Main.sessionMode.isLocked && !Main.sessionMode.isGreeter &&
-            !Main.layoutManager.keyboardBox.visible;
+            !Main.keyboard?.visible;
     }
 
     _positionBar() {
@@ -128,7 +130,7 @@ export class TabletSwitcher {
                 return Clutter.EVENT_PROPAGATE;
             const m = this._monitor();
             const edge = this._gesturesEnabled() && !this.visible &&
-                !Main.layoutManager.keyboardBox?.visible &&
+                !Main.keyboard?.visible &&
                 !(Main.modalCount > 0) &&
                 m && x >= m.x && x <= m.x + m.width &&
                 y >= m.y + m.height - 24 && y <= m.y + m.height;
@@ -322,7 +324,7 @@ export class TabletSwitcher {
         global.display.disconnect(this._windowId);
         Main.sessionMode.disconnect(this._sessionId);
         Main.layoutManager.disconnect(this._monitorId);
-        Main.layoutManager.keyboardBox.disconnect(this._keyboardId);
+        Main.keyboard.disconnect(this._keyboardId);
         Main.layoutManager.removeChrome(this._bar);
         this._bar.destroy();
     }

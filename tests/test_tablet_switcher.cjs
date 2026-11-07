@@ -7,7 +7,8 @@ const types = ['TOUCH_BEGIN','TOUCH_UPDATE','TOUCH_END','TOUCH_CANCEL','BUTTON_P
 const Clutter = {EventType: Object.fromEntries(types.map(x => [x, x])),
     EVENT_STOP: 1, EVENT_PROPAGATE: 0, AnimationMode: {EASE_OUT_QUAD: 1}};
 const Main = {sessionMode: {isLocked: false}, modalCount: 0,
-    layoutManager: {keyboardBox: {visible: false}}, overview: {visible: false}};
+    layoutManager: {keyboardBox: {visible: true}}, // stays visible after startup on real GNOME
+    keyboard: {visible: false, connect: () => 1, disconnect() {}}, overview: {visible: false}};
 const monitor = {x: 0, y: 0, width: 1024, height: 768};
 const timers = [];
 const GLib = {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false,

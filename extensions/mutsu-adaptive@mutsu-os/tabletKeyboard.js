@@ -50,7 +50,7 @@ export class TabletKeyboard {
         const box = Main.layoutManager.keyboardBox;
         if (keyboard)
             keyboard._relayout?.();
-        if (box?.visible) {
+        if (Main.keyboard?.visible) { // keyboardBox stays visible after startup
             box.translation_y = 40;
             box.ease({translation_y: 0, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
             this._liftApp(box.height || keyboard?.height || 280);
@@ -117,7 +117,7 @@ export class TabletKeyboard {
 
     _keyboardSwipe(event) {
         const box = Main.layoutManager.keyboardBox;
-        if (!box?.visible)
+        if (!box || !Main.keyboard?.visible)
             return Clutter.EVENT_PROPAGATE;
         const type = event.type();
         const begin = type === Clutter.EventType.TOUCH_BEGIN || type === Clutter.EventType.BUTTON_PRESS;
@@ -157,7 +157,7 @@ export class TabletKeyboard {
                 keyboard._aspectContainer._ratio = state.ratio;
             keyboard._relayout?.();
             const box = Main.layoutManager.keyboardBox;
-            if (box?.visible) {
+            if (box && Main.keyboard?.visible) {
                 box.translation_y = 40;
                 box.ease({translation_y: 0, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
             }

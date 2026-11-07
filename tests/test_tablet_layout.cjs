@@ -49,7 +49,7 @@ const Main={overview:Object.assign(new Emitter(),{visible:false,hide(){this.visi
     sessionMode:Object.assign(new Emitter(),{isLocked:false}),
     layoutManager:Object.assign(new Emitter(),{monitors:[{}],primaryIndex:0,keyboardBox:keyboard,
         addChrome(){},removeChrome(){},getWorkAreaForMonitor:()=>area}),
-    activateWindow(window){globalMock.display.focus_window=window;},notify(){}};
+    keyboard,activateWindow(window){globalMock.display.focus_window=window;},notify(){}};
 const Clutter={BinLayout:class{},ActorAlign:{CENTER:0},EventType:{TOUCH_BEGIN:1,TOUCH_UPDATE:2,TOUCH_END:3,
     TOUCH_CANCEL:4,BUTTON_PRESS:5,BUTTON_RELEASE:6,MOTION:7},EVENT_STOP:1,EVENT_PROPAGATE:0};
 const splitSource=fs.readFileSync(path.join(folder,'tabletSplitView.js'),'utf8')
@@ -85,10 +85,10 @@ area={x:0,y:24,width:768,height:1000};
 Main.layoutManager.emit('monitors-changed');
 assert.equal(left.frame.width+right.frame.width+12,768, 'rotation reflows split');
 keyboard.visible=true;keyboard.height=300;
-keyboard.emit('notify::visible');
+keyboard.emit('notify::visible');keyboard.emit('visibility-changed');
 assert.equal(left.frame.height,700, 'split avoids on-screen keyboard');
 assert.equal(split._divider.visible,false);
-keyboard.visible=false;keyboard.emit('notify::visible');
+keyboard.visible=false;keyboard.emit('notify::visible');keyboard.emit('visibility-changed');keyboard.emit('visibility-changed');
 assert.equal(left.frame.height,1000);
 Main.sessionMode.isLocked=true;Main.sessionMode.emit('updated');
 assert.equal(split._divider.visible,false);

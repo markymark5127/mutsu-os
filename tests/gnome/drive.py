@@ -153,7 +153,7 @@ def tablet_flow():
     state = js(f"""(() => {{ const e = {T}.ext(); const h = e._home;
         return {{inTablet: e._inTablet, home: !!h, switcher: !!e._switcher, session: !!e._session,
             homeVisible: !!h?._root?.visible && !!h?._root?.mapped,
-            keyboard: Main.layoutManager.keyboardBox.visible, keyFocus: `${{global.stage.key_focus}}`,
+            keyboard: !!Main.keyboard.visible, keyFocus: `${{global.stage.key_focus}}`,
             tiles: h?._tiles?.size ?? 0}}; }})()""")
     record(S, "enters tablet mode", state.get("inTablet"), state)
     record(S, "Home is built and on screen", state.get("home") and state.get("homeVisible") and state.get("tiles", 0) > 0, state)
