@@ -14,6 +14,9 @@ if ! command -v flatpak >/dev/null; then
   echo >&2 'Flatpak is not available.'
   exit 1
 fi
+if ! flatpak info "$app" >/dev/null 2>&1; then
+  echo "Waiting for Newelle to finish installing (up to 10 minutes)..."
+fi
 for _ in $(seq 1 120); do
   flatpak info "$app" >/dev/null 2>&1 && break
   sleep 5
@@ -27,7 +30,10 @@ mkdir -p -m700 "$config_dir"
 chmod 700 "$config_dir"
 # Serialize the automatic session service and the Portal's repair button.
 exec 9>"$config_dir/newelle-setup.lock"
-flock -w 600 9
+if ! flock -n 9; then
+  echo "Another Mutsu AI setup is already running (the background one at login); waiting for it to finish..."
+  flock -w 600 9
+fi
 rm -f "$marker"
 if [[ ! -s "$token_file" ]]; then
   token="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
@@ -47,6 +53,7 @@ cp /usr/share/mutsu-os/local-ai/bundled-model.json "$config_dir/bundled-model.js
 if command -v systemctl >/dev/null; then
   systemctl start mutsu-local-model.service || true
 fi
+echo "Starting the built-in AI model. The first time, it is copied into place, which can take several minutes..."
 if ! python3 /usr/libexec/mutsu-os/wait-local-model.py; then
   echo >&2 "The bundled model is not listening on 127.0.0.1:11435."
   systemctl status mutsu-local-model.service --no-pager >&2 || true
@@ -55,11 +62,13 @@ if ! python3 /usr/libexec/mutsu-os/wait-local-model.py; then
 fi
 # Gio.Settings writes native values directly; do not parse/quote GVariant
 # JSON strings through separate gsettings processes during session startup.
+echo "Model is running. Setting Newelle to use it..."
 flatpak run --filesystem="$config_dir:ro" --command=python3 "$app" - "$config_dir" \
   < /usr/libexec/mutsu-os/configure-newelle.py
 
 # The unit ships in the image. First login only enables it after the token
 # is written, so Newelle does not start before it can authenticate.
+echo "Starting Newelle's local API for Mutsu Search..."
 started=0
 if command -v systemctl >/dev/null; then
   systemctl --user daemon-reload || true
