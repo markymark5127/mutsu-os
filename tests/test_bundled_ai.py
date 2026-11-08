@@ -124,6 +124,13 @@ class ModelReadinessTests(unittest.TestCase):
     def tags(self):
         return {'models': [{'name': self.module.MODEL, 'digest': self.module.DIGEST}]}
 
+    def test_seeded_model_belongs_to_the_service_user(self):
+        seed = (ROOT / 'packaging/seed-local-model.sh').read_text(encoding='utf-8')
+        self.assertIn('owner="$(stat -c %u:%g "$state")"', seed)
+        self.assertIn('chown -R "$owner" "$state/models"', seed)
+        # Systems seeded before the fix are repaired on the next start.
+        self.assertIn('fix_owner\n  exit 0', seed)
+
     def test_boot_health_check_does_not_send_a_prompt(self):
         self.opener.open.return_value = self.response(self.tags())
         self.module.wait_ready('http://127.0.0.1:11435', attempts=1)
