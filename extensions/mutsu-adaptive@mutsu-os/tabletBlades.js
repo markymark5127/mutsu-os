@@ -220,7 +220,10 @@ export class TabletBlades {
         const blade = vbox({style_class: 'mutsu-blade',
             width: this._bladeW, height: this._bladeH, reactive: true});
         blade._mutsuBlade = group;
-        const content = vbox({style_class: 'mutsu-blade-content', y_expand: true});
+        // Content gets exactly the card height minus the chin and clips, so
+        // nothing inside can push the chin past the card's bottom edge.
+        const content = vbox({style_class: 'mutsu-blade-content',
+            height: this._bladeH - CHIN - 2, clip_to_allocation: true}); // 1px card border top + bottom
         blade.add_child(content);
         const header = new St.BoxLayout({style_class: 'mutsu-blade-header'});
         if (group.app)
@@ -250,7 +253,7 @@ export class TabletBlades {
         }
         // The card's chin: two equal halves, edge to edge.
         const actions = new St.BoxLayout({style_class: 'mutsu-blade-actions', x_expand: true,
-            height: CHIN});
+            height: CHIN, y_expand: false});
         if (actions.layout_manager)
             actions.layout_manager.homogeneous = true;
         for (const [label, side, action] of [

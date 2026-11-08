@@ -3,11 +3,11 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const folder = process.argv[2];
 const geometry = fs.readFileSync(path.join(folder,'tabletGeometry.js'),'utf8').replace(/export /g,'');
-const {splitFrames, navigationAction, maximizeWindow, unmaximizeWindow, isWindowMaximized,
+const {splitFrames, splitVertical, navigationAction, maximizeWindow, unmaximizeWindow, isWindowMaximized,
     slideOverFrame, dockDropZone, gripResize, sameSequence, slideOverRelease, dragVelocity} =
-    new Function(`${geometry}; return {splitFrames,navigationAction,maximizeWindow,unmaximizeWindow,
+    new Function(`${geometry}; return {splitFrames,splitVertical,navigationAction,maximizeWindow,unmaximizeWindow,
         isWindowMaximized,slideOverFrame,dockDropZone,gripResize,sameSequence,slideOverRelease,dragVelocity};`)();
-for (const area of [{x:100,y:24,width:1200,height:800}, {x:0,y:30,width:768,height:990}]) {
+for (const area of [{x:100,y:24,width:1200,height:800}, {x:0,y:30,width:1366,height:738}]) {
     for (const ratio of [0,0.3,0.5,0.7,1]) {
         const [left,right] = splitFrames(area,ratio);
         assert.equal(left.width+right.width+12,area.width);
@@ -16,6 +16,20 @@ for (const area of [{x:100,y:24,width:1200,height:800}, {x:0,y:30,width:768,heig
         assert(left.width>area.width*0.28 && right.width>area.width*0.28);
     }
 }
+// Portrait (9:16): stacked top/bottom, full width, no overlap.
+for (const area of [{x:0,y:30,width:768,height:990}, {x:0,y:32,width:720,height:1248}]) {
+    assert.equal(splitVertical(area), true);
+    for (const ratio of [0,0.3,0.5,0.7,1]) {
+        const [top,bottom] = splitFrames(area,ratio);
+        assert.equal(top.width,area.width); assert.equal(bottom.width,area.width);
+        assert.equal(top.x,area.x); assert.equal(bottom.x,area.x);
+        assert.equal(top.height+bottom.height+12,area.height);
+        assert.equal(bottom.y,top.y+top.height+12);
+        assert.equal(bottom.y+bottom.height,area.y+area.height);
+        assert(top.height>area.height*0.28 && bottom.height>area.height*0.28);
+    }
+}
+assert.equal(splitVertical({x:0,y:0,width:1280,height:800}), false);
 assert.equal(navigationAction(0,-50,100,0,768),'dock');
 assert.equal(navigationAction(0,-140,150,0,768),'home');
 assert.equal(navigationAction(0,-140,650,200,768),'switcher');
@@ -61,12 +75,12 @@ class ChromeWidget extends Button {
 }
 const GLibMock={PRIORITY_DEFAULT:0,SOURCE_REMOVE:false,idle_add:(_p,fn)=>fn(),
     timeout_add:(_p,_ms,fn)=>fn(),timeout_add_seconds:()=>1,source_remove(){}};
-const loadSplit=()=>new Function('Clutter','GLib','Meta','Shell','St','Main','global','splitFrames',
+const loadSplit=()=>new Function('Clutter','GLib','Meta','Shell','St','Main','global','splitFrames','splitVertical',
     'maximizeWindow','unmaximizeWindow','isWindowMaximized','slideOverFrame','sameSequence',
     'slideOverRelease','dragVelocity',
     `${splitSource};return TabletSplitView;`)(Clutter,GLibMock,{},{},
     {Button,Label:class{constructor(p={}){Object.assign(this,p);}},Widget:ChromeWidget},Main,globalMock,
-    splitFrames,maximizeWindow,unmaximizeWindow,isWindowMaximized,slideOverFrame,sameSequence,
+    splitFrames,splitVertical,maximizeWindow,unmaximizeWindow,isWindowMaximized,slideOverFrame,sameSequence,
     slideOverRelease,dragVelocity);
 const Split=loadSplit();
 function window(){return Object.assign(new Emitter(),{allows_resize:()=>true,get_monitor:()=>0,
@@ -89,13 +103,18 @@ split._layout();
 assert(left.frame.width>right.frame.width);
 area={x:0,y:24,width:768,height:1000};
 Main.layoutManager.emit('monitors-changed');
-assert.equal(left.frame.width+right.frame.width+12,768, 'rotation reflows split');
+assert.equal(left.frame.width,768, 'portrait stacks the split: full width');
+assert.equal(left.frame.height+right.frame.height+12,1000, 'rotation reflows split top/bottom');
+assert(right.frame.y>left.frame.y);
+assert(split._divider.width>split._divider.height, 'divider lies flat in portrait');
+assert.equal(split._dividerLabel.text,'⋯');
 keyboard.visible=true;keyboard.height=300;
 keyboard.emit('notify::visible');keyboard.emit('visibility-changed');
-assert.equal(left.frame.height,700, 'split avoids on-screen keyboard');
+assert.equal(left.frame.width,768, 'keyboard does not flip a portrait split');
+assert.equal(right.frame.y+right.frame.height,24+700, 'split avoids on-screen keyboard');
 assert.equal(split._divider.visible,false);
 keyboard.visible=false;keyboard.emit('notify::visible');keyboard.emit('visibility-changed');keyboard.emit('visibility-changed');
-assert.equal(left.frame.height,1000);
+assert.equal(left.frame.height+right.frame.height+12,1000, 'keyboard closes: split refills the screen');
 Main.sessionMode.isLocked=true;Main.sessionMode.emit('updated');
 assert.equal(split._divider.visible,false);
 Main.sessionMode.isLocked=false;Main.sessionMode.emit('updated');

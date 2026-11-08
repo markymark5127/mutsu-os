@@ -34,8 +34,33 @@ class Keyboard extends Emitter {
     add_style_class_name(name) { this.classes.add(name); }
     remove_style_class_name(name) { this.classes.delete(name); }
 }
-const {TabletKeyboard, tabletKeyboardSize, keyboardShift} = new Function('InjectionManager','Keyboard','Main',
-    `${source}; return {TabletKeyboard, tabletKeyboardSize, keyboardShift};`)(InjectionManager, Keyboard, Main);
+const Purpose = {NORMAL: 0, ALPHA: 1, DIGITS: 2, NUMBER: 3, PHONE: 4, URL: 5, EMAIL: 6, NAME: 7,
+    PASSWORD: 8, PIN: 9, TERMINAL: 10};
+const ClutterMock = {InputContentPurpose: Purpose, InputContentHintFlags: {NO_EMOJI: 1 << 9},
+    AnimationMode: {EASE_OUT_QUAD: 1, EASE_OUT_CUBIC: 2}, EventType: {}};
+Keyboard.prototype._shouldShowEmoji = function () { return this._purpose === Purpose.NORMAL; };
+Keyboard.prototype._updateKeys = function () { this.keysBuilt = (this.keysBuilt ?? 0) + 1; };
+const {TabletKeyboard, tabletKeyboardSize, keyboardShift, keyboardShowsEmoji} = new Function('InjectionManager','Keyboard','Main','Clutter',
+    `${source}; return {TabletKeyboard, tabletKeyboardSize, keyboardShift, keyboardShowsEmoji};`)(InjectionManager, Keyboard, Main, ClutterMock);
+// Emoji key on every text keyboard (URL, e-mail, NO_EMOJI apps), not on number pads.
+for (const p of ['NORMAL','ALPHA','URL','EMAIL','NAME','PASSWORD','TERMINAL'])
+    assert.equal(keyboardShowsEmoji(Purpose[p], Purpose), true, p);
+for (const p of ['DIGITS','NUMBER','PHONE','PIN'])
+    assert.equal(keyboardShowsEmoji(Purpose[p], Purpose), false, p);
+{
+    const original = Keyboard.prototype._shouldShowEmoji;
+    const emojiKeyboard = new Keyboard();
+    Main.keyboard.keyboardActor = emojiKeyboard;
+    const controller = new TabletKeyboard();
+    assert.equal(emojiKeyboard.keysBuilt, 1, 'keys rebuilt once so the emoji key appears');
+    emojiKeyboard._purpose = Purpose.URL; emojiKeyboard._contentHints = 1 << 9;
+    assert.equal(emojiKeyboard._shouldShowEmoji(), true, 'URL field with NO_EMOJI still gets emoji');
+    emojiKeyboard._purpose = Purpose.PIN;
+    assert.equal(emojiKeyboard._shouldShowEmoji(), false);
+    controller.destroy();
+    assert.equal(Keyboard.prototype._shouldShowEmoji, original, 'restored on teardown');
+    Main.keyboard.keyboardActor = null;
+}
 
 // Slide the app only enough to centre the cursor above the keyboard.
 const screen = {x: 0, y: 0, width: 1280, height: 800};
@@ -104,4 +129,4 @@ Main.keyboard.keyboardActor = accessible;
 const accessibilityController = new TabletKeyboard();
 assert.equal(accessible.height,400, 'respect a larger native minimum');
 accessibilityController.destroy();
-console.log('Tablet keyboard checks passed (full width, key grid, portrait, compact screen, layout changes, recreation, restoration).');
+console.log('Tablet keyboard checks passed (full width, key grid, portrait, compact screen, layout changes, recreation, restoration, emoji key).');

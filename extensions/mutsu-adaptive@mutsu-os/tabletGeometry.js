@@ -11,15 +11,26 @@ export function navigationAction(dx, dy, elapsed, paused, height) {
     return Math.abs(dx) < 12 && Math.abs(dy) < 12 ? 'home' : 'cancel';
 }
 
-export function splitFrames(area, ratio) {
+// Portrait (taller than wide, e.g. 9:16) stacks the pair top/bottom;
+// landscape puts them side by side. `ratio` is the first pane's share.
+export function splitVertical(area) {
+    return area.height > area.width;
+}
+
+export function splitFrames(area, ratio, vertical = splitVertical(area)) {
     const gap = 12;
-    // Clamp the divider so neither app can be reduced to a sliver.
     const fraction = Math.max(0.3, Math.min(0.7, ratio));
+    if (vertical) {
+        const first = Math.round((area.height - gap) * fraction);
+        return [
+            {x: area.x, y: area.y, width: area.width, height: first},
+            {x: area.x, y: area.y + first + gap, width: area.width, height: area.height - gap - first},
+        ];
+    }
     const first = Math.round((area.width - gap) * fraction);
     return [
         {x: area.x, y: area.y, width: first, height: area.height},
-        {x: area.x + first + gap, y: area.y,
-            width: area.width - gap - first, height: area.height},
+        {x: area.x + first + gap, y: area.y, width: area.width - gap - first, height: area.height},
     ];
 }
 

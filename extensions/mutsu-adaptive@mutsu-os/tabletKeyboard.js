@@ -21,6 +21,14 @@ export function keyboardShift(cursor, monitor, keyboardHeight) {
     return Math.round(Math.max(0, Math.min(keyboardHeight, want)));
 }
 
+// GNOME hides its emoji key for URL, e-mail and name fields and whenever an
+// app sets NO_EMOJI (Firefox's address bar, many GTK entries). An iPad-style
+// keyboard always has it, except on number, phone and PIN pads.
+export function keyboardShowsEmoji(purpose, Purpose) {
+    return ![Purpose?.DIGITS, Purpose?.NUMBER, Purpose?.PHONE, Purpose?.PIN]
+        .filter(p => p !== undefined).includes(purpose);
+}
+
 // Retain GNOME's actual keys, input methods, suggestions, emoji and focus
 // handling. Only its tablet geometry and square-key aspect constraint change.
 export class TabletKeyboard {
@@ -37,6 +45,12 @@ export class TabletKeyboard {
                     const result = original.apply(this, args);
                     owner._apply(this);
                     return result;
+                });
+        }
+        if (typeof Keyboard.prototype._shouldShowEmoji === 'function') {
+            this._injections.overrideMethod(Keyboard.prototype, '_shouldShowEmoji', () =>
+                function () {
+                    return keyboardShowsEmoji(this._purpose, Clutter.InputContentPurpose);
                 });
         }
         // The keyboard floats over the app. GNOME slides the app up by the
@@ -92,6 +106,16 @@ export class TabletKeyboard {
     _sync() {
         const keyboard = Main.keyboard.keyboardActor ?? Main.keyboard._keyboard;
         const box = Main.layoutManager.keyboardBox;
+        // Rebuild the keys once so the emoji key shows on a keyboard that
+        // was already built before tablet mode began.
+        if (keyboard && !this._keysRebuilt && typeof keyboard._updateKeys === 'function') {
+            this._keysRebuilt = true;
+            try {
+                keyboard._updateKeys();
+            } catch (e) {
+                console.error(`Mutsu keyboard: emoji key: ${e}`);
+            }
+        }
         if (keyboard)
             keyboard._relayout?.();
         // GNOME itself slides the focused app up when the keyboard would cover
@@ -165,6 +189,15 @@ export class TabletKeyboard {
             global.stage.disconnect(this._kbEvent);
 
         this._injections.clear();
+        // Back to GNOME's own emoji-key rules on the desktop keyboard.
+        const current = Main.keyboard?.keyboardActor ?? Main.keyboard?._keyboard;
+        if (this._keysRebuilt && typeof current?._updateKeys === 'function') {
+            try {
+                current._updateKeys();
+            } catch (e) {
+                console.error(`Mutsu keyboard: restore keys: ${e}`);
+            }
+        }
         for (const [object, id] of this._signals)
             object.disconnect(id);
         this._signals = [];

@@ -4,7 +4,7 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {sameSequence, splitFrames, maximizeWindow, unmaximizeWindow, isWindowMaximized,
+import {sameSequence, splitFrames, splitVertical, maximizeWindow, unmaximizeWindow, isWindowMaximized,
     slideOverFrame, slideOverRelease, dragVelocity} from './tabletGeometry.js';
 
 // Split View (two apps side by side) and Slide Over (a stack of narrow apps
@@ -32,9 +32,11 @@ export class TabletSplitView {
         this._placing = false;
         this._slideSignals = new Map();
         this._signals = [];
+        this._dividerLabel = new St.Label({text: '⋮', x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER});
         this._divider = new St.Button({style_class: 'mutsu-split-divider',
             accessible_name: 'Resize split view. Click to maximize the active app.',
-            child: new St.Label({text: '⋮', y_align: Clutter.ActorAlign.CENTER})});
+            child: this._dividerLabel});
         this._divider.connect('clicked', () => this.fullscreen(global.display.focus_window));
         Main.layoutManager.addChrome(this._divider, {affectsStruts: false});
         this._divider.hide();
@@ -127,18 +129,29 @@ export class TabletSplitView {
             this._splitMonitor = Main.layoutManager.primaryIndex;
         const work = Main.layoutManager.getWorkAreaForMonitor(this._splitMonitor);
         const area = {x: work.x, y: work.y, width: work.width, height: work.height};
+        // Stack direction follows the screen's shape, not the space left
+        // above the keyboard, so opening the keyboard never flips the split.
+        this._vertical = splitVertical(area);
         const keyboard = Main.layoutManager.keyboardBox;
         if (Main.keyboard?.visible && keyboard.height > 0 &&
             this._splitMonitor === (Main.layoutManager.keyboardIndex ?? Main.layoutManager.primaryIndex))
             area.height = Math.max(200, area.height - keyboard.height);
         this._area = area;
-        const frames = splitFrames(area, this._ratio);
+        const frames = splitFrames(area, this._ratio, this._vertical);
         this._pair.forEach((window, index) => {
             const r = frames[index];
             window.move_resize_frame(true, r.x, r.y, r.width, r.height);
         });
-        this._divider.set_position(frames[1].x - 20, area.y + Math.round(area.height * 0.3));
-        this._divider.set_size(28, Math.round(area.height * 0.4));
+        if (this._vertical) {
+            // Stacked: a horizontal grabber in the gap between top and bottom.
+            this._divider.set_position(area.x + Math.round(area.width * 0.3), frames[1].y - 20);
+            this._divider.set_size(Math.round(area.width * 0.4), 28);
+            this._dividerLabel.text = '⋯';
+        } else {
+            this._divider.set_position(frames[1].x - 20, area.y + Math.round(area.height * 0.3));
+            this._divider.set_size(28, Math.round(area.height * 0.4));
+            this._dividerLabel.text = '⋮';
+        }
         this._sync();
     }
 
@@ -400,13 +413,13 @@ export class TabletSplitView {
         if (!touch && !begin && !end && type !== T.MOTION)
             return Clutter.EVENT_PROPAGATE;
         const sequence = touch ? event.get_event_sequence() : null;
-        const [x] = event.get_coords();
+        const [x, y] = event.get_coords();
         if (begin && (touch || event.get_button() === 1)) {
             const source = (globalThis.global?.stage?.get_event_actor?.(event) ?? event.get_source?.() ?? null); // see touchRouter.eventActor
             for (const [kind, actor] of [['divider', this._divider], ['handle', this._handle],
                 ['tab', this._tab]]) {
                 if (actor.visible && actor.contains(source)) {
-                    this._drag = {kind, sequence, ratio: this._ratio, x, samples: [[Date.now(), x]],
+                    this._drag = {kind, sequence, ratio: this._ratio, x, y, samples: [[Date.now(), x]],
                         startX: this._slides[0]?.get_frame_rect().x ?? 0};
                     return Clutter.EVENT_STOP;
                 }
@@ -429,11 +442,14 @@ export class TabletSplitView {
             return Clutter.EVENT_STOP;
         }
         if (drag.kind === 'divider') {
-            this._ratio = Math.max(0.3, Math.min(0.7, (x - this._area.x) / this._area.width));
+            const vertical = this._vertical;
+            const share = vertical ? (y - this._area.y) / this._area.height
+                : (x - this._area.x) / this._area.width;
+            this._ratio = Math.max(0.3, Math.min(0.7, share));
             this._layout();
             if (end) {
                 this._drag = null;
-                if (Math.abs(dx) < 8)
+                if (Math.abs(vertical ? y - drag.y : dx) < 8)
                     this.fullscreen(global.display.focus_window);
             }
         } else if (drag.kind === 'handle') {
