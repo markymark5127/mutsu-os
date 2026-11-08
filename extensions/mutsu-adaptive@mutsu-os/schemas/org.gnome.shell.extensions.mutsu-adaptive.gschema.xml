@@ -41,6 +41,11 @@
       <summary>Hide the dock in tablet mode</summary>
       <description>Autohides the dock while in tablet mode and restores it on exit.</description>
     </key>
+    <key name="tablet-from-orientation" type="b">
+      <default>true</default>
+      <summary>Switch to tablet when the screen is held sideways or upside down</summary>
+      <description>For 2-in-1s whose own tablet sensor misses a fold (for example when turned sideways straight away). Holding the screen sideways or upside down for a moment switches to tablet mode and rotates the screen; typing or using the touchpad with the screen upright switches back.</description>
+    </key>
     <key name="tablet-hinge-angle" type="i">
       <range min="0" max="359"/>
       <default>0</default>

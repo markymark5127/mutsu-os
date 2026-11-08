@@ -28,6 +28,8 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
         });
         mode.add(modeRow);
         this._hingeRows(mode, settings);
+        this._switch(mode, settings, 'tablet-from-orientation', 'Turning the screen sideways means tablet',
+            'For when the laptop misses a fold: held sideways or upside down, it switches and rotates. Typing switches back.');
 
         const behavior = new Adw.PreferencesGroup({title: 'When in tablet mode'});
         page.add(behavior);

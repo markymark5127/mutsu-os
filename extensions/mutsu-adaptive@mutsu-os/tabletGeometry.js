@@ -234,13 +234,17 @@ export function hingeFromAccels(display, base, minShare = 0.5) {
 // follows the laptop's tablet switch / touch mode.
 // Effective posture. A manual override from the Quick Settings toggle wins
 // in Automatic mode until the hardware posture next changes.
-export function resolveTablet({mode, override = null, seatTouch = false, hardware = null, angleDecides = false}) {
+export function resolveTablet({mode, override = null, seatTouch = false, hardware = null, angleDecides = false,
+    tilted = false}) {
     if (mode === 'always-tablet')
         return true;
     if (mode === 'always-desktop')
         return false;
     if (override !== null && override !== undefined)
         return !!override;
+    // Screen held sideways / upside down (firmware that missed the fold).
+    if (tilted)
+        return true;
     if (angleDecides)
         return hardware === true;
     return !!seatTouch || hardware === true;

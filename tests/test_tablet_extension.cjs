@@ -55,9 +55,28 @@ const Gio = {
     Settings: class { constructor({settings_schema}) { return new FakeSettings(settings_schema, schemas[settings_schema]); } },
     File: {new_for_path: () => ({enumerate_children: () => { throw new Error('none'); }})},
     FileQueryInfoFlags: {NONE: 0}, Subprocess: {new: () => ({})}, SubprocessFlags: {NONE: 0},
+    Cancellable: class { cancel() { this.cancelled = true; } },
+    BusType: {SYSTEM: 1}, DBusProxyFlags: {NONE: 0}, DBusCallFlags: {NONE: 0},
+    DBusProxy: {new_for_bus: (...args) => args.at(-1)(null, null), new_for_bus_finish: () => sensor},
+    DBus: {session: {call: (_d, _p, _i, method, params, _t, _f, _to, _c, cb) => {
+        displayCalls.push([method, params?.v]);
+        cb?.({call_finish: () => ({recursiveUnpack: () => [7,
+            [[['eDP-1', 'LEN', 'x', '1'], [['1920x1200@60', 1920, 1200, 60, 1, [1], {'is-current': true}]], {}]],
+            [[0, 0, 1, 0, true, [['eDP-1', 'LEN', 'x', '1']], {}]]]}),
+            call: (...a) => Gio.DBus.session.call(...a)}, null);
+    }}},
 };
+GLib.Variant = Object.assign(class { constructor(sig, v) { this.sig = sig; this.v = v; } },
+    {parse: GLib.Variant.parse});
+const displayCalls = [];
+let now = 1000;
+Date.now = () => now;
+const sensor = Object.assign(new Emitter(), {orientation: 'normal', calls: [],
+    get_cached_property() { return {unpack: () => sensor.orientation}; },
+    call(name) { this.calls.push(name); }});
 
 const ext = Object.assign(new Emitter(), {values: {'mode': 'automatic', 'saved-state': '', 'open-home-on-tablet': false,
+    'tablet-from-orientation': true, 'tablet-hinge-angle': 0,
     'touch-text-scale': 1.15, 'rotation-lock': false, 'collapse-dock-in-tablet': true,
     'enable-experimental-gestures': true, 'automatic-keyboard': true, 'gesture-exceptions': []}});
 Object.assign(ext, {get_string(k) { return this.values[k]; }, get_boolean(k) { return this.values[k]; }, get_int(k) { return this.values[k] ?? 0; },
@@ -112,9 +131,15 @@ function makeWindow({maximized = false, resizable = true} = {}) {
     return w;
 }
 const seat = Object.assign(new Emitter(), {touch_mode: false});
-const globalMock = {display, stage: {get_context: () => ({get_backend: () => ({get_default_seat: () => seat})})},
+const stage = Object.assign(new Emitter(), {get_context: () => ({get_backend: () => ({get_default_seat: () => seat})})});
+const globalMock = {display, stage,
     backend: {get_monitor_manager: () => ({get_monitor_for_connector: () => -1})}};
 
+const orient = new Function(`${strip('orientation.js')}; return {updateTiltLatch, clearTiltOnLaptopUse,
+    transformFor, rotatedLogicalMonitors, isBuiltinConnector, TILTED, TILT_DWELL_MS};`)();
+const ClutterMock = {EVENT_PROPAGATE: false, EventType: {KEY_PRESS: 1, BUTTON_PRESS: 2, TOUCHPAD_SWIPE: 3, SCROLL: 4},
+    InputDeviceType: {KEYBOARD_DEVICE: 1, POINTER_DEVICE: 2, TOUCHPAD_DEVICE: 3, TOUCHSCREEN_DEVICE: 4,
+        TABLET_DEVICE: 5, PEN_DEVICE: 6}};
 const source = strip('extension.js').replace('class MutsuAdaptiveExtension extends Extension',
     'class MutsuAdaptiveExtension extends Extension');
 const Extension = class { constructor() { this.uuid = 'mutsu-adaptive@mutsu-os'; } getSettings() { return ext; } };
@@ -123,13 +148,16 @@ const Ext = new Function('Extension', 'Main', 'PanelMenu', 'PopupMenu', 'QuickSe
     'SettingsJournal', 'PostureMonitor', 'maximizeWindow', 'unmaximizeWindow', 'isWindowMaximized',
     'resolveTablet', 'global', 'log', 'TextDecoder', 'setTabletWindowChrome',
     'planTabletEntry', 'planTabletExit', 'logError',
+    'updateTiltLatch', 'clearTiltOnLaptopUse', 'transformFor', 'rotatedLogicalMonitors',
+    'isBuiltinConnector', 'TILTED', 'TILT_DWELL_MS',
     `${source}; return MutsuAdaptiveExtension;`)(
     Extension, Main, {Button: MenuButton}, {PopupSeparatorMenuItem: class {}, Ornament: {CHECK: 'check', NONE: 'none'}},
     {QuickToggle}, {Icon: Actor}, Gio, GLib, {TabList: {NORMAL_ALL: 0}, WindowType: {NORMAL: 0}},
-    {}, TabletSwitcher, TabletHome, () => () => {}, 'org.gnome.shell.extensions.dash-to-dock',
+    ClutterMock, TabletSwitcher, TabletHome, () => () => {}, 'org.gnome.shell.extensions.dash-to-dock',
     TabletSession, SettingsJournal, PostureMonitor, geometry.maximizeWindow, geometry.unmaximizeWindow,
     geometry.isWindowMaximized, geometry.resolveTablet, globalMock, () => {}, TextDecoder,
-    on => chrome.push(on), geometry.planTabletEntry, geometry.planTabletExit, e => { throw e; });
+    on => chrome.push(on), geometry.planTabletEntry, geometry.planTabletExit, e => { throw e; },
+    ...Object.values(orient));
 
 dconf['org.gnome.shell.extensions.touchshell/bottom-edge-swipe-activation'] = "'always'";
 const before = makeWindow();
@@ -138,6 +166,22 @@ const e = new Ext();
 e.enable();
 assert.equal(instances.home, 0, 'laptop posture: desktop');
 assert.equal(e._qsToggle.checked, false);
+assert(sensor.calls.includes('ClaimAccelerometer'), 'reads the screen orientation');
+
+// Firmware missed the fold, but the screen is held sideways: tablet + rotate.
+sensor.orientation = 'left-up'; sensor.emit('g-properties-changed');
+assert.equal(instances.home, 0, 'a brief tilt is not enough');
+now += 1300; flush(); // the dwell timer fires after the hold
+assert.equal(instances.home, 1, 'held sideways: tablet mode');
+const apply = displayCalls.filter(c => c[0] === 'ApplyMonitorsConfig').at(-1);
+assert.equal(apply[1][2][0][3], 1, 'screen rotated to match (GNOME would not: its tablet switch is off)');
+sensor.orientation = 'normal'; sensor.emit('g-properties-changed'); flush();
+assert.equal(instances.home, 1, 'turned back to landscape: still a tablet');
+assert.equal(displayCalls.filter(c => c[0] === 'ApplyMonitorsConfig').at(-1)[1][2][0][3], 0);
+stage.emit('captured-event', {type: () => 1, get_source_device: () => ({get_device_type: () => 1,
+    get_device_node: () => '/dev/input/event3'})});
+flush();
+assert.equal(instances.home, 0, 'typing on the keyboard: laptop again');
 
 // Fold the laptop.
 seat.touch_mode = true;
@@ -154,7 +198,8 @@ assert.equal(before.minimized, false, 'the app in use stays open');
 assert.equal(before.maximized, true, '...full screen');
 assert.equal(wasMax.minimized, true, 'other apps wait in multitasking');
 assert(panel.classes.has('mutsu-status-slim'));
-assert.deepEqual(chrome, [false, true], 'desktop controls reset at start, finger-sized in tablet');
+assert.deepEqual(chrome.slice(0, 2), [false, true], 'desktop controls reset at start, tablet controls in tablet');
+assert.equal(chrome.at(-1), true);
 
 // New window: maximized once shown; a fixed-size one is left alone.
 const created = makeWindow();

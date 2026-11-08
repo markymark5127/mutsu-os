@@ -14,6 +14,8 @@ import {applyTabletDock, DOCK_SCHEMA} from './tabletDock.js';
 import {TabletSession} from './tabletSession.js';
 import {SettingsJournal} from './settingsJournal.js';
 import {PostureMonitor} from './posture.js';
+import {updateTiltLatch, clearTiltOnLaptopUse, transformFor, rotatedLogicalMonitors,
+    isBuiltinConnector, TILTED, TILT_DWELL_MS} from './orientation.js';
 import {setTabletWindowChrome} from './windowChrome.js';
 import {maximizeWindow, unmaximizeWindow, isWindowMaximized, resolveTablet,
     planTabletEntry, planTabletExit} from './tabletGeometry.js';
@@ -165,6 +167,13 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._evaluate();
         });
         log(`Mutsu Adaptive: posture sources: ${this._posture.description}`);
+        this._tilt = {orientation: 'undefined', since: 0, latched: false};
+        this._appliedTransform = 0;
+        this._watchOrientation();
+        this._connect(this._settings, 'changed::tablet-from-orientation', () => {
+            this._tilt = {...this._tilt, latched: false};
+            this._evaluate();
+        });
         this._connect(this._settings, 'changed::tablet-hinge-angle', () => {
             this._posture?.refresh();
             this._override = null;
@@ -181,6 +190,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         }
         this._posture?.destroy();
         this._posture = null;
+        this._unwatchOrientation();
         globalThis.mutsuTabletMode = false;
         for (const [object, id] of this._signals)
             object.disconnect(id);
@@ -265,6 +275,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             seatTouch: this._posture?.seatTouch ?? false,
             hardware: this._posture?.hardware ?? null,
             angleDecides: this._posture?.angleDecides ?? false,
+            tilted: this._tiltActive(),
         });
         this._requestTablet(want, immediate);
         this._syncIndicators(want);
@@ -308,6 +319,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             else
                 this._leaveTablet();
             this._syncIndicators();
+            this._syncRotation();
         };
         if (immediate) {
             apply();
@@ -587,6 +599,125 @@ export default class MutsuAdaptiveExtension extends Extension {
         } catch (e) {
             log(`Mutsu Adaptive: mutsu-search failed (${e})`);
         }
+    }
+
+    // ---- orientation: tablet when the screen is held sideways / upside down
+
+    _tiltActive() {
+        return !!this._tilt?.latched && !!this._settings?.get_boolean('tablet-from-orientation');
+    }
+
+    _watchOrientation() {
+        this._sensorCancel = new Gio.Cancellable();
+        Gio.DBusProxy.new_for_bus(Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
+            'net.hadess.SensorProxy', '/net/hadess/SensorProxy', 'net.hadess.SensorProxy',
+            this._sensorCancel, (_o, res) => {
+                try {
+                    this._sensor = Gio.DBusProxy.new_for_bus_finish(res);
+                } catch (e) {
+                    return; // no sensor service: nothing to do
+                }
+                this._sensor.call('ClaimAccelerometer', null, Gio.DBusCallFlags.NONE, -1, null, null);
+                this._sensorId = this._sensor.connect('g-properties-changed', () => this._onOrientation());
+                this._onOrientation();
+            });
+        // Typing or using the touchpad with the screen upright means laptop.
+        this._laptopUseId = global.stage.connect('captured-event', (_stage, event) => {
+            if (!this._tilt?.latched)
+                return Clutter.EVENT_PROPAGATE;
+            const type = event.type();
+            if (type !== Clutter.EventType.KEY_PRESS && type !== Clutter.EventType.BUTTON_PRESS &&
+                type !== Clutter.EventType.TOUCHPAD_SWIPE && type !== Clutter.EventType.SCROLL)
+                return Clutter.EVENT_PROPAGATE;
+            const device = event.get_source_device?.();
+            const kind = device?.get_device_type?.();
+            const physical = !!device?.get_device_node?.(); // not the on-screen keyboard
+            if (!physical || kind === Clutter.InputDeviceType.TOUCHSCREEN_DEVICE ||
+                kind === Clutter.InputDeviceType.TABLET_DEVICE || kind === Clutter.InputDeviceType.PEN_DEVICE)
+                return Clutter.EVENT_PROPAGATE;
+            const next = clearTiltOnLaptopUse(this._tilt);
+            if (next.latched !== this._tilt.latched) {
+                this._tilt = next;
+                this._override = null;
+                this._evaluate();
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    _unwatchOrientation() {
+        this._sensorCancel?.cancel();
+        if (this._dwellId)
+            GLib.source_remove(this._dwellId);
+        this._dwellId = 0;
+        if (this._sensor) {
+            if (this._sensorId)
+                this._sensor.disconnect(this._sensorId);
+            this._sensor.call('ReleaseAccelerometer', null, Gio.DBusCallFlags.NONE, -1, null, null);
+        }
+        this._sensor = null;
+        if (this._laptopUseId)
+            global.stage.disconnect(this._laptopUseId);
+        this._laptopUseId = 0;
+        if (this._appliedTransform)
+            this._applyTransform(0);
+    }
+
+    _onOrientation() {
+        const orientation = this._sensor?.get_cached_property('AccelerometerOrientation')?.unpack() ?? 'undefined';
+        const wasActive = this._tiltActive();
+        this._tilt = updateTiltLatch(this._tilt, orientation, Date.now());
+        if (this._dwellId)
+            GLib.source_remove(this._dwellId);
+        this._dwellId = 0;
+        if (TILTED.includes(orientation) && !this._tilt.latched) {
+            this._dwellId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TILT_DWELL_MS + 50, () => {
+                this._dwellId = 0;
+                this._onOrientation();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+        if (this._tiltActive() !== wasActive) {
+            this._override = null;
+            this._evaluate();
+        }
+        this._syncRotation();
+    }
+
+    // GNOME rotates only while its own tablet switch is on; when tablet mode
+    // came from the orientation alone, rotate the built-in screen here.
+    _syncRotation() {
+        const locked = this._settings?.get_boolean('rotation-lock');
+        const ours = this._inTablet && this._tiltActive() && !this._posture?.seatTouch && !locked;
+        const transform = ours ? transformFor(this._tilt.orientation) : 0;
+        if (transform !== this._appliedTransform && (ours || this._appliedTransform))
+            this._applyTransform(transform);
+    }
+
+    _applyTransform(transform) {
+        const bus = Gio.DBus.session;
+        const dest = ['org.gnome.Mutter.DisplayConfig', '/org/gnome/Mutter/DisplayConfig',
+            'org.gnome.Mutter.DisplayConfig'];
+        this._appliedTransform = transform;
+        bus.call(...dest, 'GetCurrentState', null, null, Gio.DBusCallFlags.NONE, -1, null, (conn, res) => {
+            try {
+                const [serial, monitors, logical] = conn.call_finish(res).recursiveUnpack();
+                const config = rotatedLogicalMonitors(monitors, logical, transform, isBuiltinConnector);
+                if (!config)
+                    return;
+                conn.call(...dest, 'ApplyMonitorsConfig',
+                    new GLib.Variant('(uua(iiduba(ssa{sv}))a{sv})', [serial, 1, config, {}]),
+                    null, Gio.DBusCallFlags.NONE, -1, null, (c, r) => {
+                        try {
+                            c.call_finish(r);
+                        } catch (e) {
+                            log(`Mutsu Adaptive: could not rotate the screen (${e.message})`);
+                        }
+                    });
+            } catch (e) {
+                log(`Mutsu Adaptive: could not read the display layout (${e.message})`);
+            }
+        });
     }
 
     _seat() {
