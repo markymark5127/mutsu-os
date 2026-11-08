@@ -38,7 +38,8 @@ TimeoutStartSec=10min
 [Install]
 WantedBy=graphical-session.target
 EOF
-mkdir -p /etc/systemd/user/graphical-session.target.wants
-ln -sfn /usr/lib/systemd/user/mutsu-toshy-seed.service \
-  /etc/systemd/user/graphical-session.target.wants/mutsu-toshy-seed.service
-echo "Toshy staged. First login installs it for the user."
+# Not started automatically: its installer needs the network and package
+# installs, which don't work at login on an image-based system. keyd is the
+# Mac-shortcut mapper (see set-mac-shortcuts.sh).
+rm -f /etc/systemd/user/graphical-session.target.wants/mutsu-toshy-seed.service
+echo "Toshy staged (optional, not started automatically)."

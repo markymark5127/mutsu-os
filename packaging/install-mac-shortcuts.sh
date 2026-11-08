@@ -24,6 +24,19 @@ if [[ ! -f "$unit" ]]; then
   echo >&2 "keyd unit not found at $unit"
   exit 1
 fi
+# Local administrators may start and stop the mapper without a password
+# prompt (enabling it at boot still asks once, as systemd always does).
+install -Dm0644 /dev/stdin /usr/share/polkit-1/rules.d/50-mutsu-keyd.rules <<'RULES'
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") == "keyd.service" &&
+        subject.local && subject.active && subject.isInGroup("wheel")) {
+        var verb = action.lookup("verb");
+        if (verb == "start" || verb == "stop" || verb == "restart")
+            return polkit.Result.YES;
+    }
+});
+RULES
 # Installed but not enabled. The setup wizard applies the user's choice.
 # Default is a Windows keyboard; Mac shortcut mapping is opt-in.
 printf 'keyd %s installed but not enabled. Setup wizard chooses the profile.\n' "$KEYD_VERSION"
