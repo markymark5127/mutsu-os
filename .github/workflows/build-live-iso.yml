@@ -149,6 +149,9 @@ jobs:
             --arg ref "${SOURCE_TAG%:*}:latest" --arg variant "$LIVE_VARIANT" \
             '.bootable_environments[0].image = $image
              | .bootable_environments[0].live_customize = [$customize]
+             # Distribution build: zstd level 15 with 1 MiB blocks for the
+             # live system and the offline store (the default is level 3).
+             | .shared_store.compression = "release"
              | if $variant == "offline" then
                  .offline_payloads = [{source: $image, ref: $ref}]
                  | .shared_store.prune_source_images = true
