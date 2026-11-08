@@ -14,7 +14,9 @@ const SLIDE_GAP = 12; // between two Slide Over apps on the row
 // Mutter reports the unminimize a moment later, and a resize in between
 // used up the skip, so GNOME's zoom from the top-left corner still played.)
 let noEffectsInstalled = null;
+let noEffectsUsers = 0;
 function installNoEffects() {
+    noEffectsUsers++;
     const wm = Main.wm;
     if (noEffectsInstalled || typeof wm?._shouldAnimateActor !== 'function')
         return;
@@ -28,7 +30,8 @@ function installNoEffects() {
     noEffectsInstalled = {active: true, original, ours};
 }
 function uninstallNoEffects() {
-    if (!noEffectsInstalled)
+    noEffectsUsers = Math.max(0, noEffectsUsers - 1);
+    if (!noEffectsInstalled || noEffectsUsers > 0)
         return;
     const wm = Main.wm;
     if (wm?._shouldAnimateActor === noEffectsInstalled.ours)
@@ -763,7 +766,12 @@ export class TabletSplitView {
 
     destroy() {
         this.clear();
-        uninstallNoEffects();
+        // Apps folding away as tablet mode ends finish their slide (220 ms)
+        // and minimize after this; keep GNOME's animations off for them.
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 800, () => {
+            uninstallNoEffects();
+            return GLib.SOURCE_REMOVE;
+        });
         for (const [object, id] of this._signals)
             object.disconnect(id);
         for (const actor of [this._divider, this._tabs.left, this._tabs.right]) {
