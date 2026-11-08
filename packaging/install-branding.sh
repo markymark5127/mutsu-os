@@ -380,7 +380,58 @@ if [[ -s "$brand/cursors/japandi/left_ptr.svg" ]]; then
       [[ -e "$cursors/$name" || -L "$cursors/$name" ]] && continue
       ln -s "../../Adwaita/cursors/$name" "$cursors/$name"
     done
+    # CSS cursor names GNOME asks for, with the older X11 names some Adwaita
+    # builds use instead. Link each missing one to the first that exists.
+    while read -r name alternatives; do
+      [[ -z "$name" || -e "$cursors/$name" ]] && continue
+      for alt in $alternatives; do
+        if [[ -e "$adwaita/$alt" ]]; then
+          ln -sfn "../../Adwaita/cursors/$alt" "$cursors/$name"
+          break
+        fi
+      done
+    done <<'NAMES'
+text xterm ibeam
+vertical-text xterm text
+wait watch left_ptr_watch progress
+progress left_ptr_watch watch wait
+pointer hand2 hand1 pointing_hand
+grab openhand hand1
+grabbing closedhand fleur
+move fleur grabbing
+help question_arrow left_ptr_help
+crosshair cross tcross
+not-allowed crossed_circle forbidden circle
+no-drop crossed_circle not-allowed
+copy dnd-copy
+alias dnd-link link
+context-menu left_ptr
+cell plus crosshair
+all-scroll fleur
+ew-resize sb_h_double_arrow h_double_arrow col-resize
+ns-resize sb_v_double_arrow v_double_arrow row-resize
+col-resize sb_h_double_arrow h_double_arrow ew-resize
+row-resize sb_v_double_arrow v_double_arrow ns-resize
+nesw-resize fd_double_arrow size_bdiag
+nwse-resize bd_double_arrow size_fdiag
+n-resize top_side ns-resize
+s-resize bottom_side ns-resize
+e-resize right_side ew-resize
+w-resize left_side ew-resize
+ne-resize top_right_corner nesw-resize
+nw-resize top_left_corner nwse-resize
+se-resize bottom_right_corner nwse-resize
+sw-resize bottom_left_corner nesw-resize
+zoom-in zoom-in
+zoom-out zoom-out
+NAMES
+    missing=()
+    for need in text wait pointer se-resize ew-resize ns-resize row-resize col-resize progress grab grabbing not-allowed; do
+      [[ -e "$cursors/$need" ]] || missing+=("$need")
+    done
     printf 'Cursor theme: %s names (drawn arrow + Adwaita links)\n' "$(ls "$cursors" | wc -l)"
+    [[ ${#missing[@]} -eq 0 ]] || echo >&2 "warning: cursors still missing: ${missing[*]}"
+    ls "$adwaita" | tr '\n' ' ' | head -c 2000; echo
   else
     echo >&2 "warning: Adwaita cursors not found; relying on Inherits=Adwaita"
   fi

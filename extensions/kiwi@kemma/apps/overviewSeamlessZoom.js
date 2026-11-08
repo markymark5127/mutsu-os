@@ -153,6 +153,11 @@ function applyPatches() {
     _touchpadGesture = Main.overview._swipeTracker._touchpadGesture;
     const origEmit = _touchpadGesture.emit;
     _touchpadGesture.emit = function (name, ...args) {
+        // Mutsu: a new swipe starting while the overview is still animating
+        // asked GNOME to show it again mid-show ("Invalid overview shown
+        // transition from SHOWING to SHOWING"). Let that animation finish.
+        if (name === 'begin' && Main.overview.animationInProgress)
+            return false;
         if (name === 'update' || name === 'end')
             args[args.length - 1] *= SWIPE_DISTANCE_SCALE;
         return origEmit.call(this, name, ...args);

@@ -28,10 +28,41 @@ class GtkThemeManager {
         this._settingsChangedId = null;
     }
 
-    // Absolute file:// URI for a stylesheet shipped in the extension's css folder.
+    // Mutsu: the stylesheets (and the button images they use) are copied
+    // next to the user's gtk.css, in kiwi/, and imported by relative path.
+    // Flatpak apps (Firefox, Thunderbird...) read ~/.config/gtk-*.0 but can't
+    // see /usr/share/gnome-shell/extensions, so absolute imports into the
+    // extension failed there ("file does not exist").
+    _copyTree(source, dest) {
+        const info = source.query_info('standard::type', Gio.FileQueryInfoFlags.NONE, null);
+        if (info.get_file_type() === Gio.FileType.DIRECTORY) {
+            GLib.mkdir_with_parents(dest.get_path(), 0o755);
+            const children = source.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
+            let child;
+            while ((child = children.next_file(null)))
+                this._copyTree(source.get_child(child.get_name()), dest.get_child(child.get_name()));
+            children.close(null);
+        } else {
+            source.copy(dest, Gio.FileCopyFlags.OVERWRITE, null, null);
+        }
+    }
+
+    _stageAssets(gtkConfigDir, sheets) {
+        const kiwiDir = Gio.File.new_for_path(GLib.build_filenamev([gtkConfigDir, 'kiwi']));
+        const root = Gio.File.new_for_path(this._extension.path);
+        GLib.mkdir_with_parents(kiwiDir.get_child('css').get_path(), 0o755);
+        for (const name of sheets)
+            root.get_child('css').get_child(name).copy(kiwiDir.get_child('css').get_child(name),
+                Gio.FileCopyFlags.OVERWRITE, null, null);
+        for (const folder of ['titlebuttons', 'titlebuttons-glass']) {
+            const source = root.get_child('icons').get_child(folder);
+            if (source.query_exists(null))
+                this._copyTree(source, kiwiDir.get_child('icons').get_child(folder));
+        }
+    }
+
     _cssUri(name) {
-        const path = GLib.build_filenamev([this._extension.path, 'css', name]);
-        return Gio.File.new_for_path(path).get_uri();
+        return `kiwi/css/${name}`;
     }
 
     // Stylesheets to pull in for a given GTK major version ('3' or '4').
@@ -95,6 +126,14 @@ class GtkThemeManager {
             GLib.mkdir_with_parents(gtkConfigDir, 0o755);
 
             const userPath = GLib.build_filenamev([gtkConfigDir, 'gtk.css']);
+            const sheets = this._stylesheetsFor(version);
+            if (sheets.length) {
+                try {
+                    this._stageAssets(gtkConfigDir, sheets);
+                } catch (error) {
+                    console.error(`[Kiwi] Error copying GTK stylesheets: ${error}`);
+                }
+            }
             await this.processUserGtkFile(userPath, this._buildManagedBlock(version));
         }
     }
