@@ -7,7 +7,18 @@ token_file="$config_dir/newelle-token"
 marker="$config_dir/newelle-linked"
 app=io.github.qwersyk.Newelle
 port=8081
-if ! command -v flatpak >/dev/null || ! flatpak info "$app" >/dev/null 2>&1; then
+# On a fresh install the first login can land while the bundled Flatpaks
+# are still being installed from the image. Wait for Newelle (up to 10
+# minutes) instead of failing and burning through the unit's retries.
+if ! command -v flatpak >/dev/null; then
+  echo >&2 'Flatpak is not available.'
+  exit 1
+fi
+for _ in $(seq 1 120); do
+  flatpak info "$app" >/dev/null 2>&1 && break
+  sleep 5
+done
+if ! flatpak info "$app" >/dev/null 2>&1; then
   echo >&2 'Bundled Newelle is not installed. Check mutsu-newelle-preinstall.service.'
   exit 1
 fi

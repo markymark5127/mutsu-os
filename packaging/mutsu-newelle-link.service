@@ -3,7 +3,7 @@ Description=Pair Mutsu Search with headless Newelle
 Documentation=https://github.com/markymark5127/mutsu-os
 After=graphical-session-pre.target
 PartOf=graphical-session.target
-StartLimitIntervalSec=300
+StartLimitIntervalSec=3600
 StartLimitBurst=5
 # Live USB sessions keep /var in RAM: seeding gigabytes there runs the
 # machine out of memory and blocks the login prompt. Skip in live mode
@@ -15,9 +15,10 @@ ConditionKernelCommandLine=!tacklebox.live.squashimg
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/mutsu-os/setup-newelle-user.sh
-TimeoutStartSec=15min
+TimeoutStartSec=30min
 Restart=on-failure
-RestartSec=10
+# Spread the retries out: a fresh install may still be seeding the model.
+RestartSec=60
 
 [Install]
 WantedBy=graphical-session.target
