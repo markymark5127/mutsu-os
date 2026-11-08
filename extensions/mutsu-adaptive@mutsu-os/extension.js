@@ -15,6 +15,7 @@ import {TabletSession} from './tabletSession.js';
 import {SettingsJournal} from './settingsJournal.js';
 import {PostureMonitor} from './posture.js';
 import {DashToDockHider} from './dockHider.js';
+import {TabletGamepad} from './tabletGamepad.js';
 import {updateTiltLatch, clearTiltOnLaptopUse, transformFor, rotatedLogicalMonitors,
     isBuiltinConnector, TILTED, TILT_DWELL_MS} from './orientation.js';
 import {setTabletWindowChrome} from './windowChrome.js';
@@ -392,6 +393,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             () => this._tabletMonitor(),
             {windowButtons: () => this._settings.get_boolean('tablet-window-buttons')}));
         start('window sizing', () => this._installWindowSizing());
+        this._gamepad = start('on-screen gamepad', () => new TabletGamepad(this._settings));
         this._tabletSignals = [];
         // GNOME's overview has no role in tablet mode: Super / hot corner go Home.
         this._tabletSignals.push([Main.overview, Main.overview.connect('showing', () => {
@@ -424,7 +426,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         } catch (error) {
             logError(error, 'Mutsu Adaptive: arranging windows for the desktop failed');
         }
-        for (const part of ['_switcher', '_home', '_session', '_dockHider']) {
+        for (const part of ['_gamepad', '_switcher', '_home', '_session', '_dockHider']) {
             try {
                 this[part]?.destroy();
             } catch (error) {

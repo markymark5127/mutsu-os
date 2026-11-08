@@ -52,6 +52,23 @@
       <summary>Hinge angle that starts tablet mode (Automatic mode)</summary>
       <description>0: follow the laptop's own tablet sensor. Otherwise tablet mode starts once the hinge opens past this many degrees (180 past flat, 225 tent, 359 fully folded) on laptops that report their hinge angle, and ends 25 degrees below it.</description>
     </key>
+    <key name="gamepad-overlay" type="b">
+      <default>true</default>
+      <summary>On-screen gamepad for Steam games in tablet mode</summary>
+      <description>When a game Steam launched is in front in tablet mode, show a translucent controller over it (a virtual Xbox 360 pad for the game).</description>
+    </key>
+    <key name="gamepad-left" type="s">
+      <choices><choice value="stick"/><choice value="dpad"/></choices>
+      <default>'stick'</default>
+      <summary>Left control of the on-screen gamepad</summary>
+      <description>'stick': a circle pad (analogue stick). 'dpad': a D-pad.</description>
+    </key>
+    <key name="gamepad-face" type="s">
+      <choices><choice value="diamond"/><choice value="gamecube"/></choices>
+      <default>'diamond'</default>
+      <summary>Face button layout of the on-screen gamepad</summary>
+      <description>'diamond': Xbox-style A/B/X/Y diamond. 'gamecube': big A in the middle with B, X and Y around it.</description>
+    </key>
     <key name="tablet-window-buttons" type="b">
       <default>false</default>
       <summary>Window buttons (traffic lights) in tablet mode</summary>

@@ -483,6 +483,63 @@ def slide_flow(T):
 EXT_PATH = re.compile(r"/gnome-shell/extensions/([^/]+)/")
 
 
+def gamepad_flow():
+    """On-screen gamepad over a 'Steam game' window in tablet mode."""
+    S = "On-screen gamepad"
+    if not shutil.which("gjs"):
+        record(S, "test app available", False, "no gjs in the image")
+        return
+    T = "globalThis.__mutsuTest"
+    js(f"{T}.ext()._settings.set_string('mode', 'always-tablet')")
+    wait(3)
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test-window.js")
+    proc = subprocess.Popen(["gjs", "-m", script, "Game", "steam_app_570"], stdout=subprocess.DEVNULL,
+                            stderr=open(os.path.join(OUT, "test-window-game.log"), "w"))
+    try:
+        state = None
+        for _ in range(20):
+            wait(1)
+            state = js(f"""(() => {{ const w = global.display.focus_window, g = {T}.ext()._gamepad;
+                return {{cls: w?.get_wm_class?.() ?? null, visible: !!g?.visible}}; }})()""")
+            if isinstance(state, dict) and state.get("visible"):
+                break
+        record(S, "appears over a game Steam launched", isinstance(state, dict) and state.get("visible"), state)
+        if not (isinstance(state, dict) and state.get("visible")):
+            return
+        # Record what would go to the virtual controller.
+        js(f"""(() => {{ const g = {T}.ext()._gamepad; globalThis.__mutsuPad = [];
+            g._helper = null; g._spawn = () => ({{write: l => globalThis.__mutsuPad.push(l.trim()), close() {{}}}});
+            return true; }})()""")
+        js(f"""(() => {{ const t = {T}, g = t.ext()._gamepad, b = g.layout.buttons.a;
+            t.tap(b.cx, b.cy); return true; }})()""")
+        wait(1)
+        js(f"""(() => {{ const t = {T}, s = {T}.ext()._gamepad.layout.stick;
+            t.swipe(s.cx, s.cy, s.cx + s.radius * 2, s.cy, 300); return true; }})()""")
+        wait(1.5)
+        sent = js("globalThis.__mutsuPad")
+        record(S, "tapping A presses and releases A", isinstance(sent, list) and "k a 1" in sent and "k a 0" in sent, sent)
+        record(S, "dragging the circle pad tilts the stick and recentres",
+               isinstance(sent, list) and any(l.startswith("a lx 32767") for l in sent)
+               and "a lx 0;a ly 0" in sent, sent)
+        # Swap to the GameCube layout and the D-pad with the chips.
+        for chip in ("toggle:face", "toggle:left"):
+            js(f"""(() => {{ const t = {T}, g = t.ext()._gamepad;
+                const a = [...g._hits.entries()].find(([, v]) => v === '{chip}')[0];
+                const [x, y] = t.center(a); t.tap(x, y); return true; }})()""")
+            wait(1)
+        layout = js(f"""(() => {{ const L = {T}.ext()._gamepad.layout;
+            return {{face: L.face, left: L.left, dpad: !!L.dpad}}; }})()""")
+        record(S, "chips swap to the GameCube layout and the D-pad",
+               layout == {"face": "gamecube", "left": "dpad", "dpad": True}, layout)
+        js(f"{T}.ext()._settings.set_string('gamepad-face', 'diamond')")
+        js(f"{T}.ext()._settings.set_string('gamepad-left', 'stick')")
+    finally:
+        proc.terminate()
+        wait(1)
+        js(f"{T}.ext()._settings.set_string('mode', 'always-desktop')")
+        wait(1)
+
+
 def analyze_log():
     path = os.path.join(OUT, "shell.log")
     if not os.path.exists(path):
@@ -548,6 +605,10 @@ def main():
             window_flow()
         except Exception as error:
             record("Apps when folding", "driver", False, repr(error))
+        try:
+            gamepad_flow()
+        except Exception as error:
+            record("On-screen gamepad", "driver", False, repr(error))
     write_report()
     return 0 if all(ok for _, _, ok, _ in results) else 1
 

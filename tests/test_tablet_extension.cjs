@@ -150,7 +150,7 @@ const Ext = new Function('Extension', 'Main', 'PanelMenu', 'PopupMenu', 'QuickSe
     'resolveTablet', 'global', 'log', 'TextDecoder', 'setTabletWindowChrome',
     'planTabletEntry', 'planTabletExit', 'logError',
     'updateTiltLatch', 'clearTiltOnLaptopUse', 'transformFor', 'rotatedLogicalMonitors',
-    'isBuiltinConnector', 'TILTED', 'TILT_DWELL_MS', 'DashToDockHider',
+    'isBuiltinConnector', 'TILTED', 'TILT_DWELL_MS', 'DashToDockHider', 'TabletGamepad',
     `${source}; return MutsuAdaptiveExtension;`)(
     Extension, Main, {Button: MenuButton}, {PopupSeparatorMenuItem: class {}, Ornament: {CHECK: 'check', NONE: 'none'}},
     {QuickToggle}, {Icon: Actor}, Gio, GLib, {TabList: {NORMAL_ALL: 0}, WindowType: {NORMAL: 0}},
@@ -158,7 +158,8 @@ const Ext = new Function('Extension', 'Main', 'PanelMenu', 'PopupMenu', 'QuickSe
     TabletSession, SettingsJournal, PostureMonitor, geometry.maximizeWindow, geometry.unmaximizeWindow,
     geometry.isWindowMaximized, geometry.resolveTablet, globalMock, () => {}, TextDecoder,
     on => chrome.push(on), geometry.planTabletEntry, geometry.planTabletExit, e => { throw e; },
-    ...Object.values(orient), class { constructor() { dockHiders.push(this); } destroy() { this.destroyed = true; } });
+    ...Object.values(orient), class { constructor() { dockHiders.push(this); } destroy() { this.destroyed = true; } },
+    class { constructor() { instances.gamepad = (instances.gamepad ?? 0) + 1; } destroy() { instances.gamepad--; } });
 
 
 dconf['org.gnome.shell.extensions.touchshell/bottom-edge-swipe-activation'] = "'always'";

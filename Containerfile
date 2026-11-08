@@ -101,7 +101,11 @@ COPY packaging/install-toshy.sh /tmp/mutsu-install-toshy.sh
 RUN bash /tmp/mutsu-install-toshy.sh && \
     rm -rf /tmp/mutsu-toshy-src /tmp/mutsu-install-toshy.sh
 COPY packaging/set-mac-shortcuts.sh /usr/libexec/mutsu-os/set-mac-shortcuts.sh
-RUN chmod 0755 /usr/libexec/mutsu-os/set-mac-shortcuts.sh
+# On-screen gamepad (tablet mode): virtual Xbox 360 pad via uinput, opened
+# by the logged-in user (uaccess, same as Steam's own rule).
+COPY packaging/mutsu-virtual-gamepad /usr/libexec/mutsu-os/mutsu-virtual-gamepad
+COPY packaging/70-mutsu-uinput.rules /usr/lib/udev/rules.d/70-mutsu-uinput.rules
+RUN chmod 0755 /usr/libexec/mutsu-os/set-mac-shortcuts.sh /usr/libexec/mutsu-os/mutsu-virtual-gamepad
 
 ### NEWELLE (baked in, no API key)
 # Prepare on the Linux host with packaging/prepare-newelle.sh. No Flatpak

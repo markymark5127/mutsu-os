@@ -45,6 +45,16 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
             'Stop auto-rotate while in tablet mode');
         this._switch(behavior, settings, 'home-widgets', 'Home clock', 'Time and date on Home');
 
+        const games = new Adw.PreferencesGroup({title: 'Games',
+            description: 'A translucent controller over games Steam launches, in tablet mode'});
+        page.add(games);
+        this._switch(games, settings, 'gamepad-overlay', 'On-screen gamepad',
+            'Games see an Xbox controller');
+        this._choice(games, settings, 'gamepad-left', 'Left control',
+            [['stick', 'Circle pad'], ['dpad', 'D-pad']]);
+        this._choice(games, settings, 'gamepad-face', 'Button layout',
+            [['diamond', 'Diamond (Xbox)'], ['gamecube', 'GameCube']]);
+
         const home = new Adw.PreferencesGroup({title: 'Home Screen'});
         page.add(home);
         const reset = new Adw.ActionRow({title: 'Reset Home Screen layout',
@@ -140,6 +150,22 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
             GLib.source_remove(timer);
             settings.disconnect(changedId);
         });
+    }
+
+    _choice(group, settings, key, title, options) {
+        const row = new Adw.ComboRow({title, model: Gtk.StringList.new(options.map(o => o[1]))});
+        const sync = () => {
+            const index = options.findIndex(o => o[0] === settings.get_string(key));
+            row.selected = Math.max(0, index);
+        };
+        sync();
+        row.connect('notify::selected', () => {
+            const value = options[row.selected]?.[0];
+            if (value && value !== settings.get_string(key))
+                settings.set_string(key, value);
+        });
+        settings.connect(`changed::${key}`, sync);
+        group.add(row);
     }
 
     _switch(group, settings, key, title, subtitle) {

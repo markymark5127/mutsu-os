@@ -329,3 +329,43 @@
   font-size: 1.25em;
 }
 #keyboard.mutsu-tablet-keyboard .keyboard-key StIcon { icon-size: 1.25em; }
+
+/* On-screen gamepad (tablet mode, Steam games). Translucent so the game
+ * shows through; pressed controls light up. */
+.mutsu-gamepad-stick,
+.mutsu-gamepad-dpad-arm,
+.mutsu-gamepad-button,
+.mutsu-gamepad-chip {
+  background-color: rgba(20, 24, 22, 0.38);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: bold;
+}
+.mutsu-gamepad-knob {
+  background-color: rgba(255, 255, 255, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+}
+.mutsu-gamepad-dpad-arm { border-radius: 10px; font-size: 18px; }
+.mutsu-gamepad-pill { border-radius: 999px; font-size: 15px; }
+.mutsu-gamepad-chip {
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: normal;
+  background-color: rgba(20, 24, 22, 0.55);
+  border-width: 1px;
+}
+.mutsu-gamepad-button:active,
+.mutsu-gamepad-dpad-arm:active {
+  background-color: rgba(255, 255, 255, 0.55);
+  color: rgba(20, 24, 22, 0.95);
+}
+/* Xbox colours on the diamond letters. */
+.mutsu-gamepad-a { color: #8fdc8f; }
+.mutsu-gamepad-b { color: #f08a8a; }
+.mutsu-gamepad-x { color: #8ab8f0; }
+.mutsu-gamepad-y { color: #f0d98a; }
+/* GameCube: green A, red B, grey X / Y. */
+.mutsu-gamepad-cube.mutsu-gamepad-a { background-color: rgba(64, 160, 96, 0.55); color: white; }
+.mutsu-gamepad-cube.mutsu-gamepad-b { background-color: rgba(200, 64, 64, 0.55); color: white; }
+.mutsu-gamepad-cube.mutsu-gamepad-x,
+.mutsu-gamepad-cube.mutsu-gamepad-y { background-color: rgba(200, 200, 200, 0.35); color: white; }

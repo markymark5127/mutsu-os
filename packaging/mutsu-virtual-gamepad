@@ -1,0 +1,167 @@
+#!/usr/bin/python3
+"""Mutsu on-screen gamepad: a virtual Xbox 360-style controller.
+
+The tablet-mode overlay (GNOME Shell) starts this and writes one line per
+change on stdin; each line is applied and followed by a sync report:
+
+    k <name> <0|1>        button up/down       e.g. "k a 1"
+    a <axis> <value>      stick / trigger      e.g. "a lx -32767"
+    h <x> <y>             d-pad (-1, 0, 1)     e.g. "h 0 -1"
+
+Several commands may share a line, separated by ';'. EOF (the overlay went
+away) releases everything and removes the device.
+
+It talks to the kernel's uinput directly (no extra Python packages). Games,
+Steam and SDL see an ordinary Xbox 360 pad. /dev/uinput is opened as the
+logged-in user (the uaccess udev rule Steam and Mutsu ship).
+"""
+
+from __future__ import annotations
+
+import fcntl
+import os
+import struct
+import sys
+
+UINPUT = "/dev/uinput"
+
+EV_SYN, EV_KEY, EV_ABS = 0x00, 0x01, 0x03
+SYN_REPORT = 0
+BUS_USB = 0x03
+VENDOR, PRODUCT, VERSION = 0x045E, 0x028E, 0x0110  # Xbox 360 controller
+NAME = b"Mutsu On-Screen Gamepad"
+
+UI_DEV_CREATE = 0x5501
+UI_DEV_DESTROY = 0x5502
+UI_DEV_SETUP = 0x405C5503
+UI_ABS_SETUP = 0x401C5504
+UI_SET_EVBIT = 0x40045564
+UI_SET_KEYBIT = 0x40045565
+UI_SET_ABSBIT = 0x40045567
+
+BUTTONS = {
+    "a": 0x130,       # BTN_SOUTH
+    "b": 0x131,       # BTN_EAST
+    "x": 0x133,       # BTN_NORTH (xpad's X)
+    "y": 0x134,       # BTN_WEST (xpad's Y)
+    "l": 0x136,       # BTN_TL
+    "r": 0x137,       # BTN_TR
+    "select": 0x13A,  # BTN_SELECT (Back / View)
+    "start": 0x13B,   # BTN_START (Menu)
+    "home": 0x13C,    # BTN_MODE (Guide / Steam)
+    "ls": 0x13D,      # BTN_THUMBL
+    "rs": 0x13E,      # BTN_THUMBR
+}
+
+STICK = (-32768, 32767, 16, 128)
+TRIGGER = (0, 255, 0, 0)
+HAT = (-1, 1, 0, 0)
+AXES = {
+    "lx": (0x00, STICK), "ly": (0x01, STICK),
+    "zl": (0x02, TRIGGER),
+    "rx": (0x03, STICK), "ry": (0x04, STICK),
+    "zr": (0x05, TRIGGER),
+    "hx": (0x10, HAT), "hy": (0x11, HAT),
+}
+
+EVENT = struct.Struct("llHHi")  # struct input_event (64-bit timeval)
+
+
+def setup_struct() -> bytes:
+    """struct uinput_setup: input_id, name[80], ff_effects_max."""
+    return struct.pack("HHHH80sI", BUS_USB, VENDOR, PRODUCT, VERSION, NAME, 0)
+
+
+def abs_setup_struct(code: int, spec) -> bytes:
+    """struct uinput_abs_setup: code, padding, input_absinfo."""
+    low, high, fuzz, flat = spec
+    return struct.pack("HxxiiiiiI", code, 0, low, high, fuzz, flat, 0)
+
+
+def clamp(value: int, spec) -> int:
+    return max(spec[0], min(spec[1], value))
+
+
+def parse(line: str) -> list[tuple[int, int, int]]:
+    """Turn one protocol line into (type, code, value) events. Unknown or
+    malformed commands are skipped, never fatal."""
+    events = []
+    for command in line.split(";"):
+        parts = command.split()
+        if not parts:
+            continue
+        try:
+            if parts[0] == "k" and len(parts) == 3 and parts[1] in BUTTONS:
+                events.append((EV_KEY, BUTTONS[parts[1]], 1 if parts[2] == "1" else 0))
+            elif parts[0] == "a" and len(parts) == 3 and parts[1] in AXES:
+                code, spec = AXES[parts[1]]
+                events.append((EV_ABS, code, clamp(int(parts[2]), spec)))
+            elif parts[0] == "h" and len(parts) == 3:
+                events.append((EV_ABS, AXES["hx"][0], clamp(int(parts[1]), HAT)))
+                events.append((EV_ABS, AXES["hy"][0], clamp(int(parts[2]), HAT)))
+        except ValueError:
+            continue
+    return events
+
+
+def release_all() -> list[tuple[int, int, int]]:
+    events = [(EV_KEY, code, 0) for code in BUTTONS.values()]
+    events += [(EV_ABS, code, 0) for code, _spec in AXES.values()]
+    return events
+
+
+class Device:
+    def __init__(self, path: str = UINPUT, opener=os.open, ioctl=fcntl.ioctl, write=os.write):
+        self._ioctl = ioctl
+        self._write = write
+        self.fd = opener(path, os.O_WRONLY | os.O_NONBLOCK)
+        ioctl(self.fd, UI_SET_EVBIT, EV_KEY)
+        ioctl(self.fd, UI_SET_EVBIT, EV_ABS)
+        ioctl(self.fd, UI_SET_EVBIT, EV_SYN)
+        for code in BUTTONS.values():
+            ioctl(self.fd, UI_SET_KEYBIT, code)
+        for code, spec in AXES.values():
+            ioctl(self.fd, UI_SET_ABSBIT, code)
+            ioctl(self.fd, UI_ABS_SETUP, abs_setup_struct(code, spec))
+        ioctl(self.fd, UI_DEV_SETUP, setup_struct())
+        ioctl(self.fd, UI_DEV_CREATE)
+
+    def emit(self, events) -> None:
+        if not events:
+            return
+        data = b"".join(EVENT.pack(0, 0, kind, code, value) for kind, code, value in events)
+        data += EVENT.pack(0, 0, EV_SYN, SYN_REPORT, 0)
+        self._write(self.fd, data)
+
+    def close(self) -> None:
+        try:
+            self.emit(release_all())
+        finally:
+            try:
+                self._ioctl(self.fd, UI_DEV_DESTROY)
+            finally:
+                os.close(self.fd)
+
+
+def main() -> int:
+    try:
+        device = Device()
+    except OSError as error:
+        print(f"mutsu-virtual-gamepad: can't create the controller: {error}", file=sys.stderr)
+        return 1
+    print("ready", flush=True)
+    try:
+        for line in sys.stdin:
+            try:
+                device.emit(parse(line))
+            except BlockingIOError:
+                continue
+    except KeyboardInterrupt:
+        pass
+    finally:
+        device.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
