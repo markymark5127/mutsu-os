@@ -326,10 +326,18 @@ export class TabletSplitView {
         e.shownAt = Date.now();
         window._mutsuSlideOver = false;
         const actor = window.get_compositor_private?.();
-        // Unminimize first, with GNOME's zoom-out-of-the-dock skipped (we
-        // slide in from the edge instead); only then leave full screen, so
-        // the size change can't use up the skip.
-        if (fromSide && actor && window.minimized)
+        const wasMinimized = window.minimized;
+        if (actor && wasMinimized) {
+            // Stay invisible until our slide starts: GNOME's unminimize zoom
+            // (from the monitor's top-left corner when there's no dock icon)
+            // must never show.
+            actor._mutsuSlidingIn = true;
+            actor.opacity = 0;
+        }
+        // Unminimize first, with GNOME's zoom skipped (we slide in from the
+        // edge instead); only then leave full screen, so the size change
+        // can't use up the skip.
+        if (fromSide && actor && wasMinimized)
             Main.wm?.skipNextEffect?.(actor);
         window.unminimize();
         unmaximizeWindow(window, Meta);
@@ -338,20 +346,55 @@ export class TabletSplitView {
         this._entries = [e, ...this._entries.filter(o => o !== e)];
         this._makeRoom(e);
         this._layoutSlide();
-        if (fromSide && actor?.ease) {
-            const frame = this._frame(e);
+        const slideIn = () => {
+            if (!actor)
+                return;
+            // If GNOME started its zoom anyway, cut it short and put the
+            // window back where it belongs before sliding.
+            const zooming = Main.wm?._unminimizing?.has?.(actor);
             actor.remove_all_transitions?.();
-            actor.scale_x = 1;
+            if (zooming) {
+                actor.set_scale?.(1, 1);
+                const rect = window.get_buffer_rect?.();
+                if (rect)
+                    actor.set_position(rect.x, rect.y);
+            }
+            actor.scale_x = actor.scale_y = 1;
             actor.opacity = 255;
-            actor.translation_x = this._tuckOffset(fromSide, frame, monitor);
+            if (!fromSide || !actor.ease) {
+                actor._mutsuSlidingIn = false;
+                actor.translation_x = 0;
+                return;
+            }
+            const frame = this._frame(e);
+            actor.translation_x = this._tuckOffset(fromSide, frame, this._monitor() ?? monitor);
             actor._mutsuSlidingIn = true;
             actor.ease({translation_x: 0, duration: 240, mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
                 onStopped: () => {
                     actor._mutsuSlidingIn = false;
                     actor.translation_x = 0;
                 }});
-        } else if (actor) {
-            resetActor(actor);
+        };
+        if (actor && wasMinimized && global.window_manager?.connect) {
+            // GNOME handles unminimize when Mutter shows the window, a moment
+            // later; slide in right after it.
+            let fallback = 0;
+            const id = global.window_manager.connect('unminimize', (_wm, shown) => {
+                if (shown !== actor)
+                    return;
+                global.window_manager.disconnect(id);
+                if (fallback)
+                    GLib.source_remove(fallback);
+                slideIn();
+            });
+            fallback = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+                fallback = 0;
+                try { global.window_manager.disconnect(id); } catch (err) {}
+                slideIn();
+                return GLib.SOURCE_REMOVE;
+            });
+        } else {
+            slideIn();
         }
         Main.activateWindow(window);
         this._sync();

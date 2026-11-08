@@ -395,9 +395,32 @@ def slide_flow(T):
                 gnomeMinimizeAnimation: globalThis.__mutsuAnim, slideOffsets: globalThis.__mutsuTx}}; }})()""")
 
     def tap_tab(side):
-        js(f"""(() => {{ const t = {T}, tab = t.ext()._switcher.split.tabs.{side};
+        """Tap an edge's arrow; returns what the returning app's actor did
+        while sliding back (sideways offset, scale, position)."""
+        js(f"""(() => {{ const t = {T}, s = t.ext()._switcher.split, tab = s.tabs.{side};
+            const w = s.tuckedOn('{side}'); globalThis.__mutsuBack = [];
+            const GLib = imports.gi.GLib;
+            for (const ms of [80, 160, 240, 320])
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
+                    const a = w?.get_compositor_private();
+                    if (a) globalThis.__mutsuBack.push({{tx: Math.round(a.translation_x),
+                        x: Math.round(a.x), y: Math.round(a.y), scale: +a.scale_x.toFixed(2),
+                        opacity: a.opacity}});
+                    return GLib.SOURCE_REMOVE; }});
             const [x, y] = t.center(tab); t.tap(x, y); return true; }})()""")
         wait(2)
+        return js("globalThis.__mutsuBack")
+
+    def came_back_from(samples, side):
+        """Visible samples slid in from `side` and never zoomed from a corner."""
+        if not isinstance(samples, list) or not samples:
+            return False
+        visible = [p for p in samples if p.get("opacity", 0) > 0]
+        sideways = [p["tx"] for p in visible if p["tx"] != 0]
+        right_way = all(v > 0 for v in sideways) if side == "right" else all(v < 0 for v in sideways)
+        no_zoom = all(p["scale"] == 1 for p in visible) and not any(
+            p["x"] < 20 and p["y"] < 20 for p in visible)
+        return bool(sideways) and right_way and no_zoom
 
     # Flick right: tucks off the right edge (folds off the side, not GNOME's
     # minimize-into-the-dock animation), arrow tab on that edge.
@@ -407,9 +430,11 @@ def slide_flow(T):
     record(S, "tucking right slides off the right edge (no minimize-to-dock animation)",
            True not in (tucked.get("gnomeMinimizeAnimation") or [])
            and any(v > 50 for v in (tucked.get("slideOffsets") or [])), tucked)
-    tap_tab("right")
+    slid = tap_tab("right")
     back = js(f"({{min: globalThis.__mutsuOther.minimized, tab: {T}.ext()._switcher.split.tabs.right.visible}})")
     record(S, "tapping the arrow slides it back", back.get("min") is False and back.get("tab") is False, back)
+    record(S, "the right arrow brings it back in from the right (no zoom from a corner)",
+           came_back_from(slid, "right"), slid)
     # Flick left: off the left edge, moving left the whole way.
     left = flick(-1)
     record(S, "a quick flick left tucks it away to the left, sliding left",
@@ -428,7 +453,9 @@ def slide_flow(T):
             opacity: w.get_compositor_private()?.opacity}}; }})()""")
     record(S, "dragged slowly off the left edge, it tucks away to the left",
            slow.get("min") is True and slow.get("left"), slow)
-    tap_tab("left")
+    slid = tap_tab("left")
+    record(S, "the left arrow brings it back in from the left (no zoom from a corner)",
+           came_back_from(slid, "left"), slid)
     back = js("""(() => { const w = globalThis.__mutsuSlow, a = w.get_compositor_private();
         return {min: w.minimized, opacity: a?.opacity, tx: Math.round(a?.translation_x ?? 0)}; })()""")
     record(S, "brought back by its arrow, fully visible in place",
@@ -566,7 +593,8 @@ def mode_animation_flow():
     def sample(to):
         js(f"""(() => {{ globalThis.__mutsuAnimSeen = []; const GLib = imports.gi.GLib;
             {T}.ext()._settings.set_string('mode', '{to}');
-            for (const ms of [250, 500])
+            // After the 400 ms debounce and the switch itself.
+            for (const ms of [650, 850, 1050, 1300])
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
                     const kids = Main.layoutManager.uiGroup.get_children();
                     const hud = kids.find(a => a.has_style_class_name?.('mutsu-mode-hud'));
