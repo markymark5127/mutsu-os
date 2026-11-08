@@ -417,6 +417,22 @@ def slide_flow(T):
            and any(v < -50 for v in (left.get("slideOffsets") or []))
            and not any(v > 0 for v in (left.get("slideOffsets") or [])), left)
     tap_tab("left")
+    # Dragged slowly most of the way off the left edge: tucks left too (the
+    # side it was dragged off decides, not how fast).
+    slow = js(f"""(() => {{ const t = {T}, s = t.ext()._switcher.split, h = s._handle, w = s.front;
+        globalThis.__mutsuSlow = w; const [x, y] = t.center(h);
+        t.swipe(x, y, x - 1100, y, 1600); return true; }})()""")
+    wait(2.5)
+    slow = js(f"""(() => {{ const s = {T}.ext()._switcher.split, w = globalThis.__mutsuSlow;
+        return {{min: w.minimized, left: s.tuckedOn('left') === w,
+            opacity: w.get_compositor_private()?.opacity}}; }})()""")
+    record(S, "dragged slowly off the left edge, it tucks away to the left",
+           slow.get("min") is True and slow.get("left"), slow)
+    tap_tab("left")
+    back = js("""(() => { const w = globalThis.__mutsuSlow, a = w.get_compositor_private();
+        return {min: w.minimized, opacity: a?.opacity, tx: Math.round(a?.translation_x ?? 0)}; })()""")
+    record(S, "brought back by its arrow, fully visible in place",
+           back.get("min") is False and back.get("opacity") == 255 and back.get("tx") == 0, back)
     # Two Slide Over apps share the row without overlapping; with one edge
     # taken, the second tucks away off the other edge.
     js(f"{T}.ext()._switcher.split.slideOver(globalThis.__mutsuFocus)")

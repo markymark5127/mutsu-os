@@ -4,10 +4,47 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {sameSequence, splitFrames, splitVertical, maximizeWindow, unmaximizeWindow, isWindowMaximized,
+import {slideOverhang, sameSequence, splitFrames, splitVertical, maximizeWindow, unmaximizeWindow, isWindowMaximized,
     slideOverFrame, slideOverRelease, dragVelocity} from './tabletGeometry.js';
 
 const SLIDE_GAP = 12; // between two Slide Over apps on the row
+
+function resetActor(actor) {
+    actor.translation_x = 0;
+    actor.scale_x = 1;
+    actor.opacity = 255;
+}
+
+// Minimize a window that has just slid off an edge without anything else
+// showing: it stays invisible (opacity 0) through the minimize, so neither
+// a frame back at its old place nor GNOME's shrink-into-the-dock animation
+// can flash. It becomes visible again whenever it is unminimized, however
+// that happens (arrow tab, multitasking, dock).
+function putAway(window, actor) {
+    if (actor) {
+        actor.opacity = 0;
+        Main.wm?.skipNextEffect?.(actor);
+        if (!window._mutsuReveal) {
+            window._mutsuReveal = window.connect('notify::minimized', () => {
+                if (window.minimized)
+                    return;
+                window.disconnect(window._mutsuReveal);
+                window._mutsuReveal = 0;
+                const current = window.get_compositor_private?.();
+                if (current && !current._mutsuSlidingIn)
+                    resetActor(current);
+            });
+        }
+    }
+    try {
+        window.minimize();
+    } catch (e) {}
+    if (actor) {
+        // Back to its normal shape while hidden, ready for next time.
+        actor.translation_x = 0;
+        actor.scale_x = 1;
+    }
+}
 
 // Split View (two apps side by side) and Slide Over (up to two narrow apps
 // floating above everything) are independent, so up to four apps can be on
@@ -266,15 +303,7 @@ export class TabletSplitView {
             const r = window.get_frame_rect();
             const edge = r.x + r.width / 2 < monitor.x + monitor.width / 2 ? 'left' : 'right';
             const actor = window.get_compositor_private?.();
-            const finish = () => {
-                if (actor) {
-                    actor.translation_x = 0;
-                    actor.scale_x = 1;
-                    actor.opacity = 255;
-                    Main.wm?.skipNextEffect?.(actor);
-                }
-                try { window.minimize(); } catch (err) {}
-            };
+            const finish = () => putAway(window, actor);
             if (!actor?.ease) {
                 finish();
                 continue;
@@ -312,8 +341,17 @@ export class TabletSplitView {
         if (fromSide && actor?.ease) {
             const frame = this._frame(e);
             actor.remove_all_transitions?.();
+            actor.scale_x = 1;
+            actor.opacity = 255;
             actor.translation_x = this._tuckOffset(fromSide, frame, monitor);
-            actor.ease({translation_x: 0, duration: 240, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+            actor._mutsuSlidingIn = true;
+            actor.ease({translation_x: 0, duration: 240, mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+                onStopped: () => {
+                    actor._mutsuSlidingIn = false;
+                    actor.translation_x = 0;
+                }});
+        } else if (actor) {
+            resetActor(actor);
         }
         Main.activateWindow(window);
         this._sync();
@@ -373,6 +411,15 @@ export class TabletSplitView {
         return frame;
     }
 
+    // How far past a screen edge `e` was dragged; not counted on the side
+    // where the other Slide Over app stands in the way.
+    _overhang(e, x, width, leftOfOther) {
+        const overhang = slideOverhang(x, width, this._monitor());
+        if (this._onScreen(this._other(e)) && (overhang > 0 ? leftOfOther : !leftOfOther) && overhang !== 0)
+            return 0;
+        return overhang;
+    }
+
     _leftOfOther(e) {
         const other = this._other(e);
         if (!this._onScreen(other))
@@ -405,8 +452,10 @@ export class TabletSplitView {
         this._titleDrag = null;
         if (drag?.entry !== e)
             return;
-        const x = window.get_frame_rect().x;
-        const result = slideOverRelease(x - drag.startX, dragVelocity(drag.samples));
+        const rect = window.get_frame_rect();
+        const x = rect.x;
+        const result = slideOverRelease(x - drag.startX, dragVelocity(drag.samples),
+            this._overhang(e, x, rect.width, drag.leftOf));
         if (result === 'tuck-left' || result === 'tuck-right') {
             this.hideSlide(window, result === 'tuck-left' ? 'left' : 'right');
             return;
@@ -474,15 +523,11 @@ export class TabletSplitView {
         const target = e.window;
         const actor = target.get_compositor_private?.();
         const finish = () => {
-            if (actor) {
-                actor.translation_x = 0;
-                actor.scale_x = 1;
-                actor.opacity = 255;
-                Main.wm?.skipNextEffect?.(actor);
-            }
             if (e.tucked && this._entries.includes(e)) {
                 target._mutsuSlideOver = true; // no dock tile (Kiwi)
-                target.minimize();
+                putAway(target, actor);
+            } else if (actor) {
+                resetActor(actor);
             }
         };
         if (!actor?.ease) {
@@ -596,7 +641,10 @@ export class TabletSplitView {
             }
             if (end) {
                 this._drag = null;
-                const result = slideOverRelease(dx, dragVelocity(drag.samples));
+                // Where the finger wanted it, before keeping it on screen.
+                const wanted = drag.startX + dx;
+                const result = slideOverRelease(dx, dragVelocity(drag.samples),
+                    this._overhang(e, wanted, this._frame(e).width, drag.leftOf));
                 if (!e || !this._entries.includes(e)) {
                     // closed mid-drag
                 } else if (result === 'tuck-left' || result === 'tuck-right') {

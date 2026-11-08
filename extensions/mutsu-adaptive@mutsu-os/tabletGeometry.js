@@ -47,14 +47,40 @@ export function slideOverFrame(monitor, x = null) {
 // After Slide Over is dragged sideways (by its handle or title bar): a quick
 // flick tucks it away to that side of the screen; anything slower just leaves
 // it where it was dropped. velocity is px/ms over the last moments of the drag.
-export const SLIDE_FLICK_VELOCITY = 0.9;
-export function slideOverRelease(dx, velocity) {
+export const SLIDE_FLICK_VELOCITY = 0.6;
+// Dragged this far past an edge (fraction of the app's width), it tucks
+// away to that side however slowly it was moved.
+export const SLIDE_TUCK_OVERHANG = 0.3;
+
+// What a released Slide Over drag means. `overhang` is how far the app was
+// dragged past the screen edge, as a fraction of its width: negative past
+// the left edge, positive past the right. Dragging it off a side, or
+// flicking toward a side, tucks it away on that side; nothing else does.
+export function slideOverRelease(dx, velocity, overhang = 0) {
+    if (overhang <= -SLIDE_TUCK_OVERHANG)
+        return 'tuck-left';
+    if (overhang >= SLIDE_TUCK_OVERHANG)
+        return 'tuck-right';
     if (Math.abs(velocity) >= SLIDE_FLICK_VELOCITY && Math.abs(dx) >= 30 &&
         Math.sign(velocity) === Math.sign(dx))
         return dx < 0 ? 'tuck-left' : 'tuck-right';
     if (Math.abs(dx) < 8)
         return 'tap';
     return 'move';
+}
+
+// How far a frame at `x` (width `width`) sticks out past the monitor's
+// left (negative) or right (positive) edge, as a fraction of its width.
+export function slideOverhang(x, width, monitor) {
+    if (!width)
+        return 0;
+    const left = monitor.x - x;
+    const right = x + width - (monitor.x + monitor.width);
+    if (left > 0)
+        return -left / width;
+    if (right > 0)
+        return right / width;
+    return 0;
 }
 
 // Recent-drag velocity (px/ms) from [time, x] samples, newest last.

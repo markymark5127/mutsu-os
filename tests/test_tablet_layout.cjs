@@ -4,9 +4,10 @@ const assert = require('node:assert/strict');
 const folder = process.argv[2];
 const geometry = fs.readFileSync(path.join(folder,'tabletGeometry.js'),'utf8').replace(/export /g,'');
 const {splitFrames, splitVertical, navigationAction, maximizeWindow, unmaximizeWindow, isWindowMaximized,
-    slideOverFrame, dockDropZone, gripResize, sameSequence, slideOverRelease, dragVelocity} =
+    slideOverFrame, dockDropZone, gripResize, sameSequence, slideOverRelease, dragVelocity, slideOverhang} =
     new Function(`${geometry}; return {splitFrames,splitVertical,navigationAction,maximizeWindow,unmaximizeWindow,
-        isWindowMaximized,slideOverFrame,dockDropZone,gripResize,sameSequence,slideOverRelease,dragVelocity};`)();
+        isWindowMaximized,slideOverFrame,dockDropZone,gripResize,sameSequence,slideOverRelease,dragVelocity,
+        slideOverhang};`)();
 for (const area of [{x:100,y:24,width:1200,height:800}, {x:0,y:30,width:1366,height:738}]) {
     for (const ratio of [0,0.3,0.5,0.7,1]) {
         const [left,right] = splitFrames(area,ratio);
@@ -75,12 +76,12 @@ class ChromeWidget extends Button {
 }
 const GLibMock={PRIORITY_DEFAULT:0,SOURCE_REMOVE:false,idle_add:(_p,fn)=>fn(),
     timeout_add:(_p,_ms,fn)=>fn(),timeout_add_seconds:()=>1,source_remove(){}};
-const loadSplit=()=>new Function('Clutter','GLib','Meta','Shell','St','Main','global','splitFrames','splitVertical',
+const loadSplit=()=>new Function('Clutter','GLib','Meta','Shell','St','Main','global','slideOverhang','splitFrames','splitVertical',
     'maximizeWindow','unmaximizeWindow','isWindowMaximized','slideOverFrame','sameSequence',
     'slideOverRelease','dragVelocity',
     `${splitSource};return TabletSplitView;`)(Clutter,GLibMock,{},{},
     {Button,Label:class{constructor(p={}){Object.assign(this,p);}},Widget:ChromeWidget},Main,globalMock,
-    splitFrames,splitVertical,maximizeWindow,unmaximizeWindow,isWindowMaximized,slideOverFrame,sameSequence,
+    slideOverhang,splitFrames,splitVertical,maximizeWindow,unmaximizeWindow,isWindowMaximized,slideOverFrame,sameSequence,
     slideOverRelease,dragVelocity);
 const Split=loadSplit();
 function window(){return Object.assign(new Emitter(),{allows_resize:()=>true,get_monitor:()=>0,
@@ -214,7 +215,7 @@ const drag=(actor,from,to,ms=400)=>{
     now+=1000;
 };
 // They bump into each other instead of overlapping.
-drag(handleD,200,1200,1600);
+drag(handleD,200,1200,4000);
 assert.equal(d.frame.x,c.frame.x-d.frame.width-12,'dragging into the other stops at it');
 assert.equal(d.frame.y,frame.y,'...sideways only');
 assert.equal(d.frame.width,frame.width,'...at a fixed size');
@@ -281,6 +282,17 @@ assert.deepEqual(multi.slides,[]);
 multi.destroy();
 assert.equal(chrome.length,0,'divider, handles and tabs removed');
 assert.equal(slideOverRelease(200,2),'tuck-right');
+// Dragged off a side (even slowly) tucks it to that side; that's the rule
+// that decides, not a guess from speed alone.
+assert.equal(slideOverRelease(-150,0,-0.4),'tuck-left');
+assert.equal(slideOverRelease(150,0,0.4),'tuck-right');
+assert.equal(slideOverRelease(150,0,0.1),'move');
+assert.equal(slideOverRelease(-150,-2,0),'tuck-left','flick left');
+assert.equal(slideOverRelease(40,-2,0),'move','flick against the drag is not a tuck');
+const mon={x:0,y:0,width:1280,height:800};
+assert.equal(slideOverhang(-150,375,mon),-0.4);
+assert.equal(slideOverhang(1280-375+150,375,mon),0.4);
+assert.equal(slideOverhang(400,375,mon),0);
 assert.equal(slideOverRelease(-200,-2),'tuck-left');
 assert.equal(slideOverRelease(200,0.2),'move');
 assert.equal(slideOverRelease(3,0),'tap');
