@@ -369,6 +369,21 @@ if [[ -s "$brand/cursors/japandi/left_ptr.svg" ]]; then
   for alias in default arrow top_left_arrow left_arrow; do
     ln -sfn left_ptr "$cursors/$alias"
   done
+  # Every other cursor (wait, pointer, text, the resize arrows...) comes
+  # straight from Adwaita. The theme's Inherits line should cover this, but
+  # GNOME Shell logged "can't load 'wait' / 'pointer' / 'ew-resize'..." on
+  # real hardware, so link each name explicitly instead of relying on it.
+  adwaita=/usr/share/icons/Adwaita/cursors
+  if [[ -d "$adwaita" ]]; then
+    for source in "$adwaita"/*; do
+      name=$(basename "$source")
+      [[ -e "$cursors/$name" || -L "$cursors/$name" ]] && continue
+      ln -s "../../Adwaita/cursors/$name" "$cursors/$name"
+    done
+    printf 'Cursor theme: %s names (drawn arrow + Adwaita links)\n' "$(ls "$cursors" | wc -l)"
+  else
+    echo >&2 "warning: Adwaita cursors not found; relying on Inherits=Adwaita"
+  fi
 fi
 if [[ -s "$brand/fonts/60-mutsu-fonts.conf" ]]; then
   install -Dm0644 "$brand/fonts/60-mutsu-fonts.conf" /etc/fonts/conf.d/60-mutsu-fonts.conf
