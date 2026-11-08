@@ -125,6 +125,10 @@ class LiveISOTests(unittest.TestCase):
     def test_live_usb_carries_the_installer_and_its_image(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn(".offline_payloads = [{source: $image, ref: $ref}]", workflow)
+        self.assertIn("options: [offline, online]", workflow)
+        online = (ROOT / ".github/workflows/build-live-iso-online.yml").read_text(encoding="utf-8")
+        self.assertIn("uses: ./.github/workflows/build-live-iso.yml", online)
+        self.assertIn("variant: online", online)
         self.assertIn("live_customize", workflow)
         self.assertIn("TBOX_CUSTOMIZE_CAPS=NET_ADMIN", workflow)
         script = (ROOT / "packaging" / "live" / "customize.sh").read_text(encoding="utf-8")

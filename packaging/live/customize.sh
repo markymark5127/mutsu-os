@@ -8,17 +8,30 @@
 #
 # This script adds the installer: "Try Mutsu OS" is just using the live
 # desktop; "Install Mutsu OS" (a desktop icon, the dock, and a window that
-# opens at login) walks through installing to the laptop's disk. The system
-# image itself is on the USB (Tacklebox offline_payloads), so installing
-# needs no network and nothing is downloaded into the live session's RAM.
+# opens at login) walks through installing to the laptop's disk.
+#
+# Two variants (variant.env, written by the workflow next to this script):
+#   offline  the system image is on the USB (Tacklebox offline_payloads)
+#            with the default apps: installs without internet.
+#   online   small USB: the installer downloads the system from GHCR
+#            straight to the target disk (fisherman keeps it out of the
+#            live RAM), and the default apps install after the first boot.
 set -euo pipefail
+
+MUTSU_LIVE_VARIANT=offline
+[[ -r ./variant.env ]] && source ./variant.env
+echo "Mutsu live USB variant: $MUTSU_LIVE_VARIANT"
 
 IMAGE_REF=${MUTSU_IMAGE_REF:-ghcr.io/markymark5127/mutsu-os:latest}
 INSTALLER_ID=org.bootcinstaller.Installer
 INSTALLER_URL=${MUTSU_INSTALLER_URL:-https://github.com/tuna-os/bootc-installer/releases/latest/download/org.bootcinstaller.Installer.flatpak}
 LIVE_HOME=/var/home/liveuser
 
-# Fail the build rather than ship a live USB without a browser.
+# Fail the build rather than ship a live USB without a browser. The online
+# variant skips the baked app set, so it installs Firefox on its own.
+if [[ "$MUTSU_LIVE_VARIANT" == online ]] && ! flatpak info --system org.mozilla.firefox >/dev/null 2>&1; then
+    flatpak install --system -y --noninteractive flathub org.mozilla.firefox
+fi
 flatpak info --system org.mozilla.firefox >/dev/null
 
 # The live session never runs the local AI model or installs Newelle (their
@@ -36,6 +49,7 @@ flatpak install --system -y --noninteractive --bundle /tmp/mutsu-installer.flatp
 rm -f /tmp/mutsu-installer.flatpak
 flatpak info --system "$INSTALLER_ID" >/dev/null
 
+if [[ "$MUTSU_LIVE_VARIANT" == offline ]]; then
 # ── The embedded system image: offline store on the USB ───────────────────
 # Tacklebox writes the image store to LiveOS/store.squashfs.img on the
 # media; mount it where fisherman/podman look for offline images.
@@ -75,10 +89,12 @@ additionalimagestores = ["/var/lib/superiso-store"]
 [storage.options.overlay]
 mount_program = "/usr/bin/fuse-overlayfs"
 CONF
+fi
 
 # ── Installer configuration (read from the host /etc) ─────────────────────
 install -d /etc/bootc-installer
-: > /etc/bootc-installer/live-iso-mode
+# live-iso-mode switches the installer to installing from the USB.
+[[ "$MUTSU_LIVE_VARIANT" == offline ]] && : > /etc/bootc-installer/live-iso-mode
 cat > /etc/bootc-installer/images.json <<JSON
 {
   "default_image": "$IMAGE_REF",

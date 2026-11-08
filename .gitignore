@@ -16,3 +16,4 @@ __pycache__/
 .coverage
 
 /vendor/local-ai/
+packaging/live/variant.env

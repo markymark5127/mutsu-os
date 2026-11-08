@@ -10,13 +10,28 @@ on:
         required: true
         type: string
         default: latest
+      variant:
+        description: "offline: the USB carries the system and apps, installs without internet (~21 GB). online: small USB, installs over the internet (~5 GB)."
+        required: true
+        type: choice
+        options: [offline, online]
+        default: offline
+  # The "online installer" workflow (build-live-iso-online.yml) reuses this.
+  workflow_call:
+    inputs:
+      image_tag:
+        required: true
+        type: string
+      variant:
+        required: true
+        type: string
 
 permissions:
   contents: read
   packages: read
 
 concurrency:
-  group: mutsu-live-iso
+  group: mutsu-live-iso-${{ inputs.variant }}
   cancel-in-progress: false
 
 jobs:
@@ -31,13 +46,20 @@ jobs:
       - name: Validate the manual input and live-only contract
         env:
           INPUT_TAG: ${{ inputs.image_tag }}
+          INPUT_VARIANT: ${{ inputs.variant }}
         run: |
           set -euo pipefail
           [[ "$INPUT_TAG" =~ ^latest(-[a-f0-9]{7})?$ ]] || {
             echo "::error::Use latest or latest-<7-character lowercase commit SHA>"
             exit 1
           }
+          [[ "$INPUT_VARIANT" == offline || "$INPUT_VARIANT" == online ]] || {
+            echo "::error::variant must be offline or online"
+            exit 1
+          }
           echo "IMAGE_TAG=$INPUT_TAG" >> "$GITHUB_ENV"
+          echo "LIVE_VARIANT=$INPUT_VARIANT" >> "$GITHUB_ENV"
+          echo "Live USB variant: $INPUT_VARIANT" >> "$GITHUB_STEP_SUMMARY"
           python3 -m unittest discover -s tests -p 'test_live_iso_workflow.py' -v
 
       - name: Free runner disk space
@@ -120,12 +142,17 @@ jobs:
           # offline_payloads: the system image itself goes on the USB (under
           # the name the installed system updates from), so "Install Mutsu
           # OS" needs no network and nothing is pulled into the live RAM.
+          # The customize script reads the variant from a file beside it
+          # (its directory is mounted into the build container).
+          printf 'MUTSU_LIVE_VARIANT=%s\n' "$LIVE_VARIANT" > packaging/live/variant.env
           jq --arg image "$PINNED_IMAGE" --arg customize "$PWD/packaging/live/customize.sh" \
-            --arg ref "${SOURCE_TAG%:*}:latest" \
+            --arg ref "${SOURCE_TAG%:*}:latest" --arg variant "$LIVE_VARIANT" \
             '.bootable_environments[0].image = $image
              | .bootable_environments[0].live_customize = [$customize]
-             | .offline_payloads = [{source: $image, ref: $ref}]
-             | .shared_store.prune_source_images = true' \
+             | if $variant == "offline" then
+                 .offline_payloads = [{source: $image, ref: $ref}]
+                 | .shared_store.prune_source_images = true
+               else . end' \
             packaging/live/recipe.json > mutsu-live-out/recipe.json
           jq -e --arg image "$PINNED_IMAGE" \
             '.bootable_environments | length == 1 and .[0].image == $image and .[0].modes == ["live"] and .[0].desktop == "gnome"' \
@@ -139,7 +166,12 @@ jobs:
           # squashfs; it does NOT install or repartition the host.
           # NET_ADMIN: flatpak's sandbox needs it to install the default
           # apps (Firefox, ...) into the live system.
-          sudo env TBOX_CUSTOMIZE_CAPS=NET_ADMIN ./tacklebox build mutsu-live-out/recipe.json \
+          # Online variant: apps are installed on the disk after the first
+          # boot (mutsu-flatpak-preinstall), so only Firefox is put on the USB.
+          preinstall=1
+          [[ "$LIVE_VARIANT" == online ]] && preinstall=0
+          sudo env TBOX_CUSTOMIZE_CAPS=NET_ADMIN TBOX_FLATPAK_PREINSTALL=$preinstall \
+            ./tacklebox build mutsu-live-out/recipe.json \
             --iso "$PWD/mutsu-live-out/mutsu-os-live.iso" \
             -b "$PWD/mutsu-live-out/build"
           sudo chown -R "$(id -u):$(id -g)" mutsu-live-out
@@ -230,7 +262,7 @@ jobs:
       # "Install Mutsu OS" installs from the system image on the USB. Its
       # store must be mounted in the live session.
       - name: Check the installer's system image is available offline
-        if: steps.smoke.outcome == 'success'
+        if: steps.smoke.outcome == 'success' && inputs.variant == 'offline'
         run: |
           if sed 's/\x1b\[[0-9;]*m//g' mutsu-live-out/qemu-live-boot.log | grep -q 'Mounted.*superiso'; then
             echo "Installer: system image mounted from the USB (offline install ready)." >> "$GITHUB_STEP_SUMMARY"
@@ -271,7 +303,7 @@ jobs:
         if: always() && steps.iso.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: mutsu-os-live-boot-logs
+          name: ${{ inputs.variant == 'online' && 'mutsu-os-live-online-boot-logs' || 'mutsu-os-live-boot-logs' }}
           path: |
             mutsu-live-out/qemu-live-boot.log
             mutsu-live-out/qemu-usb-boot.log
@@ -284,7 +316,7 @@ jobs:
         if: always() && steps.iso.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: mutsu-os-live-amd64
+          name: ${{ inputs.variant == 'online' && 'mutsu-os-live-online-amd64' || 'mutsu-os-live-amd64' }}
           path: |
             mutsu-live-out/mutsu-os-live.iso
             mutsu-live-out/MUTSU-LIVE-SHA256SUMS.txt

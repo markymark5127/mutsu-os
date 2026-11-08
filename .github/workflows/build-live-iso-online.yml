@@ -1,0 +1,26 @@
+name: Build Mutsu Live USB ISO, online installer (manual)
+
+# Same live USB, but small (~5 GB): the installer downloads Mutsu OS from
+# GHCR while installing, and the default apps install after the first boot.
+# The offline variant ("Build Mutsu Live USB ISO (manual)") carries
+# everything on the USB and installs without internet.
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Published GHCR tag (latest or latest-<7-character commit SHA>)"
+        required: true
+        type: string
+        default: latest
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  online:
+    uses: ./.github/workflows/build-live-iso.yml
+    with:
+      image_tag: ${{ inputs.image_tag }}
+      variant: online
+    secrets: inherit
