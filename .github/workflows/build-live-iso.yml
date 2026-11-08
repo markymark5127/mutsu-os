@@ -209,7 +209,8 @@ jobs:
       - name: Check live automatic login was set up
         if: steps.smoke.outcome == 'success'
         run: |
-          if grep -q 'Finished mutsu-live-sess' mutsu-live-out/qemu-live-boot.log; then
+          # The console colours unit names (ESC[0;1;39m) and truncates them.
+          if sed 's/\x1b\[[0-9;]*m//g' mutsu-live-out/qemu-live-boot.log | grep -q 'Finished mutsu-live-sess'; then
             echo "Live session: automatic login as liveuser configured." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "::error::mutsu-live-session.service did not finish: the live USB would stop at a login screen"
