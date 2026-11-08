@@ -69,6 +69,7 @@ const Gio = {
 GLib.Variant = Object.assign(class { constructor(sig, v) { this.sig = sig; this.v = v; } },
     {parse: GLib.Variant.parse});
 const displayCalls = [];
+const dockHiders = [];
 let now = 1000;
 Date.now = () => now;
 const sensor = Object.assign(new Emitter(), {orientation: 'normal', calls: [],
@@ -149,7 +150,7 @@ const Ext = new Function('Extension', 'Main', 'PanelMenu', 'PopupMenu', 'QuickSe
     'resolveTablet', 'global', 'log', 'TextDecoder', 'setTabletWindowChrome',
     'planTabletEntry', 'planTabletExit', 'logError',
     'updateTiltLatch', 'clearTiltOnLaptopUse', 'transformFor', 'rotatedLogicalMonitors',
-    'isBuiltinConnector', 'TILTED', 'TILT_DWELL_MS',
+    'isBuiltinConnector', 'TILTED', 'TILT_DWELL_MS', 'DashToDockHider',
     `${source}; return MutsuAdaptiveExtension;`)(
     Extension, Main, {Button: MenuButton}, {PopupSeparatorMenuItem: class {}, Ornament: {CHECK: 'check', NONE: 'none'}},
     {QuickToggle}, {Icon: Actor}, Gio, GLib, {TabList: {NORMAL_ALL: 0}, WindowType: {NORMAL: 0}},
@@ -157,7 +158,8 @@ const Ext = new Function('Extension', 'Main', 'PanelMenu', 'PopupMenu', 'QuickSe
     TabletSession, SettingsJournal, PostureMonitor, geometry.maximizeWindow, geometry.unmaximizeWindow,
     geometry.isWindowMaximized, geometry.resolveTablet, globalMock, () => {}, TextDecoder,
     on => chrome.push(on), geometry.planTabletEntry, geometry.planTabletExit, e => { throw e; },
-    ...Object.values(orient));
+    ...Object.values(orient), class { constructor() { dockHiders.push(this); } destroy() { this.destroyed = true; } });
+
 
 dconf['org.gnome.shell.extensions.touchshell/bottom-edge-swipe-activation'] = "'always'";
 const before = makeWindow();
@@ -188,6 +190,7 @@ seat.touch_mode = true;
 seat.emit('notify::touch-mode');
 flush();
 assert.equal(instances.home, 1, 'fold enters tablet mode');
+assert(dockHiders.at(-1) && !dockHiders.at(-1).destroyed, 'desktop dock hidden in tablet mode');
 assert.equal(e._qsToggle.checked, true);
 assert.equal(dconf['org.gnome.desktop.interface/text-scaling-factor'], 1.15, 'touch text size');
 assert.equal(dconf['org.gnome.shell.extensions.touchshell/bottom-edge-swipe-activation'], 'off',

@@ -389,3 +389,31 @@ assert.equal(withImport("@import url('mutsu-theme.css');\n"),
 assert.equal(withImport("x\n@import url('mutsu-tablet.css');\n"), null, 'imported once');
 assert(/windowcontrols > button \{\s*min-width: 28px;/.test(TABLET_CSS), 'finger-sized traffic lights');
 console.log('Tablet window-control checks passed (import once, after theme, finger size).');
+
+// The desktop dock stays hidden in tablet mode, even when it rebuilds itself.
+{
+    class A {
+        constructor(name) { this.name = name; this.visible = true; this.handlers = new Map(); this.n = 0; this.children = []; }
+        connect(sig, fn) { this.handlers.set(++this.n, [sig, fn]); return this.n; }
+        disconnect(id) { this.handlers.delete(id); }
+        emit(sig, ...a) { for (const [s, fn] of [...this.handlers.values()]) if (s === sig) fn(this, ...a); }
+        hide() { if (this.visible) { this.visible = false; this.emit('notify::visible'); } }
+        show() { if (!this.visible) { this.visible = true; this.emit('notify::visible'); } }
+        get_children() { return this.children; }
+    }
+    const src = fs.readFileSync(path.join(folder, 'dockHider.js'), 'utf8').replace(/^import .*\n/gm, '').replace(/export /g, '');
+    const group = new A('ui'), dock = new A('dashtodockContainer'), other = new A('panel');
+    group.children.push(dock, other);
+    const {DashToDockHider} = new Function('Main', `${src}; return {DashToDockHider};`)({layoutManager: {uiGroup: group}});
+    const hider = new DashToDockHider(group);
+    assert.equal(dock.visible, false, 'dock hidden');
+    assert.equal(other.visible, true, 'other chrome untouched');
+    dock.show();
+    assert.equal(dock.visible, false, 'dock showing itself again is hidden again');
+    const rebuilt = new A('dashtodockContainer');
+    group.emit('child-added', rebuilt);
+    assert.equal(rebuilt.visible, false, 'a dock rebuilt after rotation is hidden too');
+    hider.destroy();
+    assert(dock.visible && rebuilt.visible, 'both come back when tablet mode ends');
+    console.log('Desktop dock hider checks passed (hide, stays hidden, rebuilt dock, restore).');
+}

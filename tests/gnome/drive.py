@@ -171,6 +171,15 @@ def tablet_flow():
     record(S, "gestures/multitasking started", state.get("switcher"), state)
     record(S, "touch session started", state.get("session"), state)
     record(S, "on-screen keyboard stays closed on Home", state.get("keyboard") is False, state)
+    docks = js("""Main.layoutManager.uiGroup.get_children().filter(a => a.name === 'dashtodockContainer')
+        .map(a => a.visible)""")
+    record(S, "desktop dock hidden in tablet mode (one dock: Home's)",
+           isinstance(docks, list) and not any(docks), docks)
+    js("Main.layoutManager.emit('monitors-changed'); true")  # what a rotation does
+    wait(2)
+    docks = js("""Main.layoutManager.uiGroup.get_children().filter(a => a.name === 'dashtodockContainer')
+        .map(a => a.visible)""")
+    record(S, "desktop dock stays hidden after the screen rotates", isinstance(docks, list) and not any(docks), docks)
     if not state.get("home"):
         return
 

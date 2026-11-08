@@ -9,6 +9,8 @@ EXT_DIR=$XDG_DATA_HOME/gnome-shell/extensions
 uuids=$(python3 - "$EXT_DIR" <<'EOF'
 import os, sys
 names = sorted(n for n in os.listdir(sys.argv[1]) if os.path.isfile(os.path.join(sys.argv[1], n, "metadata.json")))
+# Plus the system extensions Mutsu enables that tablet mode works with.
+names += ["dash-to-dock@micxgx.gmail.com"]
 print("[" + ", ".join(f"'{n}'" for n in names) + "]")
 EOF
 )

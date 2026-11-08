@@ -14,6 +14,7 @@ import {applyTabletDock, DOCK_SCHEMA} from './tabletDock.js';
 import {TabletSession} from './tabletSession.js';
 import {SettingsJournal} from './settingsJournal.js';
 import {PostureMonitor} from './posture.js';
+import {DashToDockHider} from './dockHider.js';
 import {updateTiltLatch, clearTiltOnLaptopUse, transformFor, rotatedLogicalMonitors,
     isBuiltinConnector, TILTED, TILT_DWELL_MS} from './orientation.js';
 import {setTabletWindowChrome} from './windowChrome.js';
@@ -379,6 +380,8 @@ export default class MutsuAdaptiveExtension extends Extension {
         })]);
         Main.overview.hide();
         this._slimStatusBar(true);
+        if (this._settings.get_boolean('collapse-dock-in-tablet'))
+            this._dockHider = start('desktop dock hidden', () => new DashToDockHider());
         start('open apps', () => this._arrangeForTablet());
         log('Mutsu Adaptive: entered tablet mode');
     }
@@ -396,7 +399,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         } catch (error) {
             logError(error, 'Mutsu Adaptive: arranging windows for the desktop failed');
         }
-        for (const part of ['_switcher', '_home', '_session']) {
+        for (const part of ['_switcher', '_home', '_session', '_dockHider']) {
             try {
                 this[part]?.destroy();
             } catch (error) {
