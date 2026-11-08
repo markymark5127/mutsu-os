@@ -300,12 +300,14 @@ def window_flow():
         chin = js(f"""(() => {{ const t = {T}, s = t.ext()._switcher._blades;
             const out = [];
             for (const blade of s._blades ?? []) {{
-                const [, by] = blade.get_transformed_position(), [, bh] = blade.get_transformed_size();
+                // Measured in the card's own coordinates: side cards are scaled
+                // and easing, and stage-space reads of a mid-ease card are stale.
                 const chin = t.find(blade, a => a.has_style_class_name?.('mutsu-blade-actions'));
                 if (!chin) {{ out.push('no chin'); continue; }}
-                const [, cy] = chin.get_transformed_position(), [, ch] = chin.get_transformed_size();
-                out.push({{cardBottom: Math.round(by + bh), chinBottom: Math.round(cy + ch), chinTop: Math.round(cy),
-                    cardH: Math.round(bh), allocH: Math.round(blade.height), scale: +blade.scale_y.toFixed(2)}});
+                let cy = 0;
+                for (let a = chin; a && a !== blade; a = a.get_parent()) cy += a.y;
+                out.push({{cardBottom: Math.round(blade.height), chinBottom: Math.round(cy + chin.height),
+                    chinTop: Math.round(cy), scale: +blade.scale_y.toFixed(2)}});
             }}
             return out; }})()""")
         record("Multitasking", "Split View / Slide Over sit inside the card's chin",
