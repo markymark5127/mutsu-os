@@ -42,6 +42,19 @@ def configure(settings, token, bundled_model=None):
         gui = {}
     gui.update({'api_key': token, 'host': '127.0.0.1', 'port': 8081, 'enabled': True})
     interfaces['gui-api'] = gui
+    # Newelle's MCP server also defaults to port 8081; if it is switched on
+    # it takes the port first and Mutsu Search can't reach the GUI API.
+    # Give it its own port.
+    mcp = interfaces.get('mcp', {})
+    if not isinstance(mcp, dict):
+        mcp = {}
+    try:
+        mcp_port = int(mcp.get('port', 8081))
+    except (TypeError, ValueError):
+        mcp_port = 8081
+    if mcp_port == 8081:
+        mcp['port'] = 8082
+        interfaces['mcp'] = mcp
     write_json('interfaces-settings', interfaces)
     selected = settings.get_string('language-model')
     llm = read_json('llm-settings')

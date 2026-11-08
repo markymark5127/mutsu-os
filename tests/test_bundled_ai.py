@@ -54,6 +54,14 @@ class NewelleDefaultsTests(unittest.TestCase):
         self.assertEqual(interfaces['gui-api']['port'], 8081)
         self.assertTrue(interfaces['gui-api']['enabled'])
         self.assertTrue(interfaces['other-interface']['keep'])
+        self.assertEqual(interfaces['mcp']['port'], 8082, "MCP server moved off the GUI API's port")
+
+    def test_mcp_server_on_its_own_port_is_left_alone(self):
+        settings = Settings()
+        settings.values['interfaces-settings'] = json.dumps({'mcp': {'enabled': True, 'port': 9000}})
+        self.module.configure(settings, 'test-token', self.model)
+        interfaces = json.loads(settings.values['interfaces-settings'])
+        self.assertEqual(interfaces['mcp'], {'enabled': True, 'port': 9000})
 
     def test_existing_online_demo_migrates_to_requested_model(self):
         settings = Settings(explicit=True)
