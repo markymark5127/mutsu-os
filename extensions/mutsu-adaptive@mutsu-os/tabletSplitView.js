@@ -9,6 +9,47 @@ import {slideOverhang, sameSequence, splitFrames, splitVertical, maximizeWindow,
 
 const SLIDE_GAP = 12; // between two Slide Over apps on the row
 
+// GNOME's minimize / unminimize / resize animations, switched off for one
+// window while Slide Over moves it. (Main.wm.skipNextEffect isn't enough:
+// Mutter reports the unminimize a moment later, and a resize in between
+// used up the skip, so GNOME's zoom from the top-left corner still played.)
+let noEffectsInstalled = null;
+function installNoEffects() {
+    const wm = Main.wm;
+    if (noEffectsInstalled || typeof wm?._shouldAnimateActor !== 'function')
+        return;
+    const original = wm._shouldAnimateActor;
+    const ours = function (actor, types) {
+        if (noEffectsInstalled?.active && actor?._mutsuNoEffects)
+            return false;
+        return original.call(this, actor, types);
+    };
+    wm._shouldAnimateActor = ours;
+    noEffectsInstalled = {active: true, original, ours};
+}
+function uninstallNoEffects() {
+    if (!noEffectsInstalled)
+        return;
+    const wm = Main.wm;
+    if (wm?._shouldAnimateActor === noEffectsInstalled.ours)
+        wm._shouldAnimateActor = noEffectsInstalled.original;
+    else
+        noEffectsInstalled.active = false; // someone wrapped us: stay inert
+    noEffectsInstalled = null;
+}
+function holdEffects(actor, ms = 1500) {
+    if (!actor)
+        return;
+    actor._mutsuNoEffects = true;
+    if (actor._mutsuNoEffectsId)
+        GLib.source_remove(actor._mutsuNoEffectsId);
+    actor._mutsuNoEffectsId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+        actor._mutsuNoEffects = false;
+        actor._mutsuNoEffectsId = 0;
+        return GLib.SOURCE_REMOVE;
+    });
+}
+
 function resetActor(actor) {
     actor.translation_x = 0;
     actor.scale_x = 1;
@@ -23,7 +64,7 @@ function resetActor(actor) {
 function putAway(window, actor) {
     if (actor) {
         actor.opacity = 0;
-        Main.wm?.skipNextEffect?.(actor);
+        holdEffects(actor);
         if (!window._mutsuReveal) {
             window._mutsuReveal = window.connect('notify::minimized', () => {
                 if (window.minimized)
@@ -64,6 +105,7 @@ function putAway(window, actor) {
 export class TabletSplitView {
     constructor(monitor = () => Main.layoutManager.primaryMonitor) {
         this._monitor = monitor;
+        installNoEffects();
         this._pair = null;
         this._splitMonitor = 0;
         // MRU, at most two: {window, x (null: right edge), tucked: null |
@@ -334,11 +376,9 @@ export class TabletSplitView {
             actor._mutsuSlidingIn = true;
             actor.opacity = 0;
         }
-        // Unminimize first, with GNOME's zoom skipped (we slide in from the
-        // edge instead); only then leave full screen, so the size change
-        // can't use up the skip.
-        if (fromSide && actor && wasMinimized)
-            Main.wm?.skipNextEffect?.(actor);
+        // No GNOME zoom or resize animation: we slide in from the edge.
+        if (actor)
+            holdEffects(actor);
         window.unminimize();
         unmaximizeWindow(window, Meta);
         window.make_above?.();
@@ -375,27 +415,7 @@ export class TabletSplitView {
                     actor.translation_x = 0;
                 }});
         };
-        if (actor && wasMinimized && global.window_manager?.connect) {
-            // GNOME handles unminimize when Mutter shows the window, a moment
-            // later; slide in right after it.
-            let fallback = 0;
-            const id = global.window_manager.connect('unminimize', (_wm, shown) => {
-                if (shown !== actor)
-                    return;
-                global.window_manager.disconnect(id);
-                if (fallback)
-                    GLib.source_remove(fallback);
-                slideIn();
-            });
-            fallback = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
-                fallback = 0;
-                try { global.window_manager.disconnect(id); } catch (err) {}
-                slideIn();
-                return GLib.SOURCE_REMOVE;
-            });
-        } else {
-            slideIn();
-        }
+        slideIn();
         Main.activateWindow(window);
         this._sync();
     }
@@ -743,6 +763,7 @@ export class TabletSplitView {
 
     destroy() {
         this.clear();
+        uninstallNoEffects();
         for (const [object, id] of this._signals)
             object.disconnect(id);
         for (const actor of [this._divider, this._tabs.left, this._tabs.right]) {
