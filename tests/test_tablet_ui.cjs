@@ -356,7 +356,7 @@ let homes = 0;
 const {TabletBlades} = load('tabletBlades.js', ['TabletBlades'], {Clutter, GLib, Meta: {TabList: {NORMAL_ALL: 0},
     WindowType: {NORMAL: 0}, MaximizeFlags: null}, Shell, St, Main, ...geometry, ...router,
     global: globalMock, vbox});
-const blades = new TabletBlades({monitor: () => monitor, split, home: () => homes++});
+const blades = new TabletBlades({monitor: () => monitor, split, home: () => homes++, windowButtons: () => true});
 blades.show();
 const broot = uiGroup.children.at(-1);
 assert(blades.visible && modal === 1, 'blades open modally');
@@ -421,6 +421,12 @@ const broot2 = uiGroup.children.at(-1);
 broot2.emit('key-press-event', {get_key_symbol: () => Clutter.KEY_Escape});
 assert.equal(blades.visible, false);
 assert.equal(modal, 0, 'modal released');
+// Default tablet mode: no traffic lights (swipes close and minimize).
+const plain = new TabletBlades({monitor: () => monitor, split, home: () => homes++});
+plain.show();
+assert.equal(all(uiGroup.children.at(-1)).filter(a => a.classes.has('mutsu-light')).length, 0,
+    'traffic lights hidden unless window buttons are on');
+plain.hide();
 // Closing everything returns Home.
 display.list = [];
 blades.show();

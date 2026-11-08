@@ -34,6 +34,8 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
             'Short pull: Dock · Swipe: Home · Swipe and hold: Multitasking · Sideways: switch apps');
         this._switch(behavior, settings, 'collapse-dock-in-tablet', 'Hide the desktop dock',
             'Home has its own dock');
+        this._switch(behavior, settings, 'tablet-window-buttons', 'Window buttons in tablet mode',
+            'Off: gestures close, minimize and tuck apps. On: finger-sized traffic lights');
         this._switch(behavior, settings, 'rotation-lock', 'Lock rotation',
             'Stop auto-rotate while in tablet mode');
         this._switch(behavior, settings, 'home-widgets', 'Home clock', 'Time and date on Home');

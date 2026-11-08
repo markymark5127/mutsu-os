@@ -5,16 +5,19 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {sameSequence, splitFrames, maximizeWindow, unmaximizeWindow, isWindowMaximized,
-    slideOverFrame} from './tabletGeometry.js';
+    slideOverFrame, slideOverRelease, dragVelocity} from './tabletGeometry.js';
 
 // Split View (two apps side by side) and Slide Over (a stack of narrow apps
 // floating above everything) are independent, so three apps can be on
 // screen at once: a split pair plus a Slide Over app on top.
 //
-// Slide Over handle (above the floating app):
-//   drag right / tap     tuck the stack away (an edge tab brings it back)
-//   drag left            next app in the stack
-// Edge tab (right edge, while tucked away): tap or drag left to show again.
+// Slide Over: a fixed-size app floating above the others. Its handle (the
+// bar above it) and its title bar move together, sideways only:
+//   drag the handle or title bar   slide it along the screen
+//   flick it left or right         tuck it away to that side (an arrow tab
+//                                  appears on that edge)
+//   tap the handle                 next app in the Slide Over stack
+// Arrow tab: tap it (or drag it inward) and the app slides back.
 export class TabletSplitView {
     constructor(monitor = () => Main.layoutManager.primaryMonitor) {
         this._monitor = monitor;
@@ -23,6 +26,10 @@ export class TabletSplitView {
         this._slides = []; // MRU: [0] is the visible / most recent
         this._slideHidden = false;
         this._slideShownAt = 0;
+        this._slideX = null;      // null: right side
+        this._tuckSide = 'right';
+        this._titleDrag = null;
+        this._placing = false;
         this._slideSignals = new Map();
         this._signals = [];
         this._divider = new St.Button({style_class: 'mutsu-split-divider',
@@ -32,9 +39,17 @@ export class TabletSplitView {
         Main.layoutManager.addChrome(this._divider, {affectsStruts: false});
         this._divider.hide();
         this._handle = this._chrome('mutsu-slideover', 120, 28,
-            'Slide Over. Drag left for the next app; drag right or tap to tuck away');
-        this._tab = this._chrome('mutsu-slideover-tab', 22, 120,
-            'Show Slide Over. Tap or drag left');
+            'Slide Over. Drag to move, flick to tuck away, tap for the next app');
+        this._tab = new St.Widget({style_class: 'mutsu-slideover-tab', reactive: true,
+            layout_manager: new Clutter.BinLayout(), width: 26, height: 120,
+            accessible_name: 'Show Slide Over'});
+        this._tabArrow = new St.Label({style_class: 'mutsu-slideover-tab-arrow', text: '‹',
+            x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER});
+        this._tab.add_child(this._tabArrow);
+        Main.layoutManager.addChrome(this._tab, {affectsStruts: false});
+        this._tab.hide();
+        this._connect(global.display, 'grab-op-begin', (_d, window) => this._titleGrab(window, true));
+        this._connect(global.display, 'grab-op-end', (_d, window) => this._titleGrab(window, false));
         this._connect(global.stage, 'captured-event', (_stage, event) => this._event(event));
         this._connect(Main.layoutManager, 'monitors-changed', () => this._layout());
         this._connect(global.display, 'workareas-changed', () => this._layout());
@@ -163,9 +178,11 @@ export class TabletSplitView {
                     // Ignore the auto-maximize of a just-launched app.
                     if (isWindowMaximized(window) && Date.now() - this._slideShownAt > 1500)
                         this._removeSlide(window, false);
-                    else if (isWindowMaximized(window))
-                        this._layoutSlideSoon();
+                    else if (isWindowMaximized(window) || this._sizeDrifted(window))
+                        this._layoutSlideSoon(); // the size stays locked
                 }),
+                // Dragging the title bar: the handle follows the window.
+                window.connect('position-changed', () => this._followSlide(window)),
             ]);
         }
         // Others in the stack wait off screen.
@@ -181,14 +198,80 @@ export class TabletSplitView {
         const window = this._slides[0];
         if (!window)
             return;
+        const fromSide = this._slideHidden && window.minimized ? this._tuckSide : null;
         this._slideHidden = false;
         this._slideShownAt = Date.now();
         unmaximizeWindow(window, Meta);
+        const actor = window.get_compositor_private?.();
+        if (fromSide && actor)
+            Main.wm?.skipNextEffect?.(actor); // slide in from the edge instead
         window.unminimize();
         window.make_above?.();
         this._layoutSlide();
+        if (fromSide && actor?.ease) {
+            const monitor = this._monitor();
+            const frame = slideOverFrame(monitor, this._slideX);
+            actor.remove_all_transitions?.();
+            actor.translation_x = this._tuckOffset(fromSide, frame, monitor);
+            actor.ease({translation_x: 0, duration: 240, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+        }
         Main.activateWindow(window);
         this._sync();
+    }
+
+    _tuckOffset(side, frame, monitor) {
+        return side === 'left'
+            ? monitor.x - (frame.x + frame.width) - 24
+            : monitor.x + monitor.width - frame.x + 24;
+    }
+
+    _sizeDrifted(window) {
+        if (this._slideHidden || this._placing || this._slides[0] !== window || window.minimized)
+            return false;
+        const monitor = this._monitor();
+        if (!monitor)
+            return false;
+        const frame = slideOverFrame(monitor, this._slideX);
+        const r = window.get_frame_rect();
+        return Math.abs(r.width - frame.width) > 2 || Math.abs(r.height - frame.height) > 2;
+    }
+
+    _placeHandle(rect) {
+        this._handle.set_position(rect.x + Math.round(rect.width / 2) - 60, rect.y - 34);
+        this._handle.translation_x = 0;
+    }
+
+    _followSlide(window) {
+        if (this._placing || this._slideHidden || this._slides[0] !== window || window.minimized)
+            return;
+        const rect = window.get_frame_rect();
+        this._placeHandle(rect);
+        this._titleDrag?.samples.push([Date.now(), rect.x]);
+    }
+
+    // The title bar is dragged with Mutter's own move: follow it, then on
+    // release keep the size, put it back on its row (sideways moves only),
+    // or tuck it away if it was flicked.
+    _titleGrab(window, begin) {
+        if (!window || window !== this._slides[0] || this._slideHidden)
+            return;
+        if (begin) {
+            this._titleDrag = {startX: window.get_frame_rect().x, samples: []};
+            return;
+        }
+        const drag = this._titleDrag;
+        this._titleDrag = null;
+        if (!drag)
+            return;
+        const x = window.get_frame_rect().x;
+        const result = slideOverRelease(x - drag.startX, dragVelocity(drag.samples));
+        if (result === 'tuck-left' || result === 'tuck-right') {
+            this.hideSlide(result === 'tuck-left' ? 'left' : 'right');
+            return;
+        }
+        if (result === 'move')
+            this._slideX = x;
+        this._layoutSlide();
     }
 
     _layoutSlide() {
@@ -196,14 +279,25 @@ export class TabletSplitView {
         const monitor = this._monitor();
         if (!window || !monitor)
             return;
-        const frame = slideOverFrame(monitor);
-        if (!this._slideHidden)
-            window.move_resize_frame(false, frame.x, frame.y, frame.width, frame.height);
-        this._handle.set_position(frame.x + Math.round(frame.width / 2) - 60, frame.y - 34);
-        this._handle.translation_x = 0;
-        this._tab.set_position(monitor.x + monitor.width - 22,
+        const frame = slideOverFrame(monitor, this._slideX);
+        if (!this._slideHidden) {
+            this._placing = true;
+            try {
+                window.move_resize_frame(false, frame.x, frame.y, frame.width, frame.height);
+            } finally {
+                this._placing = false;
+            }
+        }
+        this._placeHandle(frame);
+        const left = this._tuckSide === 'left';
+        this._tab.set_position(left ? monitor.x : monitor.x + monitor.width - 26,
             monitor.y + Math.round(monitor.height / 2) - 60);
         this._tab.translation_x = 0;
+        this._tabArrow.text = left ? '›' : '‹';
+        if (left)
+            this._tab.add_style_class_name('mutsu-slideover-tab-left');
+        else
+            this._tab.remove_style_class_name('mutsu-slideover-tab-left');
     }
 
     _layoutSlideSoon() {
@@ -223,14 +317,44 @@ export class TabletSplitView {
             window.make_above?.();
     }
 
-    // Tuck the stack away; the edge tab brings it back.
-    hideSlide() {
+    // Tuck the stack away to one side (it folds off that edge, not down into
+    // the dock); the arrow tab on that edge brings it back.
+    hideSlide(side = null) {
         const window = this._slides[0];
+        const monitor = this._monitor();
         if (!window)
             return;
+        const frame = slideOverFrame(monitor, this._slideX);
+        this._tuckSide = side ?? (frame.x + frame.width / 2 < monitor.x + monitor.width / 2 ? 'left' : 'right');
         this._slideHidden = true;
-        window.minimize();
+        this._layoutSlide();
         this._sync();
+        const actor = window.get_compositor_private?.();
+        const finish = () => {
+            if (actor) {
+                actor.translation_x = 0;
+                actor.scale_x = 1;
+                actor.opacity = 255;
+                Main.wm?.skipNextEffect?.(actor);
+            }
+            if (this._slideHidden && this._slides[0] === window)
+                window.minimize();
+        };
+        if (!actor?.ease) {
+            finish();
+            return;
+        }
+        const r = window.get_frame_rect();
+        actor.remove_all_transitions?.();
+        actor.set_pivot_point?.(this._tuckSide === 'left' ? 0 : 1, 0.5);
+        actor.ease({
+            translation_x: this._tuckOffset(this._tuckSide, r, monitor),
+            scale_x: 0.82,
+            opacity: 120,
+            duration: 220,
+            mode: Clutter.AnimationMode.EASE_IN_CUBIC,
+            onStopped: finish,
+        });
     }
 
     nextSlide() {
@@ -278,7 +402,8 @@ export class TabletSplitView {
             for (const [kind, actor] of [['divider', this._divider], ['handle', this._handle],
                 ['tab', this._tab]]) {
                 if (actor.visible && actor.contains(source)) {
-                    this._drag = {kind, sequence, ratio: this._ratio, x};
+                    this._drag = {kind, sequence, ratio: this._ratio, x, samples: [[Date.now(), x]],
+                        startX: this._slides[0]?.get_frame_rect().x ?? 0};
                     return Clutter.EVENT_STOP;
                 }
             }
@@ -295,6 +420,8 @@ export class TabletSplitView {
                 this._layout();
             }
             this._handle.translation_x = this._tab.translation_x = 0;
+            if (drag.kind === 'handle')
+                this._layoutSlide(); // back where it was
             return Clutter.EVENT_STOP;
         }
         if (drag.kind === 'divider') {
@@ -306,21 +433,41 @@ export class TabletSplitView {
                     this.fullscreen(global.display.focus_window);
             }
         } else if (drag.kind === 'handle') {
-            this._handle.translation_x = dx;
+            // The app moves with its handle, sideways only, at a fixed size.
+            const window = this._slides[0];
+            const monitor = this._monitor();
+            drag.samples.push([Date.now(), x]);
+            if (window && monitor) {
+                const frame = slideOverFrame(monitor, drag.startX + dx);
+                this._placing = true;
+                try {
+                    window.move_frame(true, frame.x, frame.y);
+                } finally {
+                    this._placing = false;
+                }
+                this._placeHandle(frame);
+                drag.lastX = frame.x;
+            }
             if (end) {
                 this._drag = null;
-                this._handle.translation_x = 0;
-                if (dx < -60)
+                const result = slideOverRelease(dx, dragVelocity(drag.samples));
+                if (result === 'tuck-left' || result === 'tuck-right') {
+                    this.hideSlide(result === 'tuck-left' ? 'left' : 'right');
+                } else if (result === 'tap') {
+                    this._layoutSlide();
                     this.nextSlide();
-                else if (dx > 60 || Math.abs(dx) < 8)
-                    this.hideSlide();
+                } else {
+                    this._slideX = drag.lastX ?? this._slideX;
+                    this._layoutSlide();
+                }
             }
         } else if (drag.kind === 'tab') {
-            this._tab.translation_x = Math.min(0, dx);
+            const inward = this._tuckSide === 'left' ? Math.max(0, dx) : Math.min(0, dx);
+            this._tab.translation_x = inward;
             if (end) {
                 this._drag = null;
                 this._tab.translation_x = 0;
-                if (dx < -30 || Math.abs(dx) < 8)
+                if (Math.abs(inward) > 30 || Math.abs(dx) < 8)
                     this._showSlide();
             }
         }

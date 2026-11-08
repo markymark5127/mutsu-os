@@ -24,10 +24,38 @@ export function splitFrames(area, ratio) {
 }
 
 // Slide Over: a phone-width app floating at the right edge.
-export function slideOverFrame(monitor) {
+// Slide Over's floating frame. The size is fixed; only x moves (the user can
+// slide it along the screen). x defaults to the right side.
+export function slideOverFrame(monitor, x = null) {
     const width = Math.round(Math.min(monitor.width * 0.4, Math.max(360, monitor.width * 0.32)));
-    return {x: monitor.x + monitor.width - width - 12, y: monitor.y + 72,
-        width, height: monitor.height - 112};
+    const min = monitor.x + 12, max = monitor.x + monitor.width - width - 12;
+    return {x: x === null ? max : Math.round(Math.max(min, Math.min(max, x))),
+        y: monitor.y + 72, width, height: monitor.height - 112};
+}
+
+// After Slide Over is dragged sideways (by its handle or title bar): a quick
+// flick tucks it away to that side of the screen; anything slower just leaves
+// it where it was dropped. velocity is px/ms over the last moments of the drag.
+export const SLIDE_FLICK_VELOCITY = 0.9;
+export function slideOverRelease(dx, velocity) {
+    if (Math.abs(velocity) >= SLIDE_FLICK_VELOCITY && Math.abs(dx) >= 30 &&
+        Math.sign(velocity) === Math.sign(dx))
+        return dx < 0 ? 'tuck-left' : 'tuck-right';
+    if (Math.abs(dx) < 8)
+        return 'tap';
+    return 'move';
+}
+
+// Recent-drag velocity (px/ms) from [time, x] samples, newest last.
+export function dragVelocity(samples, windowMs = 90) {
+    if (samples.length < 2)
+        return 0;
+    const [tEnd, xEnd] = samples[samples.length - 1];
+    let first = samples[samples.length - 2];
+    for (let i = samples.length - 2; i >= 0 && tEnd - samples[i][0] <= windowMs; i--)
+        first = samples[i];
+    const dt = tEnd - first[0];
+    return dt > 0 ? (xEnd - first[1]) / dt : 0;
 }
 
 // Where an app dragged out of the dock lands. Edges split the screen with

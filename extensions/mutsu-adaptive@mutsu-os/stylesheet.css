@@ -237,6 +237,14 @@
   background-color: rgba(40, 48, 44, 0.85);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
+.mutsu-slideover-tab-left {
+  border-radius: 0 12px 12px 0;
+}
+.mutsu-slideover-tab-arrow {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 22px;
+  font-weight: bold;
+}
 .mutsu-slideover-tab-grip {
   width: 5px;
   height: 48px;

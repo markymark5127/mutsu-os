@@ -22,8 +22,9 @@ const MAX_PANES = 3;
 //   hold + drag blade   onto a blade: Split View, onto a Space: move,
 //                       onto the right edge: Slide Over
 export class TabletBlades {
-    constructor({monitor, split, home}) {
+    constructor({monitor, split, home, windowButtons = () => false}) {
         this._getMonitor = monitor;
+        this._windowButtons = windowButtons;
         this._split = split;
         this._home = home;
         this._root = null;
@@ -264,21 +265,25 @@ export class TabletBlades {
             makeTappable(dot, action, name);
             bar.add_child(dot);
         };
-        light('mutsu-light-close', 'Close window', () => window.delete(global.get_current_time()));
-        light('mutsu-light-minimize', window.minimized ? 'Restore window' : 'Minimize window', () => {
-            if (window.minimized)
-                window.unminimize();
-            else
-                window.minimize();
-        });
+        // Swipe up closes and swipe down minimizes, so the lights are only
+        // drawn when the user turned window buttons on for tablet mode.
         const maximized = isWindowMaximized(window);
-        light('mutsu-light-zoom', maximized ? 'Float window' : 'Full screen window', () => {
-            if (isWindowMaximized(window))
-                unmaximizeWindow(window, Meta);
-            else
-                maximizeWindow(window, Meta);
-            this._rebuildSoon();
-        });
+        if (this._windowButtons()) {
+            light('mutsu-light-close', 'Close window', () => window.delete(global.get_current_time()));
+            light('mutsu-light-minimize', window.minimized ? 'Restore window' : 'Minimize window', () => {
+                if (window.minimized)
+                    window.unminimize();
+                else
+                    window.minimize();
+            });
+            light('mutsu-light-zoom', maximized ? 'Float window' : 'Full screen window', () => {
+                if (isWindowMaximized(window))
+                    unmaximizeWindow(window, Meta);
+                else
+                    maximizeWindow(window, Meta);
+                this._rebuildSoon();
+            });
+        }
         bar.add_child(new St.Label({text: window.get_title() || '', x_expand: true,
             style_class: 'mutsu-pane-title', y_align: Clutter.ActorAlign.CENTER}));
         if (window.minimized)

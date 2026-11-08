@@ -32,6 +32,9 @@ const INTERFACE = 'org.gnome.desktop.interface';
 const TOUCHSCREEN = 'org.gnome.settings-daemon.peripherals.touchscreen';
 const TOUCHSHELL = 'org.gnome.shell.extensions.touchshell';
 const TOUCHSHELL_UUID = 'touchshell@touchshell.com';
+const KIWI = 'org.gnome.shell.extensions.kiwi';
+// Schemas that live inside another bundled extension's directory.
+const EXTENSION_SCHEMAS = {[TOUCHSHELL]: TOUCHSHELL_UUID, [KIWI]: 'kiwi@kemma'};
 const SEARCH_APP_ID = 'io.github.markymark5127.AIDesktop';
 const SEARCH_TITLE = 'Mutsu OS Search';
 const SEARCH_BIN = '/usr/bin/mutsu-search';
@@ -194,9 +197,9 @@ export default class MutsuAdaptiveExtension extends Extension {
     // up first. Touchshell's schema lives in its own extension folder.
     _openSettings(schemaId) {
         let schema = Gio.SettingsSchemaSource.get_default()?.lookup(schemaId, true) ?? null;
-        if (!schema && schemaId === TOUCHSHELL) {
+        if (!schema && EXTENSION_SCHEMAS[schemaId]) {
             try {
-                const dir = Main.extensionManager.lookup(TOUCHSHELL_UUID)?.dir?.get_child('schemas');
+                const dir = Main.extensionManager.lookup(EXTENSION_SCHEMAS[schemaId])?.dir?.get_child('schemas');
                 if (dir?.query_exists(null)) {
                     const source = Gio.SettingsSchemaSource.new_from_directory(dir.get_path(),
                         Gio.SettingsSchemaSource.get_default(), false);
@@ -326,7 +329,8 @@ export default class MutsuAdaptiveExtension extends Extension {
             }
         };
         start('touch settings', () => this._applyTouchSettings());
-        start('window controls', () => setTabletWindowChrome(true));
+        start('window controls', () => setTabletWindowChrome(true,
+            {buttons: this._settings.get_boolean('tablet-window-buttons')}));
         this._home = start('Home', () => new TabletHome({
             settings: this._settings,
             monitor: () => this._tabletMonitor(),
@@ -338,7 +342,8 @@ export default class MutsuAdaptiveExtension extends Extension {
             () => this._goHome(),
             () => this._gestureSuppressed(),
             () => this._settings.get_boolean('enable-experimental-gestures'),
-            () => this._tabletMonitor()));
+            () => this._tabletMonitor(),
+            {windowButtons: () => this._settings.get_boolean('tablet-window-buttons')}));
         start('window sizing', () => this._installWindowSizing());
         this._tabletSignals = [];
         // GNOME's overview has no role in tablet mode: Super / hot corner go Home.
@@ -401,6 +406,9 @@ export default class MutsuAdaptiveExtension extends Extension {
         }
         for (const [key, value] of Object.entries(TOUCHSHELL_TABLET))
             j.change(TOUCHSHELL, key, s => s.set_string(key, value));
+        // Kiwi's top-bar traffic lights for full-screen apps.
+        if (!this._settings.get_boolean('tablet-window-buttons'))
+            j.change(KIWI, 'show-window-controls', s => s.set_boolean('show-window-controls', false));
     }
 
     _slimStatusBar(on) {

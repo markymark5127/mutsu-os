@@ -41,6 +41,11 @@
       <summary>Hide the dock in tablet mode</summary>
       <description>Autohides the dock while in tablet mode and restores it on exit.</description>
     </key>
+    <key name="tablet-window-buttons" type="b">
+      <default>false</default>
+      <summary>Window buttons (traffic lights) in tablet mode</summary>
+      <description>Off (default): in tablet mode apps are closed, minimized and tucked with gestures, so the traffic lights are hidden in full-screen apps, Slide Over and multitasking. On: they stay, enlarged for fingers.</description>
+    </key>
     <key name="rotation-lock" type="b">
       <default>false</default>
       <summary>Lock screen rotation while in tablet mode</summary>

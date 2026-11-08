@@ -17,7 +17,7 @@ import {TabletWindowGrips} from './windowGrips.js';
 //   swipe up and pause       multitasking blades
 //   swipe along the edge     previous / next app
 export class TabletSwitcher {
-    constructor(home, suppressed, gesturesEnabled, monitor) {
+    constructor(home, suppressed, gesturesEnabled, monitor, {windowButtons = () => false} = {}) {
         this._home = home;
         this._suppressed = suppressed;
         this._gesturesEnabled = gesturesEnabled;
@@ -29,7 +29,7 @@ export class TabletSwitcher {
         this._dock = new TabletDockPopup(() => this.show(), monitor, this._split);
         this._grips = new TabletWindowGrips({monitor,
             excluded: window => !!this._split.pair?.includes(window) || this._split.slides.includes(window)});
-        this._blades = new TabletBlades({monitor, split: this._split, home: () => this._home()});
+        this._blades = new TabletBlades({monitor, split: this._split, home: () => this._home(), windowButtons});
         this._bar = new St.Button({style_class: 'mutsu-home-bar',
             accessible_name: 'Home. Swipe up and hold for multitasking',
             child: new St.Widget({style_class: 'mutsu-home-indicator'})});
