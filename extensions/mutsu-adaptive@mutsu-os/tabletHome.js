@@ -20,6 +20,7 @@ const FOLDER_NAMES = {
 const EDGE_FLIP_PX = 48;
 const EDGE_FLIP_MS = 550;
 const FOLDER_HOVER_MS = 380;
+const REORDER_HOVER_MS = 220;
 
 // Tablet Home. It lives in the background layer, *behind* every window, so
 // any app that comes forward (from Home, the dock, Recent Apps, a
@@ -764,7 +765,7 @@ export class TabletHome {
         this._drag = {id, actor, clone, fromDock, offsetX: s.x - tx, offsetY: s.y - ty,
             target: info ? {page: info.page, index: info.index} : null,
             dock: fromDock ? this._dockIndex(s.x) : null,
-            onto: null, flipTimer: 0, ontoTimer: 0};
+            onto: null, flipTimer: 0, ontoTimer: 0, reorderTimer: 0, pending: null};
         actor.opacity = 0;
     }
 
@@ -822,6 +823,7 @@ export class TabletHome {
                         this._pages.push([]);
                     this._goToPage(next);
                     d.target = null;
+                    d.pending = null;
                     this._previewReorder();
                 }
             });
@@ -839,6 +841,9 @@ export class TabletHome {
         const underId = shown[slot.index] ?? null;
         const canFolder = slot.onto && underId && underId !== d.id && !d.id.startsWith('folder:');
         if (canFolder) {
+            this._cancelLater(d.reorderTimer);
+            d.reorderTimer = 0;
+            d.pending = null;
             if (d.onto !== underId) {
                 this._clearFolderIntent(d);
                 d.onto = underId;
@@ -854,10 +859,27 @@ export class TabletHome {
         // Items flow from the top-left: past the last icon means "at the end".
         const others = page.filter(item => itemId(item) !== d.id).length;
         const index = Math.min(slot.index, others);
-        if (!d.target || d.target.page !== this._page || d.target.index !== index) {
-            d.target = {page: this._page, index};
-            this._previewReorder();
+        if (d.target && d.target.page === this._page && d.target.index === index) {
+            this._cancelLater(d.reorderTimer);
+            d.reorderTimer = 0;
+            d.pending = null;
+            return;
         }
+        // Make room only once the finger rests there a moment, like an iPad:
+        // icons used to flee as soon as you passed their edge, so the one you
+        // were heading for to make a folder was gone by the time you got there.
+        if (d.pending?.page === this._page && d.pending?.index === index)
+            return;
+        this._cancelLater(d.reorderTimer);
+        d.pending = {page: this._page, index};
+        d.reorderTimer = this._later(REORDER_HOVER_MS, () => {
+            d.reorderTimer = 0;
+            if (this._drag !== d || !d.pending)
+                return;
+            d.target = d.pending;
+            d.pending = null;
+            this._previewReorder();
+        });
     }
 
     // The current page as it looks during a drag (the dragged item sits at
@@ -916,6 +938,9 @@ export class TabletHome {
         this._drag = null;
         this._cancelLater(d.flipTimer);
         this._cancelLater(d.ontoTimer);
+        this._cancelLater(d.reorderTimer);
+        if (d.pending && !d.onto)
+            d.target = d.pending; // dropped on a spot it hadn't settled on yet
         let changed = false;
         if (commit) {
             if (d.dock !== null) {
