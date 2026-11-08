@@ -181,6 +181,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         }
         this._posture?.destroy();
         this._posture = null;
+        globalThis.mutsuTabletMode = false;
         for (const [object, id] of this._signals)
             object.disconnect(id);
         this._signals = [];
@@ -321,6 +322,7 @@ export default class MutsuAdaptiveExtension extends Extension {
     // ---- entering and leaving ----------------------------------------------
 
     _enterTablet() {
+        globalThis.mutsuTabletMode = true; // read by Kiwi: no minimized-window tiles
         if (this._inTablet)
             return;
         this._inTablet = true;
@@ -370,6 +372,7 @@ export default class MutsuAdaptiveExtension extends Extension {
     }
 
     _leaveTablet() {
+        globalThis.mutsuTabletMode = false;
         if (!this._inTablet)
             return;
         this._inTablet = false;

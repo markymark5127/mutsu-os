@@ -57,6 +57,12 @@ function _isEligible(win) {
     return !!win && win.window_type === Meta.WindowType.NORMAL && !win.is_skip_taskbar();
 }
 
+// Mutsu tablet mode: apps waiting in multitasking and a tucked-away Slide
+// Over app are not "minimized to the dock" (no tile flying into the dock).
+function _mutsuTablet(win) {
+    return !!globalThis.mutsuTabletMode || !!win?._mutsuSlideOver;
+}
+
 function _captureSnapshot(win) {
     const actor = win.get_compositor_private();
     if (!actor)
@@ -111,7 +117,7 @@ function _untrackWindow(win) {
 }
 
 function _addWindow(win) {
-    if (!enabled || order.includes(win))
+    if (!enabled || order.includes(win) || _mutsuTablet(win))
         return;
 
     // An already-minimized window is unmapped, so the snapshot taken on the way

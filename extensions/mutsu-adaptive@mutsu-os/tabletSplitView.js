@@ -199,6 +199,7 @@ export class TabletSplitView {
         if (!window)
             return;
         const fromSide = this._slideHidden && window.minimized ? this._tuckSide : null;
+        window._mutsuSlideOver = false;
         this._slideHidden = false;
         this._slideShownAt = Date.now();
         unmaximizeWindow(window, Meta);
@@ -337,8 +338,10 @@ export class TabletSplitView {
                 actor.opacity = 255;
                 Main.wm?.skipNextEffect?.(actor);
             }
-            if (this._slideHidden && this._slides[0] === window)
+            if (this._slideHidden && this._slides[0] === window) {
+                window._mutsuSlideOver = true; // no dock tile (Kiwi)
                 window.minimize();
+            }
         };
         if (!actor?.ease) {
             finish();
@@ -375,6 +378,7 @@ export class TabletSplitView {
             try { window.disconnect(id); } catch (e) {}
         }
         try { window.unmake_above?.(); } catch (e) {}
+        window._mutsuSlideOver = false;
         const wasTop = this._slides[0] === window;
         this._slides = this._slides.filter(w => w !== window);
         if (minimize) {
