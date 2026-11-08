@@ -78,10 +78,16 @@ ln -sf "../$unit" "/etc/systemd/system/local-fs.target.wants/$unit"
 # The live root is itself an overlay, so containers-storage needs
 # fuse-overlayfs to stack on it; the USB store is read-only and extra.
 command -v fuse-overlayfs >/dev/null || dnf5 install -y fuse-overlayfs
-install -d /etc/containers/storage.conf.d
-cat > /etc/containers/storage.conf.d/90-mutsu-live-installer.conf <<'CONF'
+# In the main storage.conf, not a drop-in: every tool the installer uses
+# (skopeo, podman, bootc) must see the USB store, and older tools ignore
+# storage.conf.d. Without it fisherman's skopeo check missed the image and
+# fell back to downloading it.
+cat > /etc/containers/storage.conf <<'CONF'
+# Mutsu live USB: the system image on the USB is an extra, read-only store.
 [storage]
 driver = "overlay"
+runroot = "/run/containers/storage"
+graphroot = "/var/lib/containers/storage"
 
 [storage.options]
 additionalimagestores = ["/var/lib/superiso-store"]
@@ -89,6 +95,7 @@ additionalimagestores = ["/var/lib/superiso-store"]
 [storage.options.overlay]
 mount_program = "/usr/bin/fuse-overlayfs"
 CONF
+rm -f /etc/containers/storage.conf.d/90-mutsu-live-installer.conf
 fi
 
 # ── Installer configuration (read from the host /etc) ─────────────────────
@@ -99,14 +106,20 @@ install -d /etc/bootc-installer
 # /etc/bootc-installer/media-input.json"). Fisherman still knows it is live
 # from the Tacklebox kernel argument, and finds the offline image in
 # /var/lib/superiso-store on its own.
+# Offline: name the copy on the USB explicitly (containers-storage:), so
+# fisherman installs straight from it with the host's bootc (its path for
+# 8 GB live installs) and never tries the registry. The installed system
+# still updates from the plain registry name (fisherman strips the prefix).
+INSTALL_REF=$IMAGE_REF
+[[ "$MUTSU_LIVE_VARIANT" == offline ]] && INSTALL_REF="containers-storage:$IMAGE_REF"
 cat > /etc/bootc-installer/images.json <<JSON
 {
-  "default_image": "$IMAGE_REF",
+  "default_image": "$INSTALL_REF",
   "fallback_flatpaks": [],
   "images": [
     {
       "name": "Mutsu OS",
-      "imgref": "$IMAGE_REF",
+      "imgref": "$INSTALL_REF",
       "desc": "Mac-style desktop, gaming-ready, with tablet mode for 2-in-1s",
       "icon": "/usr/share/icons/hicolor/scalable/apps/mutsu-os-logo.svg",
       "bootloader": "grub2",
@@ -122,7 +135,8 @@ cat > /etc/bootc-installer/recipe.json <<JSON
   "log_file": "/var/log/bootc-installer.log",
   "distro_name": "Mutsu OS",
   "distro_logo": "/usr/share/icons/hicolor/scalable/apps/mutsu-os-logo.svg",
-  "imgref": "$IMAGE_REF",
+  "imgref": "$INSTALL_REF",
+  "targetImgref": "$IMAGE_REF",
   "welcome_title": "Welcome to Mutsu OS",
   "welcome_subtitle": "Install Mutsu OS on this computer, or close this window to keep trying it from the USB.",
   "hostname": "mutsu",
