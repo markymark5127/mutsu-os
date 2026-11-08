@@ -7,8 +7,11 @@ import {hingeTablet, hingeFromAccels} from './tabletGeometry.js';
 //  3. The hinge angle: an iio hinge sensor, or computed from the display and
 //     base accelerometers. With an angle, the user can choose where tablet
 //     mode starts (past flat, tent, fully folded, or a custom angle).
-// Files are only polled when such a source exists. File access is injected
-// (readFile, listDir) so it is testable in Node.
+// Files are only polled when such a source exists, and only while the mode is
+// automatic. File access is injected (readFile, listDir, readFiles) so it is
+// testable in Node. Polls read asynchronously when `readFiles` is given:
+// accelerometer reads on HID sensor hubs (Lenovo Yogas and many 2-in-1s)
+// can take tens of milliseconds each, which used to stall the compositor.
 
 const SWITCH_PATHS = [
     '/sys/bus/platform/devices/tablet-mode-switch/tablet-mode',
@@ -18,7 +21,7 @@ const SWITCH_PATHS = [
 const IIO = '/sys/bus/iio/devices';
 const HINGE_FILES = ['in_angl0_raw', 'in_angl_raw', 'in_angl0_input'];
 const MATRIX_FILES = ['in_accel_mount_matrix', 'in_mount_matrix', 'mount_matrix'];
-export const ANGLE_POLL_MS = 500;
+export const ANGLE_POLL_MS = 700;
 const SWITCH_POLL_MS = 2000;
 
 // Where an accelerometer sits: the kernel's label ("accel-display",
@@ -108,8 +111,9 @@ export function readHingeAngle(sources, readFile) {
 
 // threshold 0: the laptop's own tablet switch decides (angle at the usual
 // 200 degrees only when there is no switch). threshold > 0: the angle.
-export function readHardware(sources, readFile, previous, threshold = 0) {
-    const angle = hasAngleSource(sources) ? readHingeAngle(sources, readFile) : null;
+export function readHardware(sources, readFile, previous, threshold = 0, knownAngle = undefined) {
+    const angle = !hasAngleSource(sources) ? null
+        : knownAngle !== undefined ? knownAngle : readHingeAngle(sources, readFile);
     if (threshold > 0 && hasAngleSource(sources))
         return hingeTablet(angle, previous, threshold) ?? previous ?? null;
     for (const source of sources) {
@@ -122,10 +126,30 @@ export function readHardware(sources, readFile, previous, threshold = 0) {
     return hingeTablet(angle, previous);
 }
 
+// Every file one poll reads, so they can be fetched together off the main
+// thread.
+export function pollPaths(sources) {
+    const paths = [];
+    for (const source of sources) {
+        if (source.kind === 'hinge' || source.kind === 'switch')
+            paths.push(source.path);
+        else if (source.kind === 'accels') {
+            for (const side of [source.display, source.base])
+                paths.push(...['x', 'y', 'z'].map(axis => `${side.dir}/in_accel_${axis}_raw`));
+        }
+    }
+    return paths;
+}
+
 export class PostureMonitor {
-    constructor({seat, readFile, listDir, poll, cancel, threshold = () => 0}, onChange) {
+    constructor({seat, readFile, listDir, poll, cancel, threshold = () => 0, readFiles = null,
+        active = () => true}, onChange) {
         this._seat = seat;
         this._readFile = readFile;
+        this._readFiles = readFiles;
+        this._active = active;
+        this._pending = false;
+        this._destroyed = false;
         this._poll = poll;
         this._cancel = cancel;
         this._threshold = threshold;
@@ -148,10 +172,8 @@ export class PostureMonitor {
         this._sources = findHardwareSources(readFile, listDir);
         if (this._sources.length) {
             this._read();
-            this._pollId = poll(hasAngleSource(this._sources) ? ANGLE_POLL_MS : SWITCH_POLL_MS, () => {
-                if (this._read())
-                    this._onChange();
-            });
+            this._pollId = poll(hasAngleSource(this._sources) ? ANGLE_POLL_MS : SWITCH_POLL_MS,
+                () => this._pollOnce());
         }
     }
 
@@ -169,10 +191,29 @@ export class PostureMonitor {
         return this._read();
     }
 
-    _read() {
-        if (hasAngleSource(this._sources))
-            this.angle = readHingeAngle(this._sources, this._readFile);
-        const next = readHardware(this._sources, this._readFile, this.hardware, this._threshold());
+    _pollOnce() {
+        // A forced mode doesn't need the sensors; one poll at a time.
+        if (!this._active() || this._pending)
+            return;
+        if (!this._readFiles) {
+            if (this._read())
+                this._onChange();
+            return;
+        }
+        this._pending = true;
+        this._readFiles(pollPaths(this._sources), contents => {
+            this._pending = false;
+            if (this._destroyed)
+                return;
+            if (this._read(path => contents.get(path) ?? null))
+                this._onChange();
+        });
+    }
+
+    _read(readFile = this._readFile) {
+        const angle = hasAngleSource(this._sources) ? readHingeAngle(this._sources, readFile) : null;
+        this.angle = angle;
+        const next = readHardware(this._sources, readFile, this.hardware, this._threshold(), angle);
         if (next === this.hardware)
             return false;
         this.hardware = next;
@@ -196,6 +237,7 @@ export class PostureMonitor {
     }
 
     destroy() {
+        this._destroyed = true;
         if (this._seatId)
             this._seat.disconnect(this._seatId);
         this._seatId = 0;

@@ -81,6 +81,29 @@ function readFile(path) {
     }
 }
 
+// Read several small files in GIO's worker threads and call back once with
+// a Map(path -> text | null). Never blocks the compositor.
+function readFilesAsync(paths, callback) {
+    const contents = new Map();
+    let left = paths.length;
+    if (!left) {
+        callback(contents);
+        return;
+    }
+    for (const path of paths) {
+        Gio.File.new_for_path(path).load_contents_async(null, (file, result) => {
+            try {
+                const [, bytes] = file.load_contents_finish(result);
+                contents.set(path, new TextDecoder().decode(bytes));
+            } catch (e) {
+                contents.set(path, null);
+            }
+            if (--left === 0)
+                callback(contents);
+        });
+    }
+}
+
 function listDir(path) {
     const names = [];
     try {
@@ -155,7 +178,9 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._posture = new PostureMonitor({
             seat: this._seat(),
             readFile,
+            readFiles: readFilesAsync,
             listDir,
+            active: () => this._settings?.get_string('mode') === 'automatic',
             poll: (ms, fn) => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
                 fn();
                 return GLib.SOURCE_CONTINUE;

@@ -315,6 +315,32 @@ assert.deepEqual(parseMountMatrix('0, 1, 0; -1, 0, 0; 0, 0, 1'), [[0, 1, 0], [-1
     assert.equal(g.resolveTablet({mode: 'automatic', seatTouch: true, hardware: false, angleDecides: true}), false,
         'chosen angle overrides the laptop switch');
 }
+// Polls read off the main thread (one batch, each file once) and stop while
+// the mode is forced.
+{
+    let active = true, batches = [], syncReads = 0, notified = 0;
+    const hingePath = '/sys/bus/iio/devices/iio:device3/in_angl0_raw';
+    const fs2 = {[hingePath]: '90'};
+    let tick2;
+    const am = new PostureMonitor({seat: null,
+        readFile: path => { syncReads++; return fs2[path] ?? null; },
+        listDir: dir => (dir === '/sys/bus/iio/devices' ? ['iio:device3'] : []),
+        readFiles: (paths, done) => batches.push({paths, done}),
+        active: () => active,
+        poll: (_ms, fn) => { tick2 = fn; return 4; }, cancel() {}}, () => notified++);
+    const startupReads = syncReads;
+    tick2();
+    assert.equal(syncReads, startupReads, 'polls never read files on the main thread');
+    assert.deepEqual(batches[0].paths, [hingePath], 'each file read once per poll');
+    tick2();
+    assert.equal(batches.length, 1, 'no overlapping polls while a read is in flight');
+    batches[0].done(new Map([[hingePath, '330']]));
+    assert.equal(am.hardware, true);assert.equal(notified, 1);
+    active = false;
+    tick2();
+    assert.equal(batches.length, 1, 'forced mode: sensors not polled');
+    am.destroy();
+}
 const quiet = new PostureMonitor({seat, readFile: () => null, listDir: () => [],
     poll: () => assert.fail('no files, no polling'), cancel() {}}, () => {});
 quiet.destroy();
