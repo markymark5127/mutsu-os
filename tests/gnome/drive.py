@@ -453,12 +453,8 @@ def slide_flow(T):
     # its edge instead of GNOME's zoom out of the dock.
     js(f"{T}.ext()._settings.set_string('mode', 'always-tablet')")
     wait(3)
-    js(f"""(() => {{ const w = globalThis.__mutsuExitWin, wm = Main.wm, orig = wm._shouldAnimateActor;
+    js(f"""(() => {{ const w = globalThis.__mutsuExitWin, wm = Main.wm;
         globalThis.__mutsuAnim = []; globalThis.__mutsuTx = [];
-        wm._shouldAnimateActor = function (a, types) {{
-            const r = orig.call(this, a, types);
-            if (a?.meta_window === w) globalThis.__mutsuAnim.push(r);
-            return r; }};
         const GLib = imports.gi.GLib;
         if (!w.minimized) w.minimize();
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {{
@@ -466,12 +462,15 @@ def slide_flow(T):
             {T}.ext()._switcher.split.slideOver(w);
             for (const ms of [40, 90, 140])
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
-                    globalThis.__mutsuTx.push(Math.round(w.get_compositor_private()?.translation_x ?? 0));
+                    const a = w.get_compositor_private();
+                    globalThis.__mutsuTx.push(Math.round(a?.translation_x ?? 0));
+                    // Is GNOME running its unminimize (zoom out of the dock)?
+                    globalThis.__mutsuAnim.push(!!a && wm._unminimizing.has(a));
                     return GLib.SOURCE_REMOVE; }});
             return GLib.SOURCE_REMOVE; }});
         return true; }})()""")
     wait(2.5)
-    came = js("""(() => { delete Main.wm._shouldAnimateActor;
+    came = js("""(() => {
         return {min: globalThis.__mutsuExitWin.minimized, gnomeUnminimizeAnimation: globalThis.__mutsuAnim,
             slideOffsets: globalThis.__mutsuTx}; })()""")
     record(S, "a minimized app put in Slide Over slides in from the edge (no zoom out of the dock)",

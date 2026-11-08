@@ -296,11 +296,14 @@ export class TabletSplitView {
         e.tucked = null;
         e.shownAt = Date.now();
         window._mutsuSlideOver = false;
-        unmaximizeWindow(window, Meta);
         const actor = window.get_compositor_private?.();
+        // Unminimize first, with GNOME's zoom-out-of-the-dock skipped (we
+        // slide in from the edge instead); only then leave full screen, so
+        // the size change can't use up the skip.
         if (fromSide && actor && window.minimized)
-            Main.wm?.skipNextEffect?.(actor); // slide in from the edge instead
+            Main.wm?.skipNextEffect?.(actor);
         window.unminimize();
+        unmaximizeWindow(window, Meta);
         window.make_above?.();
         // Most recent first, and make room on the row.
         this._entries = [e, ...this._entries.filter(o => o !== e)];
