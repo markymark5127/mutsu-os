@@ -16,6 +16,7 @@ import {SettingsJournal} from './settingsJournal.js';
 import {PostureMonitor} from './posture.js';
 import {DashToDockHider} from './dockHider.js';
 import {TabletGamepad} from './tabletGamepad.js';
+import {ModeTransition} from './modeTransition.js';
 import {updateTiltLatch, clearTiltOnLaptopUse, transformFor, rotatedLogicalMonitors,
     isBuiltinConnector, TILTED, TILT_DWELL_MS} from './orientation.js';
 import {setTabletWindowChrome} from './windowChrome.js';
@@ -135,6 +136,12 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._debounceSource = 0;
         this._pendingTablet = null;
         this._signals = [];
+        try {
+            this._transition = new ModeTransition();
+        } catch (error) {
+            logError(error, 'Mutsu Adaptive: mode animation unavailable');
+            this._transition = null;
+        }
         this._searchBusy = 0;
 
         // Crash-safe journal: if the Shell died mid-tablet-mode, put the
@@ -217,6 +224,8 @@ export default class MutsuAdaptiveExtension extends Extension {
         }
         this._posture?.destroy();
         this._posture = null;
+        this._transition?.destroy();
+        this._transition = null;
         this._unwatchOrientation();
         globalThis.mutsuTabletMode = false;
         for (const [object, id] of this._signals)
@@ -341,12 +350,20 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._debounceSource = 0;
             const want = this._pendingTablet;
             this._pendingTablet = null;
+            const was = this._inTablet;
             if (want)
                 this._enterTablet();
             else
                 this._leaveTablet();
             this._syncIndicators();
             this._syncRotation();
+            if (was !== this._inTablet && this._settings.get_boolean('mode-animation')) {
+                try {
+                    this._transition?.play(this._inTablet);
+                } catch (error) {
+                    logError(error, 'Mutsu Adaptive: mode animation failed');
+                }
+            }
         };
         if (immediate) {
             apply();

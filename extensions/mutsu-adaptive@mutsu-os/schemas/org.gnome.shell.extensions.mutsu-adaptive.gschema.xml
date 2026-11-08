@@ -52,6 +52,11 @@
       <summary>Hinge angle that starts tablet mode (Automatic mode)</summary>
       <description>0: follow the laptop's own tablet sensor. Otherwise tablet mode starts once the hinge opens past this many degrees (180 past flat, 225 tent, 359 fully folded) on laptops that report their hinge angle, and ends 25 degrees below it.</description>
     </key>
+    <key name="mode-animation" type="b">
+      <default>true</default>
+      <summary>Animate switching between desktop and tablet</summary>
+      <description>A wave of colour from the hinge, the apps settling with a small spring, and a folding hinge with the new mode's name. Skipped when GNOME's animations are off.</description>
+    </key>
     <key name="gamepad-overlay" type="b">
       <default>true</default>
       <summary>On-screen gamepad for Steam games in tablet mode</summary>

@@ -79,7 +79,9 @@ const sensor = Object.assign(new Emitter(), {orientation: 'normal', calls: [],
 const ext = Object.assign(new Emitter(), {values: {'mode': 'automatic', 'saved-state': '', 'open-home-on-tablet': false,
     'tablet-from-orientation': true, 'tablet-hinge-angle': 0,
     'touch-text-scale': 1.15, 'rotation-lock': false, 'collapse-dock-in-tablet': true,
-    'enable-experimental-gestures': true, 'automatic-keyboard': true, 'gesture-exceptions': []}});
+    'enable-experimental-gestures': true, 'automatic-keyboard': true, 'gesture-exceptions': [],
+    'mode-animation': true}});
+const plays = [];
 Object.assign(ext, {get_string(k) { return this.values[k]; }, get_boolean(k) { return this.values[k]; }, get_int(k) { return this.values[k] ?? 0; },
     get_double(k) { return this.values[k]; }, get_strv(k) { return this.values[k]; },
     set_string(k, v) { this.values[k] = v; this.emit(`changed::${k}`); }});
@@ -150,7 +152,7 @@ const Ext = new Function('Extension', 'Main', 'PanelMenu', 'PopupMenu', 'QuickSe
     'resolveTablet', 'global', 'log', 'TextDecoder', 'setTabletWindowChrome',
     'planTabletEntry', 'planTabletExit', 'logError',
     'updateTiltLatch', 'clearTiltOnLaptopUse', 'transformFor', 'rotatedLogicalMonitors',
-    'isBuiltinConnector', 'TILTED', 'TILT_DWELL_MS', 'DashToDockHider', 'TabletGamepad',
+    'isBuiltinConnector', 'TILTED', 'TILT_DWELL_MS', 'DashToDockHider', 'TabletGamepad', 'ModeTransition',
     `${source}; return MutsuAdaptiveExtension;`)(
     Extension, Main, {Button: MenuButton}, {PopupSeparatorMenuItem: class {}, Ornament: {CHECK: 'check', NONE: 'none'}},
     {QuickToggle}, {Icon: Actor}, Gio, GLib, {TabList: {NORMAL_ALL: 0}, WindowType: {NORMAL: 0}},
@@ -159,7 +161,8 @@ const Ext = new Function('Extension', 'Main', 'PanelMenu', 'PopupMenu', 'QuickSe
     geometry.isWindowMaximized, geometry.resolveTablet, globalMock, () => {}, TextDecoder,
     on => chrome.push(on), geometry.planTabletEntry, geometry.planTabletExit, e => { throw e; },
     ...Object.values(orient), class { constructor() { dockHiders.push(this); } destroy() { this.destroyed = true; } },
-    class { constructor() { instances.gamepad = (instances.gamepad ?? 0) + 1; } destroy() { instances.gamepad--; } });
+    class { constructor() { instances.gamepad = (instances.gamepad ?? 0) + 1; } destroy() { instances.gamepad--; } },
+    class { play(toTablet) { plays.push(toTablet); } destroy() { this.destroyed = true; } });
 
 
 dconf['org.gnome.shell.extensions.touchshell/bottom-edge-swipe-activation'] = "'always'";
@@ -191,6 +194,7 @@ seat.touch_mode = true;
 seat.emit('notify::touch-mode');
 flush();
 assert.equal(instances.home, 1, 'fold enters tablet mode');
+assert.equal(plays.at(-1), true, 'switch animation plays into tablet');
 assert(dockHiders.at(-1) && !dockHiders.at(-1).destroyed, 'desktop dock hidden in tablet mode');
 assert.equal(e._qsToggle.checked, true);
 assert.equal(dconf['org.gnome.desktop.interface/text-scaling-factor'], 1.15, 'touch text size');
@@ -281,4 +285,7 @@ e.disable();
 assert.equal(instances.home, 0);
 assert.equal(seat.count, 0, 'posture signal disconnected');
 assert.equal(ext.count, 0, 'settings signals disconnected');
-console.log('Tablet extension checks passed (fold, override, Automatic kept, restore sizes, lock, overview, crash recovery, cleanup).');
+assert(plays.includes(false), 'switch animation plays back to the desktop');
+for (let i = 1; i < plays.length; i++)
+    assert.notEqual(plays[i], plays[i - 1], 'played only when the mode actually changed');
+console.log('Tablet extension checks passed (switch animation, fold, override, Automatic kept, restore sizes, lock, overview, crash recovery, cleanup).');

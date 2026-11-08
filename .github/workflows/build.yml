@@ -62,6 +62,7 @@ jobs:
           node tests/test_tablet_dock.cjs extensions/mutsu-adaptive@mutsu-os/tabletDock.js
           node tests/test_tablet_logic.cjs extensions/mutsu-adaptive@mutsu-os
           node tests/test_tablet_gamepad.cjs extensions/mutsu-adaptive@mutsu-os
+          node tests/test_mode_transition.cjs extensions/mutsu-adaptive@mutsu-os
           node tests/test_tablet_ui.cjs extensions/mutsu-adaptive@mutsu-os
           node tests/test_tablet_extension.cjs extensions/mutsu-adaptive@mutsu-os
           node tests/test_search_integration.cjs extensions/mutsu-branding@mutsu-os/searchIntegration.js

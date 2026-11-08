@@ -556,6 +556,45 @@ def gamepad_flow():
         wait(1)
 
 
+def mode_animation_flow():
+    """The desktop <-> tablet switch animation plays and cleans up."""
+    S = "Switch animation"
+    T = "globalThis.__mutsuTest"
+    js(f"{T}.ext()._settings.set_string('mode', 'always-desktop')")
+    wait(2.5)
+
+    def sample(to):
+        js(f"""(() => {{ globalThis.__mutsuAnimSeen = []; const GLib = imports.gi.GLib;
+            {T}.ext()._settings.set_string('mode', '{to}');
+            for (const ms of [250, 500])
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
+                    const kids = Main.layoutManager.uiGroup.get_children();
+                    const hud = kids.find(a => a.has_style_class_name?.('mutsu-mode-hud'));
+                    const label = hud?.get_children().find(c => c.text)?.text ?? null;
+                    globalThis.__mutsuAnimSeen.push({{
+                        wave: kids.some(a => a.has_style_class_name?.('mutsu-mode-wave')),
+                        hud: !!hud, label, scale: +global.window_group.scale_x.toFixed(3)}});
+                    return GLib.SOURCE_REMOVE; }});
+            return true; }})()""")
+        wait(3)
+        after = js("""(() => { const kids = Main.layoutManager.uiGroup.get_children();
+            return {left: kids.filter(a => a.has_style_class_name?.('mutsu-mode-wave') ||
+                a.has_style_class_name?.('mutsu-mode-hud')).length,
+                scale: global.window_group.scale_x}; })()""")
+        return js("globalThis.__mutsuAnimSeen"), after
+
+    seen, after = sample("always-tablet")
+    record(S, "into tablet: wave, folding hinge labelled Tablet",
+           isinstance(seen, list) and any(s.get("hud") and s.get("label") == "Tablet" for s in seen)
+           and any(s.get("wave") for s in seen), seen)
+    record(S, "cleans up and leaves the apps at full size",
+           after.get("left") == 0 and after.get("scale") == 1, after)
+    seen, after = sample("always-desktop")
+    record(S, "back to desktop: labelled Desktop, cleaned up",
+           isinstance(seen, list) and any(s.get("label") == "Desktop" for s in seen)
+           and after.get("left") == 0 and after.get("scale") == 1, {"seen": seen, "after": after})
+
+
 def analyze_log():
     path = os.path.join(OUT, "shell.log")
     if not os.path.exists(path):
@@ -621,6 +660,10 @@ def main():
             window_flow()
         except Exception as error:
             record("Apps when folding", "driver", False, repr(error))
+        try:
+            mode_animation_flow()
+        except Exception as error:
+            record("Switch animation", "driver", False, repr(error))
         try:
             gamepad_flow()
         except Exception as error:

@@ -50,8 +50,11 @@ cp -a "$bundle/runtime.json" "$bundle/packages" "$local_bundle/"
 cp /usr/share/mutsu-os/local-ai/bundled-model.json "$config_dir/bundled-model.json"
 # Confirm the packaged model is listed before selecting it. This performs no
 # inference and never sends a user's question or device information anywhere.
-if command -v systemctl >/dev/null; then
-  systemctl start mutsu-local-model.service || true
+# Never pops up a password dialog: the polkit rule lets the signed-in user
+# start this one service, and --no-ask-password keeps it silent otherwise.
+if command -v systemctl >/dev/null && ! systemctl is-active --quiet mutsu-local-model.service; then
+  systemctl reset-failed --no-ask-password mutsu-local-model.service >/dev/null 2>&1 || true
+  systemctl start --no-ask-password --no-block mutsu-local-model.service || true
 fi
 echo "Starting the built-in AI model. The first time, it is copied into place, which can take several minutes..."
 if ! python3 /usr/libexec/mutsu-os/wait-local-model.py; then

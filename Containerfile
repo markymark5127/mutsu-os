@@ -125,6 +125,7 @@ COPY vendor/local-ai/source.env /usr/share/mutsu-os/local-ai/source.env
 COPY packaging/bundled-model.json /usr/share/mutsu-os/local-ai/bundled-model.json
 COPY packaging/seed-local-model.sh /usr/libexec/mutsu-os/seed-local-model.sh
 COPY packaging/mutsu-local-model.service /usr/lib/systemd/system/mutsu-local-model.service
+COPY packaging/50-mutsu-local-model.rules /usr/share/polkit-1/rules.d/50-mutsu-local-model.rules
 RUN dnf5 install -y libgomp numactl-libs && \
     chmod 0755 /usr/libexec/mutsu-os/seed-local-model.sh && \
     chmod -R a+rX /usr/share/mutsu-os/local-ai && \

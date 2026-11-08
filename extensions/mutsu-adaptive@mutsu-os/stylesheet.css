@@ -369,3 +369,17 @@
 .mutsu-gamepad-cube.mutsu-gamepad-b { background-color: rgba(200, 64, 64, 0.55); color: white; }
 .mutsu-gamepad-cube.mutsu-gamepad-x,
 .mutsu-gamepad-cube.mutsu-gamepad-y { background-color: rgba(200, 200, 200, 0.35); color: white; }
+
+/* Desktop <-> tablet switch animation. */
+.mutsu-mode-hud {
+  background-color: rgba(28, 33, 30, 0.82);
+  border-radius: 28px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
+.mutsu-mode-hinge-part { background-color: rgba(236, 232, 224, 0.9); }
+.mutsu-mode-hinge-screen { background-color: #a4c9b2; }
+.mutsu-mode-label {
+  color: rgba(236, 232, 224, 0.95);
+  font-size: 15px;
+  font-weight: bold;
+}

@@ -1,0 +1,14 @@
+// The signed-in user's Mutsu Search / AI setup may start (or retry) the
+// bundled local model service without a password prompt. Only this unit,
+// only start/restart/reset, only for an active local session.
+polkit.addRule(function (action, subject) {
+    if (!subject.local || !subject.active)
+        return polkit.Result.NOT_HANDLED;
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") == "mutsu-local-model.service") {
+        var verb = action.lookup("verb");
+        if (verb == "start" || verb == "restart" || verb == "reset-failed")
+            return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

@@ -28,6 +28,8 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
         });
         mode.add(modeRow);
         this._hingeRows(mode, settings);
+        this._switch(mode, settings, 'mode-animation', 'Switching animation',
+            'A wave from the hinge and a folding laptop when it changes mode');
         this._switch(mode, settings, 'tablet-from-orientation', 'Turning the screen sideways means tablet',
             'For when the laptop misses a fold: held sideways or upside down, it switches and rotates. Typing switches back.');
 
