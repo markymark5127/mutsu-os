@@ -40,8 +40,9 @@ flatpak info --system org.mozilla.firefox >/dev/null
 # store) still has them, so installed systems are complete.
 rm -rf /usr/share/mutsu-os/local-ai/models /usr/share/mutsu-os/newelle/flatpak.tar.zst
 
-# GNOME Tour would pop up over the desktop in every live session.
-rm -f /etc/xdg/autostart/org.gnome.Tour.desktop
+# GNOME Tour and the Mutsu welcome (account-level setup for an installed
+# system) would pop up over the installer in every live session.
+rm -f /etc/xdg/autostart/org.gnome.Tour.desktop /etc/xdg/autostart/mutsu-welcome.desktop
 
 # ── The installer app (GTK 4 bootc-installer + its fisherman backend) ─────
 curl -fL --retry 3 -o /tmp/mutsu-installer.flatpak "$INSTALLER_URL"
