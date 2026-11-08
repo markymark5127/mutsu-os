@@ -418,7 +418,40 @@ export class TabletSplitView {
                     actor.translation_x = 0;
                 }});
         };
-        slideIn();
+        // The app may still be where it was (e.g. at the left end of the
+        // row) until it confirms the move to its new spot; a Wayland app does
+        // that a frame or two later. Sliding before then started from the
+        // old place, so an app called back by the right arrow came in from
+        // the left. Wait (invisible) until it is in place, then slide.
+        const target = this._frame(e);
+        const inPlace = () => {
+            const r = window.get_frame_rect();
+            return Math.abs(r.x - target.x) <= 2 && Math.abs(r.y - target.y) <= 2;
+        };
+        if (!actor || !fromSide || inPlace()) {
+            slideIn();
+        } else {
+            let done = false, fallback = 0, id = 0;
+            const go = () => {
+                if (done)
+                    return;
+                done = true;
+                if (id)
+                    window.disconnect(id);
+                if (fallback)
+                    GLib.source_remove(fallback);
+                slideIn();
+            };
+            id = window.connect('position-changed', () => {
+                if (inPlace())
+                    go();
+            });
+            fallback = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+                fallback = 0;
+                go();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
         Main.activateWindow(window);
         this._sync();
     }

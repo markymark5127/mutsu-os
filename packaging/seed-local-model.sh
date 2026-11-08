@@ -9,7 +9,13 @@ receipt="$(sha256sum "$source/source.env" | cut -d' ' -f1)"
 # user. Everything copied here as root must belong to that user too: Ollama
 # writes and removes files under models/ (its manifest migration failed
 # with "permission denied" and the service never started).
-owner="$(stat -c %u:%g "$state")"
+# With DynamicUser, /var/lib/mutsu-ollama is a root-owned symlink to
+# /var/lib/private/mutsu-ollama: follow it (-L), or this reads root and
+# "fixes" the files to root again.
+owner="$(stat -L -c %u:%g "$state")"
+if [[ "${owner%%:*}" == "0" ]]; then
+  echo "seed-local-model: state directory is owned by root; refusing to guess the service user" >&2
+fi
 fix_owner() {
   if [[ -d "$state/models" && -n "$(find "$state/models" ! -user "${owner%%:*}" -print -quit)" ]]; then
     chown -R "$owner" "$state/models"

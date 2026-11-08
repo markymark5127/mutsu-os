@@ -472,6 +472,12 @@ def slide_flow(T):
     slid = tap_tab("left")
     record(S, "the left arrow brings it back in from the left (no zoom from a corner)",
            came_back_from(slid, "left"), slid)
+    # Now at the left end: flick it right, call it back with the right
+    # arrow. It must arrive from the right, not from where it used to sit.
+    across = flick(1)
+    slid = tap_tab("right")
+    record(S, "an app from the left end, tucked right, comes back in from the right",
+           across.get("right") and came_back_from(slid, "right"), {"tuck": across, "back": slid})
     back = js("""(() => { const w = globalThis.__mutsuSlow, a = w.get_compositor_private();
         return {min: w.minimized, opacity: a?.opacity, tx: Math.round(a?.translation_x ?? 0)}; })()""")
     record(S, "brought back by its arrow, fully visible in place",

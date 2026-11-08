@@ -126,7 +126,7 @@ class ModelReadinessTests(unittest.TestCase):
 
     def test_seeded_model_belongs_to_the_service_user(self):
         seed = (ROOT / 'packaging/seed-local-model.sh').read_text(encoding='utf-8')
-        self.assertIn('owner="$(stat -c %u:%g "$state")"', seed)
+        self.assertIn('owner="$(stat -L -c %u:%g "$state")"', seed, 'follow the DynamicUser symlink')
         self.assertIn('chown -R "$owner" "$state/models"', seed)
         # Systems seeded before the fix are repaired on the next start.
         self.assertIn('fix_owner\n  exit 0', seed)
