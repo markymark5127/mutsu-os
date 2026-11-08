@@ -211,6 +211,22 @@ def tablet_flow():
         const [x, y] = t.center(entry.tile); t.holdDrag(x, y, 40, 0); return true; }})()""")
     wait(2.5)
     record(S, "hold and drag starts jiggle mode", js(f"{T}.ext()._home.editing") is True)
+    # In jiggle mode, drop one app on another and hold: they make a folder.
+    stack = js(f"""(() => {{ const t = {T}, h = t.ext()._home;
+        const apps = [...h._tiles.entries()].filter(([id, v]) => v.page === h._page && !id.startsWith('folder:'));
+        if (apps.length < 3) return {{error: 'not enough apps', n: apps.length}};
+        const [[aId, a], [bId, b]] = [apps[1], apps[2]];
+        const before = h._layout.items.filter(i => typeof i !== 'string').length;
+        const [x0, y0] = t.center(a.tile), [x1, y1] = t.center(b.tile);
+        globalThis.__mutsuStack = {{aId, bId, before}};
+        t.swipe(x0, y0, x1, y1, 500, 1100); return {{aId, bId, before}}; }})()""")
+    wait(3)
+    folder = js(f"""(() => {{ const h = {T}.ext()._home, s = globalThis.__mutsuStack;
+        const folders = h._layout.items.filter(i => typeof i !== 'string');
+        const made = folders.find(f => f.apps.includes(s.aId) && f.apps.includes(s.bId));
+        return {{folders: folders.length, before: s.before, made: made ? made.name : null}}; }})()""")
+    record(S, "stacking a wiggling app on another makes a folder",
+           isinstance(folder, dict) and folder.get("made") is not None, {"stack": stack, "result": folder})
     done = js(f"""(() => {{ const t = {T}, h = t.ext()._home;
         const done = t.find(h._root, a => a.accessible_name === 'Done editing Home Screen');
         if (!done) return {{error: 'no Done button'}};
@@ -375,7 +391,7 @@ def slide_flow(T):
         """Flick the newest Slide Over app's handle; record whether GNOME's
         minimize animation ran and the window's sideways offset mid-tuck."""
         js(f"""(() => {{ const t = {T}, s = t.ext()._switcher.split, h = s._handle, w = s.front;
-            const wm = Main.wm, orig = wm._shouldAnimateActor;
+            const wm = Main.wm, orig = wm._shouldAnimateActor; globalThis.__mutsuOrigAnim = orig;
             globalThis.__mutsuAnim = []; globalThis.__mutsuTx = []; globalThis.__mutsuFlicked = w;
             wm._shouldAnimateActor = function (a, types) {{
                 const r = orig.call(this, a, types);
@@ -389,7 +405,7 @@ def slide_flow(T):
             const [x, y] = t.center(h); t.swipe(x, y, x + ({direction}) * 300, y, 70); return true; }})()""")
         wait(2)
         return js(f"""(() => {{ const s = {T}.ext()._switcher.split, w = globalThis.__mutsuFlicked;
-            delete Main.wm._shouldAnimateActor;
+            Main.wm._shouldAnimateActor = globalThis.__mutsuOrigAnim;
             return {{min: w.minimized, left: s.tuckedOn('left') === w, right: s.tuckedOn('right') === w,
                 tabLeft: s.tabs.left.visible, tabRight: s.tabs.right.visible,
                 gnomeMinimizeAnimation: globalThis.__mutsuAnim, slideOffsets: globalThis.__mutsuTx}}; }})()""")
@@ -478,7 +494,7 @@ def slide_flow(T):
     # Leaving tablet mode with a Slide Over app on screen: it folds off its
     # edge (no GNOME minimize into the dock) and waits minimized.
     tap_tab("right")
-    js(f"""(() => {{ const s = {T}.ext()._switcher.split, w = s.front, wm = Main.wm, orig = wm._shouldAnimateActor;
+    js(f"""(() => {{ const s = {T}.ext()._switcher.split, w = s.front, wm = Main.wm, orig = wm._shouldAnimateActor; globalThis.__mutsuOrigAnim = orig;
         globalThis.__mutsuExitWin = w; globalThis.__mutsuAnim = [];
         wm._shouldAnimateActor = function (a, types) {{
             const r = orig.call(this, a, types);
@@ -486,7 +502,7 @@ def slide_flow(T):
             return r; }};
         {T}.ext()._settings.set_string('mode', 'always-desktop'); return true; }})()""")
     wait(2.5)
-    out = js("""(() => { delete Main.wm._shouldAnimateActor;
+    out = js("""(() => { Main.wm._shouldAnimateActor = globalThis.__mutsuOrigAnim;
         return {min: globalThis.__mutsuExitWin?.minimized, gnomeMinimizeAnimation: globalThis.__mutsuAnim,
             above: globalThis.__mutsuExitWin?.is_above?.()}; })()""")
     record(S, "leaving tablet mode folds Slide Over away (no minimize-to-dock animation)",

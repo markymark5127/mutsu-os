@@ -832,8 +832,11 @@ export class TabletHome {
 
         const page = this._pages[this._page] ?? [];
         const slot = slotAt(x, y, m);
-        const under = page[slot.index];
-        const underId = under === undefined ? null : itemId(under);
+        // What is *shown* in that slot: once icons have slid aside for the
+        // drag, the stored order no longer matches the screen, and stacking
+        // onto the icon under your finger picked a different (hidden) one.
+        const shown = this._shownOrder(page);
+        const underId = shown[slot.index] ?? null;
         const canFolder = slot.onto && underId && underId !== d.id && !d.id.startsWith('folder:');
         if (canFolder) {
             if (d.onto !== underId) {
@@ -855,6 +858,16 @@ export class TabletHome {
             d.target = {page: this._page, index};
             this._previewReorder();
         }
+    }
+
+    // The current page as it looks during a drag (the dragged item sits at
+    // its preview position, or nowhere if it came from another page).
+    _shownOrder(page) {
+        const d = this._drag;
+        const ids = page.map(itemId).filter(id => id !== d.id);
+        if (d.target && d.target.page === this._page)
+            ids.splice(Math.max(0, Math.min(ids.length, d.target.index)), 0, d.id);
+        return ids;
     }
 
     _clearFolderIntent(d) {

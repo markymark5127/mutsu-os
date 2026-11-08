@@ -178,7 +178,7 @@ export function slotAt(x, y, m) {
     const row = clamp(Math.floor((y - m.gridY) / m.cellH), 0, m.rows - 1);
     const cx = m.gridX + (col + 0.5) * m.cellW;
     const cy = m.gridY + row * m.cellH + m.icon / 2 + 8;
-    const onto = Math.abs(x - cx) < m.icon * 0.3 && Math.abs(y - cy) < m.icon * 0.3;
+    const onto = Math.abs(x - cx) < m.icon * 0.38 && Math.abs(y - cy) < m.icon * 0.38;
     return {index: row * m.cols + col, col, row, onto};
 }
 
