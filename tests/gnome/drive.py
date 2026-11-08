@@ -304,7 +304,8 @@ def window_flow():
                 const chin = t.find(blade, a => a.has_style_class_name?.('mutsu-blade-actions'));
                 if (!chin) {{ out.push('no chin'); continue; }}
                 const [, cy] = chin.get_transformed_position(), [, ch] = chin.get_transformed_size();
-                out.push({{cardBottom: Math.round(by + bh), chinBottom: Math.round(cy + ch), chinTop: Math.round(cy)}});
+                out.push({{cardBottom: Math.round(by + bh), chinBottom: Math.round(cy + ch), chinTop: Math.round(cy),
+                    cardH: Math.round(bh), allocH: Math.round(blade.height), scale: +blade.scale_y.toFixed(2)}});
             }}
             return out; }})()""")
         record("Multitasking", "Split View / Slide Over sit inside the card's chin",

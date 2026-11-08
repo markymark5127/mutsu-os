@@ -88,7 +88,7 @@ const vbox = props => new Actor(props);
 const T = ['TOUCH_BEGIN', 'TOUCH_UPDATE', 'TOUCH_END', 'TOUCH_CANCEL', 'BUTTON_PRESS',
     'BUTTON_RELEASE', 'MOTION', 'KEY_PRESS'];
 const Clutter = {EventType: Object.fromEntries(T.map(t => [t, t])), EVENT_STOP: 1, EVENT_PROPAGATE: 0,
-    ActorAlign: {CENTER: 0}, AnimationMode: {}, BinLayout: class {}, GridLayout: Grid,
+    ActorAlign: {CENTER: 0, FILL: 1, START: 2, END: 3}, AnimationMode: {}, BinLayout: class {}, GridLayout: Grid,
     PickMode: {REACTIVE: 0}, Clone: Actor, KEY_Return: 1, KEY_KP_Enter: 2, KEY_space: 3,
     KEY_Escape: 4, KEY_Left: 5, KEY_Right: 6, KEY_Delete: 7, KEY_BackSpace: 8, KEY_m: 9, KEY_M: 10};
 let timers = new Map(), timerId = 0;

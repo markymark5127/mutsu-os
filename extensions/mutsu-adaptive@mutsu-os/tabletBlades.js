@@ -217,13 +217,17 @@ export class TabletBlades {
         // The card: content (padded) above a fixed-height chin that runs
         // edge to edge, so the chin always sits inside the card.
         const CHIN = 52;
-        const blade = vbox({style_class: 'mutsu-blade',
+        // Layered, not stacked: the chin is pinned to the card's bottom edge
+        // and the content fills the rest and clips, so however the card is
+        // sized or scaled the chin can never hang out of it.
+        const blade = new St.Widget({style_class: 'mutsu-blade', layout_manager: new Clutter.BinLayout(),
             width: this._bladeW, height: this._bladeH, reactive: true});
         blade._mutsuBlade = group;
         // Content gets exactly the card height minus the chin and clips, so
         // nothing inside can push the chin past the card's bottom edge.
-        const content = vbox({style_class: 'mutsu-blade-content',
-            height: this._bladeH - CHIN - 2, clip_to_allocation: true}); // 1px card border top + bottom
+        const content = vbox({style_class: 'mutsu-blade-content', clip_to_allocation: true,
+            x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.FILL,
+            y_align: Clutter.ActorAlign.FILL, style: `margin-bottom: ${CHIN}px;`});
         blade.add_child(content);
         const header = new St.BoxLayout({style_class: 'mutsu-blade-header'});
         if (group.app)
@@ -252,8 +256,9 @@ export class TabletBlades {
             content.add_child(more);
         }
         // The card's chin: two equal halves, edge to edge.
-        const actions = new St.BoxLayout({style_class: 'mutsu-blade-actions', x_expand: true,
-            height: CHIN, y_expand: false});
+        const actions = new St.BoxLayout({style_class: 'mutsu-blade-actions', height: CHIN,
+            x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.FILL,
+            y_align: Clutter.ActorAlign.END});
         if (actions.layout_manager)
             actions.layout_manager.homogeneous = true;
         for (const [label, side, action] of [
