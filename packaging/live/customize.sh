@@ -93,8 +93,12 @@ fi
 
 # ── Installer configuration (read from the host /etc) ─────────────────────
 install -d /etc/bootc-installer
-# live-iso-mode switches the installer to installing from the USB.
-[[ "$MUTSU_LIVE_VARIANT" == offline ]] && : > /etc/bootc-installer/live-iso-mode
+# No live-iso-mode flag: fisherman treats it as "this media has a verified
+# OCI layout + media-input.json" (Tacklebox's pure-build format), which this
+# USB does not use, and refuses to install ("live media requires
+# /etc/bootc-installer/media-input.json"). Fisherman still knows it is live
+# from the Tacklebox kernel argument, and finds the offline image in
+# /var/lib/superiso-store on its own.
 cat > /etc/bootc-installer/images.json <<JSON
 {
   "default_image": "$IMAGE_REF",

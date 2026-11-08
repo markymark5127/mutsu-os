@@ -111,6 +111,9 @@ class LiveISOTests(unittest.TestCase):
         script = (ROOT / "packaging/live-session-setup.sh").read_text(encoding="utf-8")
         for needle in ('AutomaticLogin', 'passwd --delete', 'lock-enabled=false', 'useradd'):
             self.assertIn(needle, script)
+        # live-iso-mode makes fisherman demand media-input.json, which this
+        # USB does not have: installs failed with "required local source".
+        self.assertNotIn(": > /etc/bootc-installer/live-iso-mode", script)
         containerfile = (ROOT / "Containerfile").read_text(encoding="utf-8")
         self.assertIn("systemctl enable mutsu-hostname.service mutsu-live-session.service", containerfile)
         self.assertIn("Finished mutsu-live-sess", WORKFLOW.read_text(encoding="utf-8"))
@@ -132,7 +135,7 @@ class LiveISOTests(unittest.TestCase):
         self.assertIn("live_customize", workflow)
         self.assertIn("TBOX_CUSTOMIZE_CAPS=NET_ADMIN", workflow)
         script = (ROOT / "packaging" / "live" / "customize.sh").read_text(encoding="utf-8")
-        for needle in ("live-iso-mode", "images.json", "superiso-store", "mutsu-install.desktop",
+        for needle in ("images.json", "superiso-store", "mutsu-install.desktop",
                        "polkit.addRule", "org.mozilla.firefox"):
             self.assertIn(needle, script)
 
