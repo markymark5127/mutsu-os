@@ -226,3 +226,7 @@ print("[org/gnome/shell]")
 print("favorite-apps=" + repr(apps))
 PY
 dconf update
+
+# What takes the space on the USB (shown in the build log).
+echo "== Largest folders in the live system =="
+du -xh --max-depth=4 /usr /var /opt 2>/dev/null | sort -h | tail -30 || true
