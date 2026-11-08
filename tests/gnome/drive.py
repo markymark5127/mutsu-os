@@ -139,6 +139,17 @@ def extension_states():
         record("Extensions", uuid, ok, detail)
 
 
+def desktop_checks():
+    S = "Desktop"
+    st = js("""({overview: Main.overview.visible, workspaces: global.workspace_manager.get_n_workspaces(),
+        overviewSearchHidden: Main.overview.searchEntry?.opacity === 0,
+        appName: Main.extensionManager.lookup('globalmenu@ShiroOSL.github.io')?.stateObj?._settings?.get_string?.('desktop-app-name') ?? null})""")
+    record(S, "logs in to the desktop, not the app grid", st.get("overview") is False, st)
+    record(S, "one desktop by default", st.get("workspaces") == 1, st)
+    record(S, "one search: overview search box hidden", st.get("overviewSearchHidden") is True, st)
+    record(S, "top-left says Mutsu on the desktop", st.get("appName") in ("Mutsu", None), st)
+
+
 def tablet_flow():
     S = "Tablet mode"
     if js(f"Main.extensionManager.lookup('{ADAPTIVE}')?.state") != 1:
@@ -371,6 +382,10 @@ def main():
         analyze_log()
     else:
         extension_states()
+        try:
+            desktop_checks()
+        except Exception as error:
+            record("Desktop", "driver", False, repr(error))
         try:
             tablet_flow()
         except Exception as error:  # keep going so the log is still analyzed

@@ -74,7 +74,7 @@
     </key>
 
     <key name="desktop-app-name" type="s">
-      <default>"Nautilus"</default>
+      <default>"Mutsu"</default>
       <summary>Name shown for the file manager / desktop placeholder in the App menu</summary>
       <description>Used for the App menu label and File menu items (e.g. "About X", "Open X", "New X Window") when no other app is focused.</description>
     </key>

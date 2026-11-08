@@ -3,3 +3,6 @@
 [org/gnome/shell/extensions/kiwi]
 show-window-controls=true
 enable-app-window-buttons=true
+
+# Log in to the desktop, not the app grid.
+skip-overview-on-login=true

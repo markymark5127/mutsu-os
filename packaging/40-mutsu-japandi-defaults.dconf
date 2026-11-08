@@ -35,10 +35,20 @@ height-fraction=0.78
 dash-max-icon-size=44
 show-show-apps-button=true
 show-apps-at-top=false
-custom-background-color=true
-background-color='#2F3330'
-background-opacity=0.88
-transparency-mode='FIXED'
+# One dock with GNOME's own look (light, translucent), not a dark custom
+# panel: Dash to Dock takes the place of the overview dash, so this is the
+# only dock on screen.
+custom-background-color=false
+transparency-mode='DEFAULT'
+apply-custom-theme=false
+
+# Start on the desktop with one desktop, like macOS. More desktops can be
+# added from multitasking (+) and stay until removed.
+[org/gnome/mutter]
+dynamic-workspaces=false
+
+[org/gnome/desktop/wm/preferences]
+num-workspaces=1
 
 [org/gnome/shell/extensions/mutsu-adaptive]
 enable-experimental-gestures=true

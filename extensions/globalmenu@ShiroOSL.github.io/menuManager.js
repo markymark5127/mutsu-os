@@ -297,7 +297,7 @@ export class MenuManager {
 
     updateMenuForWindow(window) {
         const focus = focusedApp(window);
-        const desktopName = this._settings.get_string('desktop-app-name') || 'Nautilus';
+        const desktopName = this._settings.get_string('desktop-app-name') || 'Mutsu';
         const enabled = key => this._settings.get_boolean(key);
 
         const menus = [];

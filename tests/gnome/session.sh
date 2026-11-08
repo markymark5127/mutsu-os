@@ -12,6 +12,11 @@ names = sorted(n for n in os.listdir(sys.argv[1]) if os.path.isfile(os.path.join
 print("[" + ", ".join(f"'{n}'" for n in names) + "]")
 EOF
 )
+# This commit's Mutsu defaults (the image compiles the same files into its
+# system dconf database), so the check matches what the next image ships.
+for defaults in "$SRC"/packaging/[0-9]*-mutsu-*.dconf; do
+    grep -v '^#' "$defaults" | dconf load / || echo "could not load $defaults"
+done
 gsettings set org.gnome.shell disable-user-extensions false
 gsettings set org.gnome.shell enabled-extensions "$uuids"
 gsettings set org.gnome.shell disable-extension-version-validation false

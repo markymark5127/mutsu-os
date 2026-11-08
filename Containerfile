@@ -211,9 +211,11 @@ COPY packaging/mutsu-hostname.service /usr/lib/systemd/system/mutsu-hostname.ser
 # Live USB only: passwordless liveuser with automatic login (no-op installed).
 COPY packaging/live-session-setup.sh /usr/libexec/mutsu-os/live-session-setup.sh
 COPY packaging/mutsu-live-session.service /usr/lib/systemd/system/mutsu-live-session.service
+COPY packaging/mutsu-flatpak-preinstall.service /usr/lib/systemd/system/mutsu-flatpak-preinstall.service
 RUN bash /tmp/mutsu-install-terminal-branding.sh && \
     chmod 0755 /usr/libexec/mutsu-os/ensure-mutsu-hostname.sh /usr/libexec/mutsu-os/live-session-setup.sh && \
-    systemctl enable mutsu-hostname.service mutsu-live-session.service && \
+    systemctl enable mutsu-hostname.service mutsu-live-session.service mutsu-flatpak-preinstall.service && \
+    test -s /usr/share/flatpak/preinstall.d/mutsu-os.preinstall && \
     rm -rf /tmp/mutsu-terminal-assets /tmp/mutsu-install-terminal-branding.sh
 
 ### USER-FACING MUTSU IDENTITY

@@ -117,8 +117,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p mutsu-live-out
-          jq --arg image "$PINNED_IMAGE" \
-            '.bootable_environments[0].image = $image' \
+          jq --arg image "$PINNED_IMAGE" --arg customize "$PWD/packaging/live/customize.sh" \
+            '.bootable_environments[0].image = $image | .bootable_environments[0].live_customize = [$customize]' \
             packaging/live/recipe.json > mutsu-live-out/recipe.json
           jq -e --arg image "$PINNED_IMAGE" \
             '.bootable_environments | length == 1 and .[0].image == $image and .[0].modes == ["live"] and .[0].desktop == "gnome"' \
@@ -130,7 +130,9 @@ jobs:
           set -euo pipefail
           # The ISO target uses a temporary writable RAM overlay on the live
           # squashfs; it does NOT install or repartition the host.
-          sudo ./tacklebox build mutsu-live-out/recipe.json \
+          # NET_ADMIN: flatpak's sandbox needs it to install the default
+          # apps (Firefox, ...) into the live system.
+          sudo env TBOX_CUSTOMIZE_CAPS=NET_ADMIN ./tacklebox build mutsu-live-out/recipe.json \
             --iso "$PWD/mutsu-live-out/mutsu-os-live.iso" \
             -b "$PWD/mutsu-live-out/build"
           sudo chown -R "$(id -u):$(id -g)" mutsu-live-out

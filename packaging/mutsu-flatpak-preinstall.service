@@ -1,0 +1,20 @@
+[Unit]
+Description=Mutsu OS: install the default apps (Firefox and friends) from Flathub
+Documentation=man:flatpak-preinstall(5)
+# The live USB already has them (baked in when the ISO is built).
+ConditionKernelCommandLine=!tacklebox.live.squashimg
+ConditionPathExistsGlob=/usr/share/flatpak/preinstall.d/*.preinstall
+Wants=network-online.target
+After=network-online.target bazzite-flatpak-manager.service
+
+[Service]
+Type=oneshot
+# Installs only what is missing; apps the user removed stay removed.
+ExecStart=/usr/bin/flatpak preinstall --system -y --noninteractive
+Restart=on-failure
+RestartSec=60
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

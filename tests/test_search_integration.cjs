@@ -33,7 +33,10 @@ function makeWindow(title, id = APP, transient = null) {
         get_title: () => title, get_gtk_application_id: () => id,
         get_transient_for: () => transient, get_monitor: () => 0,
         get_frame_rect: () => ({x: 100, y: 100, width: 640, height: 100}),
-        get_compositor_private: () => ({contains: source => source === 'popover'}),
+        _actor: {contains: source => source === 'popover', opacity: 255,
+            remove_all_transitions() {}, set_pivot_point() {}, set_scale() {},
+            ease(props) { Object.assign(this, {opacity: props.opacity}); props.onStopped?.(); }},
+        get_compositor_private() { return this._actor; },
         minimized: false, minimize() { this.minimized = true; },
         move_frame(...args) { this.position = args; },
     });
@@ -48,12 +51,24 @@ let apps = [
     {get_id: () => 'org.gnome.Nautilus.desktop', get_windows: () => [other]},
 ];
 let activated = null;
-const Main = {layoutManager: {getWorkAreaForMonitor: () => ({x: 0,y: 24,width: 1200,height: 900})},
-    overview: {hide() {}}, activateWindow(window) { activated = window; }};
-const Clutter = {EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2}, EVENT_PROPAGATE: 0};
+const keyboardBox = {get_parent: () => null};
+const keyKey = {get_parent: () => keyboardBox};
+const panelKeyboardButton = {accessible_name: 'Screen Keyboard', get_parent: () => null};
+const overviewText = Object.assign(new Emitter(), {text: '', get_text() { return this.text; }});
+const overviewEntry = {opacity: 255, reactive: true, clutter_text: overviewText,
+    set_text(t) { overviewText.text = t; overviewText.emit('text-changed'); }};
+let spawned = null, overviewHidden = 0;
+const Main = {layoutManager: {getWorkAreaForMonitor: () => ({x: 0,y: 24,width: 1200,height: 900}), keyboardBox},
+    overview: {hide() { overviewHidden++; }, searchEntry: overviewEntry},
+    activateWindow(window) { activated = window; }};
+const Clutter = {EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2}, EVENT_PROPAGATE: 0,
+    AnimationMode: {EASE_OUT_QUAD: 0}};
+const GLib = {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false, idle_add: (_p, fn) => fn(),
+    spawn_async(_d, argv) { spawned = argv; },
+    SpawnFlags: {SEARCH_PATH: 1}};
 const {SearchIntegration, isSearchWindow} = new Function('InjectionManager','Workspace','Main',
-    'Clutter','Meta','Shell','global', `${source}; return {SearchIntegration, isSearchWindow};`)(
-    InjectionManager, Workspace, Main, Clutter, {Display}, {AppSystem}, globalMock);
+    'Clutter','GLib','Meta','Shell','global', `${source}; return {SearchIntegration, isSearchWindow};`)(
+    InjectionManager, Workspace, Main, Clutter, GLib, {Display}, {AppSystem}, globalMock);
 const integration = new SearchIntegration();
 assert(isSearchWindow(search));
 assert(!isSearchWindow(wizard));
@@ -74,6 +89,10 @@ function press(type, x, y, source) {
 }
 press(1, 110, 110, null);
 assert.equal(search.minimized, false, 'inside click does not dismiss');
+press(2, 600, 850, keyKey);
+assert.equal(search.minimized, false, 'typing on the on-screen keyboard keeps Search open');
+press(2, 1150, 10, panelKeyboardButton);
+assert.equal(search.minimized, false, 'the keyboard button keeps Search open');
 press(1, 900, 400, 'popover');
 assert.equal(search.minimized, false, 'popover outside frame stays open');
 assert.equal(press(2, 900, 400, null), 0, 'outside tap passes through');
@@ -85,10 +104,17 @@ assert.equal(search.minimized, false, 'own dialog remains usable');
 globalMock.display.focus_window = other;
 globalMock.display.emit('notify::focus-window');
 assert(search.minimized, 'switching apps dismisses');
+assert.equal(overviewEntry.opacity, 0, 'the overview search box is hidden');
+overviewText.text = 'fire'; overviewText.emit('text-changed');
+assert.deepEqual(spawned, ['/usr/bin/mutsu-search', '--query', 'fire'], 'typing in the overview opens Mutsu Search');
+assert.equal(overviewText.text, '', 'overview search is cleared');
+assert(overviewHidden > 0);
 integration.destroy();
+assert.equal(overviewEntry.opacity, 255, 'disable restores the overview search box');
+assert.equal(overviewText.signals.size, 0);
 assert.deepEqual(globalMock.display.get_tab_list(), windows, 'disable restores switcher');
 assert.equal(globalMock.stage.signals.size, 0);
 assert.equal(globalMock.display.signals.size, 0);
 assert.equal(globalMock.window_manager.signals.size, 0);
 assert.equal(search.signals.size, 0);
-console.log('Search integration checks passed (identity, dock, switchers, focus, outside tap, popover, dialog, cleanup).');
+console.log('Search integration checks passed (identity, dock, switchers, focus, outside tap, keyboard, popover, dialog, overview redirect, cleanup).');

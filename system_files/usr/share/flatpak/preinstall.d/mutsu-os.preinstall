@@ -1,0 +1,126 @@
+# Apps every Mutsu OS install starts with: the Bazzite GNOME default set,
+# from Flathub. Flatpak >= 1.16 reads this (flatpak-preinstall(5)):
+# - the live USB build installs them into the live system, and the
+#   installer copies them to the installed disk;
+# - installed systems get anything missing from mutsu-flatpak-preinstall
+#   once online. Apps the user removes are not put back.
+
+# Firefox
+[Flatpak Preinstall org.mozilla.firefox]
+Branch=stable
+IsRuntime=false
+
+# Extension Manager
+[Flatpak Preinstall com.mattjakeman.ExtensionManager]
+Branch=stable
+IsRuntime=false
+
+# Protontricks
+[Flatpak Preinstall com.github.Matoking.protontricks]
+Branch=stable
+IsRuntime=false
+
+# DistroShelf
+[Flatpak Preinstall com.ranfdev.DistroShelf]
+Branch=stable
+IsRuntime=false
+
+# Flatseal
+[Flatpak Preinstall com.github.tchx84.Flatseal]
+Branch=stable
+IsRuntime=false
+
+# Warehouse
+[Flatpak Preinstall io.github.flattool.Warehouse]
+Branch=stable
+IsRuntime=false
+
+# Mission Center
+[Flatpak Preinstall io.missioncenter.MissionCenter]
+Branch=stable
+IsRuntime=false
+
+# ProtonPlus
+[Flatpak Preinstall com.vysp3r.ProtonPlus]
+Branch=stable
+IsRuntime=false
+
+# Calculator
+[Flatpak Preinstall org.gnome.Calculator]
+Branch=stable
+IsRuntime=false
+
+# Calendar
+[Flatpak Preinstall org.gnome.Calendar]
+Branch=stable
+IsRuntime=false
+
+# Characters
+[Flatpak Preinstall org.gnome.Characters]
+Branch=stable
+IsRuntime=false
+
+# Contacts
+[Flatpak Preinstall org.gnome.Contacts]
+Branch=stable
+IsRuntime=false
+
+# Document Viewer
+[Flatpak Preinstall org.gnome.Papers]
+Branch=stable
+IsRuntime=false
+
+# Logs
+[Flatpak Preinstall org.gnome.Logs]
+Branch=stable
+IsRuntime=false
+
+# Image Viewer
+[Flatpak Preinstall org.gnome.Loupe]
+Branch=stable
+IsRuntime=false
+
+# Quick Look for Files
+[Flatpak Preinstall org.gnome.NautilusPreviewer]
+Branch=stable
+IsRuntime=false
+
+# Text Editor
+[Flatpak Preinstall org.gnome.TextEditor]
+Branch=stable
+IsRuntime=false
+
+# Weather
+[Flatpak Preinstall org.gnome.Weather]
+Branch=stable
+IsRuntime=false
+
+# Disk Usage Analyzer
+[Flatpak Preinstall org.gnome.baobab]
+Branch=stable
+IsRuntime=false
+
+# Clocks
+[Flatpak Preinstall org.gnome.clocks]
+Branch=stable
+IsRuntime=false
+
+# Fonts
+[Flatpak Preinstall org.gnome.font-viewer]
+Branch=stable
+IsRuntime=false
+
+# Video Player
+[Flatpak Preinstall org.gnome.Showtime]
+Branch=stable
+IsRuntime=false
+
+# Firmware
+[Flatpak Preinstall org.gnome.Firmware]
+Branch=stable
+IsRuntime=false
+
+# Refine
+[Flatpak Preinstall page.tesk.Refine]
+Branch=stable
+IsRuntime=false

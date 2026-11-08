@@ -4,3 +4,6 @@
 [org/gnome/shell/extensions/globalmenu]
 show-logo-menu=false
 hide-overview-button=true
+
+# Like Finder on a Mac: the desktop and Files show the system's name.
+desktop-app-name='Mutsu'

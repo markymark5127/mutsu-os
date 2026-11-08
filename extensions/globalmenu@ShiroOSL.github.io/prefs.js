@@ -328,7 +328,7 @@ function generalPage(settings, window, iconsDir) {
     syncKeepLeft();
 
     main.add(entryRow('File Manager / Desktop Name', settings.get_string('desktop-app-name'),
-        text => settings.set_string('desktop-app-name', text || 'Nautilus')));
+        text => settings.set_string('desktop-app-name', text || 'Mutsu')));
 
     const logo = new Adw.PreferencesGroup({
         title: 'System Menu',

@@ -1,5 +1,4 @@
 import Clutter from 'gi://Clutter';
-import Meta from 'gi://Meta';
 import {InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {Keyboard} from 'resource:///org/gnome/shell/ui/keyboard.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -50,37 +49,15 @@ export class TabletKeyboard {
         const box = Main.layoutManager.keyboardBox;
         if (keyboard)
             keyboard._relayout?.();
+        // GNOME itself slides the focused app up when the keyboard would cover
+        // the text cursor. Resizing the app as well made windows jump (and used
+        // Meta.MaximizeFlags, which Mutter 49 removed, so it threw).
         if (Main.keyboard?.visible) { // keyboardBox stays visible after startup
             box.translation_y = 40;
             box.ease({translation_y: 0, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
-            this._liftApp(box.height || keyboard?.height || 280);
-        } else {
-            this._restoreApp();
         }
     }
 
-    _liftApp(height) {
-        const window = global.display.focus_window;
-        if (!window || window.is_skip_taskbar())
-            return;
-        if (!this._lifted || this._lifted.window !== window)
-            this._lifted = {window, rect: window.get_frame_rect()};
-        const rect = this._lifted.rect;
-        const next = Math.max(160, rect.height - height);
-        window.unmaximize(Meta.MaximizeFlags.BOTH);
-        window.move_resize_frame(false, rect.x, rect.y, rect.width, next);
-    }
-
-    _restoreApp() {
-        if (!this._lifted)
-            return;
-        const {window, rect} = this._lifted;
-        this._lifted = null;
-        try {
-            window.move_resize_frame(false, rect.x, rect.y, rect.width, rect.height);
-            window.maximize(Meta.MaximizeFlags.BOTH);
-        } catch (e) {}
-    }
 
     _apply(keyboard) {
         const monitor = Main.layoutManager.keyboardMonitor ?? Main.layoutManager.primaryMonitor;
@@ -123,19 +100,19 @@ export class TabletKeyboard {
         const begin = type === Clutter.EventType.TOUCH_BEGIN || type === Clutter.EventType.BUTTON_PRESS;
         const end = type === Clutter.EventType.TOUCH_END || type === Clutter.EventType.BUTTON_RELEASE;
         const [, y] = event.get_coords();
+        // Watch only: the top strip holds the suggestions and the first key
+        // row, so stopping the press there swallowed real key taps.
         if (begin && y >= box.y && y <= box.y + 36) {
             this._kbDrag = y;
-            return Clutter.EVENT_STOP;
+            return Clutter.EVENT_PROPAGATE;
         }
         if (this._kbDrag == null || !end)
             return Clutter.EVENT_PROPAGATE;
-        const dismiss = y - this._kbDrag > 40;
+        const dismiss = y - this._kbDrag > 60;
         this._kbDrag = null;
-        if (dismiss) {
-            this._restoreApp();
+        if (dismiss)
             Main.keyboard.close();
-        }
-        return Clutter.EVENT_STOP;
+        return Clutter.EVENT_PROPAGATE;
     }
 
     destroy() {
