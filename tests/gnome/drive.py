@@ -321,9 +321,46 @@ def window_flow():
         wait(3)
         back = js("""({a: globalThis.__mutsuOther.minimized, b: globalThis.__mutsuFocus.minimized})""")
         record(S, "unfolding keeps the split pair on screen", back.get("a") is False and back.get("b") is False, back)
+        slide_flow(T)
     finally:
         for p in procs:
             p.terminate()
+
+
+def slide_flow(T):
+    S = "Slide Over"
+    js(f"{T}.ext()._settings.set_string('mode', 'always-tablet')")
+    wait(3)
+    ok = js(f"{T}.ext()._switcher.split.slideOver(globalThis.__mutsuOther)")
+    wait(1.5)
+    st = js(f"""(() => {{ const s = {T}.ext()._switcher.split, w = globalThis.__mutsuOther, r = w.get_frame_rect();
+        return {{ok: {str(True).lower()}, min: w.minimized, handle: s._handle.visible, x: r.x, y: r.y, w: r.width,
+            hx: s._handle.x}}; }})()""")
+    record(S, "opens as a floating app with its handle", ok is True and st.get("min") is False and st.get("handle"), {**st, "slideOver": ok})
+    # Slow drag of the handle: moves sideways only.
+    js(f"""(() => {{ const t = {T}, h = t.ext()._switcher.split._handle;
+        const [x, y] = t.center(h); t.swipe(x, y, x - 250, y + 40, 900); return true; }})()""")
+    wait(2)
+    moved = js("""(() => { const r = globalThis.__mutsuOther.get_frame_rect();
+        return {x: r.x, y: r.y, w: r.width, min: globalThis.__mutsuOther.minimized}; })()""")
+    record(S, "dragging the handle moves the app sideways at the same size",
+           moved.get("min") is False and moved.get("x", 0) < st.get("x", 0) - 100
+           and moved.get("y") == st.get("y") and moved.get("w") == st.get("w"), {"before": st, "after": moved})
+    # Flick right: tucks away, arrow tab on the right edge.
+    js(f"""(() => {{ const t = {T}, h = t.ext()._switcher.split._handle;
+        const [x, y] = t.center(h); t.swipe(x, y, x + 300, y, 70); return true; }})()""")
+    wait(2)
+    tucked = js(f"""(() => {{ const s = {T}.ext()._switcher.split;
+        return {{min: globalThis.__mutsuOther.minimized, tab: s._tab.visible, side: s._tuckSide}}; }})()""")
+    record(S, "a quick flick tucks it away to the side", tucked.get("min") is True and tucked.get("tab")
+           and tucked.get("side") == "right", tucked)
+    js(f"""(() => {{ const t = {T}, tab = t.ext()._switcher.split._tab;
+        const [x, y] = t.center(tab); t.tap(x, y); return true; }})()""")
+    wait(2)
+    back = js(f"({{min: globalThis.__mutsuOther.minimized, tab: {T}.ext()._switcher.split._tab.visible}})")
+    record(S, "tapping the arrow slides it back", back.get("min") is False and back.get("tab") is False, back)
+    js(f"{T}.ext()._settings.set_string('mode', 'always-desktop')")
+    wait(2)
 
 
 EXT_PATH = re.compile(r"/gnome-shell/extensions/([^/]+)/")
