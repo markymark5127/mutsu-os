@@ -48,7 +48,7 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
         const home = new Adw.PreferencesGroup({title: 'Home Screen'});
         page.add(home);
         const reset = new Adw.ActionRow({title: 'Reset Home Screen layout',
-            subtitle: 'Alphabetical order, with games gathered in a folder'});
+            subtitle: 'Everyday apps first, the rest gathered in folders'});
         const button = new Gtk.Button({label: 'Reset', valign: Gtk.Align.CENTER,
             css_classes: ['destructive-action']});
         button.connect('clicked', () => settings.set_string('home-layout', ''));

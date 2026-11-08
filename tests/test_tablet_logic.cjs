@@ -103,11 +103,45 @@ const apps = [
 ];
 const layout = new HomeLayout('').seed(apps);
 assert.deepEqual(layout.items.slice(0, 3),
-    ['org.gnome.Nautilus.desktop', 'org.mozilla.firefox.desktop', 'steam.desktop']);
+    ['org.mozilla.firefox.desktop', 'org.gnome.Nautilus.desktop', 'steam.desktop'],
+    'everyday apps first, in Home order');
 assert.equal(layout.items[3].name, 'Games', 'games gathered, Steam stays on the grid');
 assert.deepEqual(layout.items[3].apps.sort(),
     ['net.lutris.Lutris.desktop', 'org.libretro.RetroArch.desktop']);
 const games = itemId(layout.items[3]);
+// A fuller install: everyday apps on page one, tools in folders, a lone
+// uncategorised app on page two.
+{
+    const full = [
+        ...apps,
+        {id: 'org.gnome.Settings.desktop', name: 'Settings', categories: ['Settings']},
+        {id: 'org.gnome.Calculator.desktop', name: 'Calculator', categories: ['Utility']},
+        {id: 'org.gnome.Ptyxis.desktop', name: 'Ptyxis', categories: ['System']},
+        {id: 'org.gnome.baobab.desktop', name: 'Disk Usage Analyzer', categories: ['Utility']},
+        {id: 'mutsu-updater.desktop', name: 'Mutsu OS Updater', categories: ['System', 'Settings']},
+        {id: 'io.github.markymark5127.AIDesktop.desktop', name: 'Mutsu Mechanic', categories: ['Utility', 'System']},
+        {id: 'com.example.Odd.desktop', name: 'Odd', categories: []},
+    ];
+    const home = new HomeLayout('').seed(full);
+    const [one, two] = home.pages(24);
+    assert.deepEqual(one.filter(i => typeof i === 'string'),
+        ['org.mozilla.firefox.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Calculator.desktop',
+            'io.github.markymark5127.AIDesktop.desktop', 'steam.desktop', 'org.gnome.Settings.desktop']);
+    const utilities = one.find(i => i.name === 'Utilities');
+    assert.deepEqual(utilities.apps, ['org.gnome.baobab.desktop', 'mutsu-updater.desktop', 'org.gnome.Ptyxis.desktop']);
+    assert.deepEqual(two, ['com.example.Odd.desktop'], 'leftovers on page two');
+    assert(home.serialize().includes('"version":3'));
+    // A Home never touched since the old alphabetical default moves to the
+    // new one; a rearranged one, or a new-style one, is left alone.
+    const legacy = JSON.stringify({version: 2, pages: [['org.gnome.Nautilus.desktop',
+        'org.mozilla.firefox.desktop', 'steam.desktop',
+        {id: '1', name: 'Games', apps: ['net.lutris.Lutris.desktop', 'org.libretro.RetroArch.desktop']}]]});
+    assert.equal(new HomeLayout(legacy).isLegacySeed(apps), true);
+    const moved = new HomeLayout(legacy);
+    moved.move('steam.desktop', 0, 0);
+    assert.equal(new HomeLayout(JSON.stringify({version: 2, pages: moved.pageList})).isLegacySeed(apps), false);
+    assert.equal(new HomeLayout(layout.serialize()).isLegacySeed(apps), false);
+}
 const restored = new HomeLayout(layout.serialize());
 assert.deepEqual(restored.items, layout.items, 'round trip');
 assert.deepEqual(new HomeLayout('{broken').items, [], 'corrupt setting is ignored');

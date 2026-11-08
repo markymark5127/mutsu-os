@@ -6,6 +6,41 @@
 
 const STEAM = ['steam.desktop', 'com.valvesoftware.Steam.desktop'];
 
+// First page, in this order: the everyday apps, like an iPad's first Home
+// page. Each entry lists alternative desktop IDs (RPM / Flatpak / renames).
+export const HOME_FIRST_PAGE = [
+    ['org.mozilla.firefox.desktop', 'firefox.desktop'],
+    ['org.gnome.Nautilus.desktop'],
+    ['org.gnome.Calendar.desktop'],
+    ['org.gnome.Loupe.desktop', 'org.gnome.eog.desktop'],
+    ['org.gnome.Snapshot.desktop'],
+    ['org.gnome.Showtime.desktop', 'org.gnome.Totem.desktop'],
+    ['org.gnome.Decibels.desktop', 'org.gnome.Music.desktop'],
+    ['org.gnome.Maps.desktop'],
+    ['org.gnome.Weather.desktop'],
+    ['org.gnome.clocks.desktop'],
+    ['org.gnome.TextEditor.desktop'],
+    ['org.gnome.Papers.desktop', 'org.gnome.Evince.desktop'],
+    ['org.gnome.Calculator.desktop'],
+    ['org.gnome.Contacts.desktop'],
+    ['io.github.markymark5127.AIDesktop.desktop'],
+    ['io.github.kolunmi.Bazaar.desktop', 'org.gnome.Software.desktop'],
+    STEAM,
+    ['org.gnome.Settings.desktop'],
+];
+
+// Everything else is gathered into folders by category (first match wins),
+// iPad style; a category with a single app leaves it loose on page two.
+const HOME_FOLDERS = [
+    ['Games', ['Game']],
+    ['Creativity', ['Graphics']],
+    ['Productivity', ['Office']],
+    ['Media', ['AudioVideo', 'Audio', 'Video']],
+    ['Internet', ['Network']],
+    ['Developer', ['Development']],
+    ['Utilities', ['Utility', 'System', 'Settings', 'Accessibility', 'Documentation']],
+];
+
 export function itemId(item) {
     return typeof item === 'string' ? item : `folder:${item.id}`;
 }
@@ -24,8 +59,10 @@ export class HomeLayout {
     constructor(json = '') {
         this.pageList = [];
         this._nextFolder = 1;
+        this.version = 3;
         try {
             const data = json ? JSON.parse(json) : null;
+            this.version = data ? Number(data.version ?? 1) : 3;
             if (data && Array.isArray(data.pages)) {
                 this.pageList = data.pages.filter(Array.isArray)
                     .map(page => page.map(cleanItem).filter(Boolean));
@@ -49,17 +86,52 @@ export class HomeLayout {
     // Every item in page order.
     get items() { return this.pageList.flat(); }
 
-    // First run: alphabetical, with games gathered in a folder (Steam stays
-    // on the grid). `apps` is [{id, name, categories: string[]}].
+    // First run: the everyday apps on page one, then the rest gathered in
+    // folders by category, then anything left over alphabetically.
+    // `apps` is [{id, name, categories: string[]}].
     seed(apps) {
+        const byName = (a, b) => a.name.localeCompare(b.name);
+        const sorted = [...apps].sort(byName);
+        const ids = new Set(sorted.map(app => app.id));
+        const used = new Set();
+        const first = [];
+        for (const alternatives of HOME_FIRST_PAGE) {
+            const id = alternatives.find(alt => ids.has(alt) && !used.has(alt));
+            if (id) {
+                first.push(id);
+                used.add(id);
+            }
+        }
+        const folders = [];
+        for (const [name, categories] of HOME_FOLDERS) {
+            const members = sorted.filter(app => !used.has(app.id) &&
+                app.categories.some(c => categories.includes(c)));
+            if (members.length < 2)
+                continue;
+            members.forEach(app => used.add(app.id));
+            folders.push({id: String(this._nextFolder++), name, apps: members.map(app => app.id)});
+        }
+        const rest = sorted.filter(app => !used.has(app.id)).map(app => app.id);
+        const pages = [[...first, ...folders], rest].filter(page => page.length);
+        this.pageList = pages;
+        return this;
+    }
+
+    // True when this layout is still exactly the old first-run arrangement
+    // (alphabetical + Games folder) for these apps, i.e. never rearranged,
+    // so it can move to the new default without losing anyone's changes.
+    isLegacySeed(apps) {
+        if (this.version >= 3)
+            return false;
         const sorted = [...apps].sort((a, b) => a.name.localeCompare(b.name));
         const games = sorted.filter(app => app.categories.includes('Game') && !STEAM.includes(app.id));
         const gameIds = new Set(games.length >= 2 ? games.map(app => app.id) : []);
-        const items = sorted.filter(app => !gameIds.has(app.id)).map(app => app.id);
+        const legacy = sorted.filter(app => !gameIds.has(app.id)).map(app => app.id);
         if (gameIds.size)
-            items.push({id: String(this._nextFolder++), name: 'Games', apps: [...gameIds]});
-        this.pageList = items.length ? [items] : [];
-        return this;
+            legacy.push(`games:${[...gameIds].join(',')}`);
+        const mine = this.items.map(item => typeof item === 'string' ? item
+            : item.name === 'Games' ? `games:${item.apps.join(',')}` : itemId(item));
+        return mine.length === legacy.length && mine.every((id, i) => id === legacy[i]);
     }
 
     // Keep only installed apps; new installs go to the end of the last page.
@@ -201,6 +273,6 @@ export class HomeLayout {
     }
 
     serialize() {
-        return JSON.stringify({version: 2, pages: this.pageList});
+        return JSON.stringify({version: 3, pages: this.pageList});
     }
 }

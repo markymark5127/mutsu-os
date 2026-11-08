@@ -142,9 +142,13 @@ export class TabletHome {
             return;
         }
         const installed = this._installed();
-        if (this._layout.empty) {
-            this._layout.seed(installed.map(app => ({id: app.get_id(), name: app.get_name(),
-                categories: this._categories(app)})));
+        const described = () => installed.map(app => ({id: app.get_id(), name: app.get_name(),
+            categories: this._categories(app)}));
+        if (this._layout.empty || this._layout.isLegacySeed(described())) {
+            // First run, or a Home that was never rearranged since the old
+            // alphabetical default: lay it out with the current default.
+            this._layout = new HomeLayout();
+            this._layout.seed(described());
             this._save();
         } else if (this._layout.sync(installed.map(app => app.get_id()))) {
             this._save();
