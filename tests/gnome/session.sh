@@ -22,7 +22,7 @@ gsettings set org.gnome.shell enabled-extensions "$uuids"
 gsettings set org.gnome.shell disable-extension-version-validation false
 echo "enabled-extensions: $uuids" | tee -a "$OUT/versions.txt"
 
-gnome-shell --headless --wayland --no-x11 --virtual-monitor 1280x800 --unsafe-mode \
+gnome-shell --headless --wayland --no-x11 --virtual-monitor 1280x800 --unsafe-mode --force-animations \
     > "$OUT/shell.log" 2>&1 &
 shell=$!
 
