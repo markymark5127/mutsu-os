@@ -117,8 +117,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p mutsu-live-out
+          # offline_payloads: the system image itself goes on the USB (under
+          # the name the installed system updates from), so "Install Mutsu
+          # OS" needs no network and nothing is pulled into the live RAM.
           jq --arg image "$PINNED_IMAGE" --arg customize "$PWD/packaging/live/customize.sh" \
-            '.bootable_environments[0].image = $image | .bootable_environments[0].live_customize = [$customize]' \
+            --arg ref "${SOURCE_TAG%:*}:latest" \
+            '.bootable_environments[0].image = $image
+             | .bootable_environments[0].live_customize = [$customize]
+             | .offline_payloads = [{source: $image, ref: $ref}]
+             | .shared_store.prune_source_images = true' \
             packaging/live/recipe.json > mutsu-live-out/recipe.json
           jq -e --arg image "$PINNED_IMAGE" \
             '.bootable_environments | length == 1 and .[0].image == $image and .[0].modes == ["live"] and .[0].desktop == "gnome"' \
@@ -217,6 +224,19 @@ jobs:
           else
             echo "::error::mutsu-live-session.service did not finish: the live USB would stop at a login screen"
             grep -i 'live-session\|liveuser' mutsu-live-out/qemu-live-boot.log || true
+            exit 1
+          fi
+
+      # "Install Mutsu OS" installs from the system image on the USB. Its
+      # store must be mounted in the live session.
+      - name: Check the installer's system image is available offline
+        if: steps.smoke.outcome == 'success'
+        run: |
+          if sed 's/\x1b\[[0-9;]*m//g' mutsu-live-out/qemu-live-boot.log | grep -q 'Mounted.*superiso'; then
+            echo "Installer: system image mounted from the USB (offline install ready)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::The installer's offline system image (LiveOS/store.squashfs.img) was not mounted"
+            sed 's/\x1b\[[0-9;]*m//g' mutsu-live-out/qemu-live-boot.log | grep -i 'superiso\|store.squashfs' || true
             exit 1
           fi
 

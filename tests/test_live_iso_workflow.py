@@ -122,5 +122,15 @@ class LiveISOTests(unittest.TestCase):
         self.assertIn("go-version-file: .tacklebox/go.mod", workflow)
 
 
+    def test_live_usb_carries_the_installer_and_its_image(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn(".offline_payloads = [{source: $image, ref: $ref}]", workflow)
+        self.assertIn("live_customize", workflow)
+        self.assertIn("TBOX_CUSTOMIZE_CAPS=NET_ADMIN", workflow)
+        script = (ROOT / "packaging" / "live" / "customize.sh").read_text(encoding="utf-8")
+        for needle in ("live-iso-mode", "images.json", "superiso-store", "mutsu-install.desktop",
+                       "polkit.addRule", "org.mozilla.firefox"):
+            self.assertIn(needle, script)
+
 if __name__ == "__main__":
     unittest.main()

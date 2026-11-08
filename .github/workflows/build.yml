@@ -11,6 +11,11 @@ on:
       - main
     paths-ignore:
       - '**/README.md'
+      # Live-USB-only and test-harness files don't change the system image.
+      - 'packaging/live/**'
+      - '.github/workflows/build-live-iso.yml'
+      - '.github/workflows/gnome-runtime.yml'
+      - 'tests/gnome/**'
   workflow_dispatch:
 
 env:
