@@ -174,24 +174,33 @@ assert.equal(keyboardDestroyed,true);
 assert.equal(quickActor.classes.has('mutsu-tablet-controls'),false);
 console.log('Tablet session checks passed (native automatic keyboard, controls, cleanup).');
 
-// Slide Over: a stack, independent of Split View (three apps on screen).
+// Slide Over: up to two apps on one row, independent of Split View.
 const chrome=[];
 Main.layoutManager.addChrome=actor=>chrome.push(actor);
 Main.layoutManager.removeChrome=actor=>chrome.splice(chrome.indexOf(actor),1);
 area={x:0,y:24,width:1280,height:776};
 const multi=new (loadSplit())(()=>({x:0,y:0,width:1280,height:800}));
-const a=window(),b=window(),c=window(),d=window();
+const a=window(),b=window(),c=window(),d=window(),e3=window();
 multi.arrange(a,b);
 assert.equal(multi.slideOver(c),true);
-assert.deepEqual(multi.pair,[a,b],'Slide Over keeps the split pair: three apps at once');
+assert.deepEqual(multi.pair,[a,b],'Slide Over keeps the split pair');
 assert.equal(c.above,true,'Slide Over floats above the split');
 const frame=slideOverFrame({x:0,y:0,width:1280,height:800});
 assert.deepEqual(c.frame,frame,'phone-width at the right edge');
-const handle=multi._handle;
-assert(handle.visible && handle.y+28<=frame.y,'handle sits above the app, not over it');
+const handleC=multi._handle;
+assert(handleC.visible && handleC.y+28<=frame.y,'handle sits above the app, not over it');
+// Always on top: another app coming forward goes under Slide Over.
+let raised=0;c.raise=()=>raised++;
+globalMock.display.focus_window=a;globalMock.display.emit('notify::focus-window');
+assert.equal(raised,1,'Slide Over raised over the app that came forward');
+// A second one opens at the free (left) end; both on screen, one row.
 multi.slideOver(d);
-assert.deepEqual(multi.slides,[d,c],'stack, newest on top');
-assert.equal(c.minimized,true,'others in the stack wait off screen');
+assert.deepEqual(multi.slides,[d,c]);
+assert.equal(!!c.minimized,false,'the first stays on screen');
+assert.equal(d.frame.x,12,'second opens at the left end of the row');
+assert.equal(d.frame.y,c.frame.y,'same row');
+const handleD=multi._handle;
+assert.notEqual(handleD,handleC,'each has its own handle');
 let now=1000;
 Date.now=()=>now;
 const drag=(actor,from,to,ms=400)=>{
@@ -204,54 +213,70 @@ const drag=(actor,from,to,ms=400)=>{
     globalMock.stage.emit('captured-event',ev(Clutter.EventType.TOUCH_END,to));
     now+=1000;
 };
-// Each handler connected on global.stage receives the events.
-drag(handle,500,500);
-assert.deepEqual(multi.slides,[c,d],'tap the handle: next app in the stack');
-assert.equal(c.minimized,false);assert.equal(d.minimized,true);
-const before=c.frame;
-drag(handle,600,300,800);
-assert.equal(c.minimized,false,'a slow drag only moves it');
-assert.equal(c.frame.x,before.x-300,'the app moves sideways with its handle');
-assert.equal(c.frame.y,before.y,'...not up or down');
-assert.equal(c.frame.width,before.width,'...and keeps its size');
-assert.equal(handle.x,c.frame.x+Math.round(c.frame.width/2)-60,'the handle stays above the app');
-drag(handle,300,700,80);
+// They bump into each other instead of overlapping.
+drag(handleD,200,1200,1600);
+assert.equal(d.frame.x,c.frame.x-d.frame.width-12,'dragging into the other stops at it');
+assert.equal(d.frame.y,frame.y,'...sideways only');
+assert.equal(d.frame.width,frame.width,'...at a fixed size');
+drag(handleD,600,300,800);
+const dX=d.frame.x;
+assert(dX<c.frame.x-d.frame.width-12,'a slow drag back just moves it');
+assert.equal(handleD.x,d.frame.x+Math.round(d.frame.width/2)-60,'the handle stays above the app');
+// Flick right: tucks off the right edge, with the arrow on the right.
+drag(handleC,800,1200,80);
 assert.equal(c.minimized,true,'flick right: tucked away to the right');
-assert.equal(multi._tab.visible,true,'arrow tab appears');
-assert.equal(multi._tab.x,1280-26,'on the right edge');
-assert.equal(handle.visible,false);
-drag(multi._tab,1270,1270,40);
-assert.equal(c.minimized,false,'tap the arrow: Slide Over is back');
-assert.equal(multi._tab.visible,false);
-drag(handle,600,100,80);
-assert.equal(c.minimized,true,'flick left: tucked away to the left');
-assert.equal(multi._tab.x,0,'arrow tab on the left edge');
-assert.equal(multi._tabArrow.text,'›');
-drag(multi._tab,5,80,300);
-assert.equal(c.minimized,false,'drag the arrow inward: back again');
-// Dragging the title bar (Mutter's move): the handle follows; on release
-// the app returns to its row at its size, and a flick tucks it away.
-globalMock.display.emit('grab-op-begin',c);
-c.frame={...c.frame,x:400,y:300};c.emit('position-changed');
-assert.equal(handle.x,400+Math.round(c.frame.width/2)-60,'handle follows a title-bar drag');
+assert.equal(multi.tuckedOn('right'),c);
+assert.equal(multi.tabs.right.visible,true,'arrow tab on the right edge');
+assert.equal(multi.tabs.right.x,1280-26);
+assert.equal(multi.tabs.left.visible,false);
+assert.equal(handleC.visible,false);
+// The second one flicked right too: the right edge is taken, so it goes
+// off the left edge instead, with its arrow on the left.
+drag(handleD,dX+100,dX+600,80);
+assert.equal(d.minimized,true);
+assert.equal(multi.tuckedOn('left'),d,'right edge taken: tucked to the left');
+assert.equal(multi.tabs.left.visible,true);
+assert.equal(multi.tabs.left.x,0);
+// Each arrow brings back its own app, from its own edge.
+drag(multi.tabs.right,1270,1270,40);
+assert.equal(c.minimized,false,'right arrow: that app slides back');
+assert.equal(c.frame.x,frame.x,'...in at the right end');
+assert.equal(multi.tabs.right.visible,false);
+assert.equal(multi.tabs.left.visible,true,'the other stays tucked on the left');
+drag(multi.tabs.left,5,80,300);
+assert.equal(d.minimized,false,'drag the left arrow inward: back again');
+assert.equal(d.frame.x,12,'...at the left end');
+assert(d.frame.x+d.frame.width+12<=c.frame.x,'both on screen, not overlapping');
+// A third app replaces the oldest, which becomes an ordinary app again.
+multi.slideOver(e3);
+assert.equal(multi.slides.length,2,'two at most');
+assert(!multi.slides.includes(c),'the oldest left Slide Over');
+assert.equal(c.minimized,true);assert.equal(c.above,false);
+assert.equal(handleC.destroyed,true);
+// Title-bar drag (Mutter's move): handle follows; on release it returns to
+// its row at its size, and can't end up over the other app.
+const he=multi._handle;
+globalMock.display.emit('grab-op-begin',e3);
+e3.frame={...e3.frame,x:e3.frame.x-40,y:300};e3.emit('position-changed');
+assert.equal(he.x,e3.frame.x+Math.round(e3.frame.width/2)-60,'handle follows a title-bar drag');
 now+=500;
-globalMock.display.emit('grab-op-end',c);
-assert.equal(c.frame.x,400,'title-bar drag moves it sideways');
-assert.equal(c.frame.y,before.y,'...and it snaps back to its row');
-c.emit('unmanaged');
-assert.deepEqual(multi.slides,[d],'closing a Slide Over app removes it from the stack');
-assert.equal(d.minimized,false,'and shows the next one');
+globalMock.display.emit('grab-op-end',e3);
+assert.equal(e3.frame.y,frame.y,'...and it snaps back to its row');
+const [l,r]=[d,e3].sort((p,q)=>p.frame.x-q.frame.x);
+assert(l.frame.x+l.frame.width+12<=r.frame.x,'still not overlapping');
+e3.emit('unmanaged');
+assert.deepEqual(multi.slides,[d],'closing a Slide Over app removes it');
 multi.arrange(d,a);
-assert.deepEqual(multi.slides,[],'moving a Slide Over app into Split View takes it out of the stack');
+assert.deepEqual(multi.slides,[],'moving a Slide Over app into Split View takes it out');
 assert.equal(d.above,false);
 multi.destroy();
-assert.equal(chrome.length,0,'divider, handle and tab removed');
+assert.equal(chrome.length,0,'divider, handles and tabs removed');
 assert.equal(slideOverRelease(200,2),'tuck-right');
 assert.equal(slideOverRelease(-200,-2),'tuck-left');
 assert.equal(slideOverRelease(200,0.2),'move');
 assert.equal(slideOverRelease(3,0),'tap');
 assert.equal(dragVelocity([[0,0],[50,50],[100,100]]),1);
-console.log('Multitasking checks passed (split + slide over together, stack, tap for next, sideways move with handle, flick to tuck left/right, arrow tab, title-bar drag, close, move to split).');
+console.log('Multitasking checks passed (split + two Slide Over apps, always on top, bump not overlap, one tucked app per edge, arrow per edge, third replaces oldest, title-bar drag, close, move to split).');
 
 // Dock drag targets and floating-window resize.
 const screen={x:0,y:0,width:1280,height:800};

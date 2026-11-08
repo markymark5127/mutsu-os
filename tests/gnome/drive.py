@@ -371,36 +371,67 @@ def slide_flow(T):
     record(S, "dragging the handle moves the app sideways at the same size",
            moved.get("min") is False and moved.get("x", 0) < st.get("x", 0) - 100
            and moved.get("y") == st.get("y") and moved.get("w") == st.get("w"), {"before": st, "after": moved})
-    # Flick right: tucks away to the right edge (folds off the side, not
-    # GNOME's minimize-into-the-dock animation), arrow tab on that edge.
-    js(f"""(() => {{ const t = {T}, h = t.ext()._switcher.split._handle, w = globalThis.__mutsuOther;
-        const wm = Main.wm, orig = wm._shouldAnimateActor;
-        globalThis.__mutsuAnim = []; globalThis.__mutsuTx = [];
-        wm._shouldAnimateActor = function (a, types) {{
-            const r = orig.call(this, a, types);
-            if (a?.meta_window === w) globalThis.__mutsuAnim.push(r);
-            return r; }};
-        const GLib = imports.gi.GLib;
-        for (const ms of [150, 200, 250])
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
-                globalThis.__mutsuTx.push(Math.round(w.get_compositor_private()?.translation_x ?? 0));
-                return GLib.SOURCE_REMOVE; }});
-        const [x, y] = t.center(h); t.swipe(x, y, x + 300, y, 70); return true; }})()""")
-    wait(2)
-    tucked = js(f"""(() => {{ const s = {T}.ext()._switcher.split;
-        delete Main.wm._shouldAnimateActor;
-        return {{min: globalThis.__mutsuOther.minimized, tab: s._tab.visible, side: s._tuckSide,
-            gnomeMinimizeAnimation: globalThis.__mutsuAnim, slideOffsets: globalThis.__mutsuTx}}; }})()""")
-    record(S, "a quick flick tucks it away to the side", tucked.get("min") is True and tucked.get("tab")
-           and tucked.get("side") == "right", tucked)
-    record(S, "tucking slides off the edge (no minimize-to-dock animation)",
+    def flick(direction):
+        """Flick the newest Slide Over app's handle; record whether GNOME's
+        minimize animation ran and the window's sideways offset mid-tuck."""
+        js(f"""(() => {{ const t = {T}, s = t.ext()._switcher.split, h = s._handle, w = s.front;
+            const wm = Main.wm, orig = wm._shouldAnimateActor;
+            globalThis.__mutsuAnim = []; globalThis.__mutsuTx = []; globalThis.__mutsuFlicked = w;
+            wm._shouldAnimateActor = function (a, types) {{
+                const r = orig.call(this, a, types);
+                if (a?.meta_window === w) globalThis.__mutsuAnim.push(r);
+                return r; }};
+            const GLib = imports.gi.GLib;
+            for (const ms of [150, 200, 250])
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
+                    globalThis.__mutsuTx.push(Math.round(w.get_compositor_private()?.translation_x ?? 0));
+                    return GLib.SOURCE_REMOVE; }});
+            const [x, y] = t.center(h); t.swipe(x, y, x + ({direction}) * 300, y, 70); return true; }})()""")
+        wait(2)
+        return js(f"""(() => {{ const s = {T}.ext()._switcher.split, w = globalThis.__mutsuFlicked;
+            delete Main.wm._shouldAnimateActor;
+            return {{min: w.minimized, left: s.tuckedOn('left') === w, right: s.tuckedOn('right') === w,
+                tabLeft: s.tabs.left.visible, tabRight: s.tabs.right.visible,
+                gnomeMinimizeAnimation: globalThis.__mutsuAnim, slideOffsets: globalThis.__mutsuTx}}; }})()""")
+
+    def tap_tab(side):
+        js(f"""(() => {{ const t = {T}, tab = t.ext()._switcher.split.tabs.{side};
+            const [x, y] = t.center(tab); t.tap(x, y); return true; }})()""")
+        wait(2)
+
+    # Flick right: tucks off the right edge (folds off the side, not GNOME's
+    # minimize-into-the-dock animation), arrow tab on that edge.
+    tucked = flick(1)
+    record(S, "a quick flick right tucks it away to the right", tucked.get("min") is True
+           and tucked.get("right") and tucked.get("tabRight"), tucked)
+    record(S, "tucking right slides off the right edge (no minimize-to-dock animation)",
            True not in (tucked.get("gnomeMinimizeAnimation") or [])
            and any(v > 50 for v in (tucked.get("slideOffsets") or [])), tucked)
-    js(f"""(() => {{ const t = {T}, tab = t.ext()._switcher.split._tab;
-        const [x, y] = t.center(tab); t.tap(x, y); return true; }})()""")
-    wait(2)
-    back = js(f"({{min: globalThis.__mutsuOther.minimized, tab: {T}.ext()._switcher.split._tab.visible}})")
+    tap_tab("right")
+    back = js(f"({{min: globalThis.__mutsuOther.minimized, tab: {T}.ext()._switcher.split.tabs.right.visible}})")
     record(S, "tapping the arrow slides it back", back.get("min") is False and back.get("tab") is False, back)
+    # Flick left: off the left edge, moving left the whole way.
+    left = flick(-1)
+    record(S, "a quick flick left tucks it away to the left, sliding left",
+           left.get("min") is True and left.get("left") and left.get("tabLeft")
+           and any(v < -50 for v in (left.get("slideOffsets") or []))
+           and not any(v > 0 for v in (left.get("slideOffsets") or [])), left)
+    tap_tab("left")
+    # Two Slide Over apps share the row without overlapping; with one edge
+    # taken, the second tucks away off the other edge.
+    js(f"{T}.ext()._switcher.split.slideOver(globalThis.__mutsuFocus)")
+    wait(1.5)
+    two = js(f"""(() => {{ const s = {T}.ext()._switcher.split;
+        const r = s.slides.map(w => w.get_frame_rect()).sort((a, b) => a.x - b.x);
+        return {{count: s.slides.length, min: s.slides.map(w => w.minimized),
+            gap: r.length === 2 ? r[1].x - (r[0].x + r[0].width) : null}}; }})()""")
+    record(S, "two Slide Over apps sit side by side without overlapping",
+           two.get("count") == 2 and two.get("min") == [False, False] and (two.get("gap") or -1) >= 0, two)
+    first = flick(1)
+    second = flick(1)
+    record(S, "second app flicked to a taken edge tucks away off the other edge",
+           first.get("right") and second.get("left") and second.get("tabLeft") and first.get("tabRight")
+           and any(v < -50 for v in (second.get("slideOffsets") or [])), {"first": first, "second": second})
     js(f"{T}.ext()._settings.set_string('mode', 'always-desktop')")
     wait(2)
 
