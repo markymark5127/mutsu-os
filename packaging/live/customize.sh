@@ -21,6 +21,12 @@ LIVE_HOME=/var/home/liveuser
 # Fail the build rather than ship a live USB without a browser.
 flatpak info --system org.mozilla.firefox >/dev/null
 
+# The live session never runs the local AI model or installs Newelle (their
+# services skip live boots), so drop them from the live system: about 7 GB
+# less on the USB. The installer's copy of the system image (the offline
+# store) still has them, so installed systems are complete.
+rm -rf /usr/share/mutsu-os/local-ai/models /usr/share/mutsu-os/newelle/flatpak.tar.zst
+
 # GNOME Tour would pop up over the desktop in every live session.
 rm -f /etc/xdg/autostart/org.gnome.Tour.desktop
 
