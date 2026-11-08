@@ -40,6 +40,15 @@ flatpak info --system org.mozilla.firefox >/dev/null
 # store) still has them, so installed systems are complete.
 rm -rf /usr/share/mutsu-os/local-ai/models /usr/share/mutsu-os/newelle/flatpak.tar.zst
 
+# The image carries an OSTree repository (/sysroot/ostree, ~8 GB): a second
+# copy of /usr used when the image is deployed with OSTree. The live system
+# runs straight from its squashfs and the installer installs from the
+# system image (registry or the USB's offline store), never from this repo,
+# so it is dead weight on the USB.
+if [ -d /sysroot/ostree ]; then
+  find /sysroot/ostree -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+fi
+
 # GNOME Tour and the Mutsu welcome (account-level setup for an installed
 # system) would pop up over the installer in every live session.
 rm -f /etc/xdg/autostart/org.gnome.Tour.desktop /etc/xdg/autostart/mutsu-welcome.desktop

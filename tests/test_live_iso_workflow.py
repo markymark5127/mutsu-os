@@ -139,5 +139,11 @@ class LiveISOTests(unittest.TestCase):
                        "polkit.addRule", "org.mozilla.firefox"):
             self.assertIn(needle, script)
 
+    def test_live_usb_drops_dead_weight(self):
+        script = (ROOT / "packaging" / "live" / "customize.sh").read_text(encoding="utf-8")
+        self.assertIn("rm -rf /usr/share/mutsu-os/local-ai/models", script)
+        self.assertIn("find /sysroot/ostree -mindepth 1 -maxdepth 1 -exec rm -rf {} +", script)
+        self.assertIn('.shared_store.compression = "release"', WORKFLOW.read_text(encoding="utf-8"))
+
 if __name__ == "__main__":
     unittest.main()
