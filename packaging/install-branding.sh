@@ -245,6 +245,10 @@ patch = {
     "VERSION": '"1.0 (Shibui)"',
     "VARIANT": '"Shibui"',
     "VARIANT_ID": '"shibui"',
+    # systemd falls back to this hostname when /etc/hostname is missing
+    # (the live USB, fresh installs), which the terminal prompt and
+    # GSConnect / KDE Connect show. Bazzite sets it to "bazzite".
+    "DEFAULT_HOSTNAME": '"mutsu"',
     "LOGO": "mutsu-os-logo",
     "HOME_URL": '"https://github.com/markymark5127/mutsu-os"',
     "SUPPORT_URL": '"https://github.com/markymark5127/mutsu-os/discussions"',

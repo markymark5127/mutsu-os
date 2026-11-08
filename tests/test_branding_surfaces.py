@@ -42,6 +42,11 @@ class BrandingSurfacesTest(unittest.TestCase):
     def test_version_is_visible(self):
         self.assertIn('"PRETTY_NAME": \'"Mutsu OS 1.0 (Shibui)"\'', SCRIPT)
 
+    def test_fallback_hostname_is_mutsu(self):
+        # Without /etc/hostname (live USB, fresh install) systemd uses
+        # DEFAULT_HOSTNAME: the terminal prompt and KDE Connect show it.
+        self.assertIn('"DEFAULT_HOSTNAME": \'"mutsu"\'', SCRIPT)
+
     @unittest.skipUnless(shutil.which("rsvg-convert"), "needs rsvg-convert")
     def test_cursor_builds_as_xcursor(self):
         with tempfile.TemporaryDirectory() as tmp:
