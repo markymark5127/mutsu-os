@@ -73,19 +73,6 @@ export class TabletBlades {
         root.ease({opacity: 255, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
     }
 
-    _addBlur(root) {
-        try {
-            const effect = new Shell.BlurEffect({mode: Shell.BlurMode.BACKGROUND, brightness: 0.55});
-            if ('radius' in effect)
-                effect.radius = 36;
-            else
-                effect.sigma = 18;
-            root.add_effect(effect);
-        } catch (e) {
-            // The solid backdrop colour in the stylesheet is the fallback.
-        }
-    }
-
     _watch(object, signal, fn) {
         this._signals.push([object, object.connect(signal, fn)]);
     }
@@ -122,12 +109,12 @@ export class TabletBlades {
             window.disconnect(id);
         this._windowSignals = [];
         this._root.destroy_all_children();
-        // The blur lives on its own still backdrop: blurring the root, whose
-        // blades move and rotate, re-blurred every frame and left smears.
+        // A plain tinted backdrop, no live blur: a background blur is only
+        // re-rendered for the part of the screen that changed, so cards
+        // swiping over it left stale blurred rectangles behind them.
         const backdrop = new St.Widget({style_class: 'mutsu-blades-backdrop',
             width: m.width, height: m.height, reactive: false});
         this._root.add_child(backdrop);
-        this._addBlur(backdrop);
         const {all, groups} = this._windows();
         if (!all.length) {
             this.hide();
