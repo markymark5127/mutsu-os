@@ -297,6 +297,19 @@ def window_flow():
         shown = js(f"(() => {{ const s = {T}.ext()._switcher; s.show(); return s.visible; }})()")
         wait(1)
         record("Multitasking", "multitasking opens", shown is True, shown)
+        chin = js(f"""(() => {{ const t = {T}, s = t.ext()._switcher._blades;
+            const out = [];
+            for (const blade of s._blades ?? []) {{
+                const [, by] = blade.get_transformed_position(), [, bh] = blade.get_transformed_size();
+                const chin = t.find(blade, a => a.has_style_class_name?.('mutsu-blade-actions'));
+                if (!chin) {{ out.push('no chin'); continue; }}
+                const [, cy] = chin.get_transformed_position(), [, ch] = chin.get_transformed_size();
+                out.push({{cardBottom: Math.round(by + bh), chinBottom: Math.round(cy + ch), chinTop: Math.round(cy)}});
+            }}
+            return out; }})()""")
+        record("Multitasking", "Split View / Slide Over sit inside the card's chin",
+               isinstance(chin, list) and chin and all(isinstance(c, dict) and c["chinBottom"] <= c["cardBottom"] + 1
+                                                         and c["chinTop"] >= c["cardBottom"] - 80 for c in chin), chin)
         js(f"{T}.ext()._switcher.hide()")
         wait(1)
         record("Multitasking", "multitasking closes", js(f"{T}.ext()._switcher.visible") is False)

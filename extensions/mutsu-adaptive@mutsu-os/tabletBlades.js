@@ -214,9 +214,14 @@ export class TabletBlades {
     }
 
     _blade(group, index) {
+        // The card: content (padded) above a fixed-height chin that runs
+        // edge to edge, so the chin always sits inside the card.
+        const CHIN = 52;
         const blade = vbox({style_class: 'mutsu-blade',
             width: this._bladeW, height: this._bladeH, reactive: true});
         blade._mutsuBlade = group;
+        const content = vbox({style_class: 'mutsu-blade-content', y_expand: true});
+        blade.add_child(content);
         const header = new St.BoxLayout({style_class: 'mutsu-blade-header'});
         if (group.app)
             header.add_child(group.app.create_icon_texture(28));
@@ -225,26 +230,27 @@ export class TabletBlades {
         if (group.windows.length > 1)
             header.add_child(new St.Label({text: `${group.windows.length} windows`,
                 style_class: 'mutsu-blade-count', y_align: Clutter.ActorAlign.CENTER}));
-        blade.add_child(header);
+        content.add_child(header);
 
         const expanded = this._expanded.has(group.key);
         const shown = expanded ? group.windows : group.windows.slice(0, MAX_PANES);
         const hidden = group.windows.length - shown.length;
-        const bodyH = this._bladeH - 56 - 54 - (hidden ? 40 : 0);
+        // card padding 24, header 40 + gap 10, chin, slack 10
+        const bodyH = this._bladeH - 24 - 50 - CHIN - 10 - (hidden ? 50 : 0);
         const paneH = Math.max(90, Math.floor((bodyH - (shown.length - 1) * 10) / shown.length));
         for (const window of shown)
-            blade.add_child(this._pane(window, paneH));
+            content.add_child(this._pane(window, paneH));
         if (hidden) {
             const more = new St.Label({text: `Show ${hidden} more`, style_class: 'mutsu-blade-more'});
             makeTappable(more, () => {
                 this._expanded.add(group.key);
                 this._build();
             }, `Show ${hidden} more windows`);
-            blade.add_child(more);
+            content.add_child(more);
         }
-        blade.add_child(new St.Widget({y_expand: true}));
         // The card's chin: two equal halves, edge to edge.
-        const actions = new St.BoxLayout({style_class: 'mutsu-blade-actions', x_expand: true});
+        const actions = new St.BoxLayout({style_class: 'mutsu-blade-actions', x_expand: true,
+            height: CHIN});
         if (actions.layout_manager)
             actions.layout_manager.homogeneous = true;
         for (const [label, side, action] of [
@@ -252,7 +258,7 @@ export class TabletBlades {
             ['Slide Over', 'right', () => { this.hide(false); this._split.slideOver(group.windows[0]); }],
         ]) {
             const button = new St.Bin({style_class: `mutsu-blade-action mutsu-blade-action-${side}`,
-                x_expand: true, child: new St.Label({text: label, x_align: Clutter.ActorAlign.CENTER,
+                x_expand: true, y_expand: true, child: new St.Label({text: label, x_align: Clutter.ActorAlign.CENTER,
                     y_align: Clutter.ActorAlign.CENTER})});
             makeTappable(button, action, label);
             actions.add_child(button);
@@ -389,9 +395,9 @@ export class TabletBlades {
             findHandler(s.source, this._root, '_mutsuBlade');
         if (!target)
             return null;
-        if (target._mutsuWindow && target.get_parent()?._mutsuBlade?.windows.length > 1)
+        const blade = target._mutsuBlade ? target : findHandler(target, this._root, '_mutsuBlade');
+        if (target._mutsuWindow && blade?._mutsuBlade?.windows.length > 1)
             return {actor: target, windows: [target._mutsuWindow]};
-        const blade = target._mutsuBlade ? target : target.get_parent();
         return blade?._mutsuBlade ? {actor: blade, windows: blade._mutsuBlade.windows} : null;
     }
 
