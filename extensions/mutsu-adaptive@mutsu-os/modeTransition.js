@@ -28,6 +28,7 @@ export const WAVE_MS = 700;
 export const SPRING_MS = 520;
 export const HINGE_MS = 620;
 export const HUD_HOLD_MS = 450;
+export const START_DELAY_MS = 60;
 
 const COLOURS = {tablet: 'rgba(164, 201, 178, 0.55)', desktop: 'rgba(222, 205, 176, 0.55)'};
 
@@ -56,8 +57,11 @@ export class ModeTransition {
         this._actors = [];
         this._timeouts = [];
         this._monitorsId = Main.layoutManager.connect('monitors-changed', () => {
-            // A rotation mid-animation: the overlay would be in the wrong place.
-            this._clear(false);
+            // A rotation mid-animation: the overlay would be in the wrong
+            // place. (monitors-changed also fires with nothing moved; ignore.)
+            const m = Main.layoutManager.primaryMonitor;
+            if (this._geometry && m && (m.width !== this._geometry.width || m.height !== this._geometry.height))
+                this._clear(false);
         });
     }
 
@@ -66,13 +70,12 @@ export class ModeTransition {
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor || !animationsEnabled() || Main.sessionMode.isLocked)
             return false;
-        // Start on the next frame, after the switch's own work.
-        const id = GLib.idle_add(GLib.PRIORITY_LOW, () => {
-            this._timeouts = this._timeouts.filter(t => t !== id);
-            this._start(monitor, toTablet);
-            return GLib.SOURCE_REMOVE;
+        // Start just after the switch's own work (a low-priority idle can
+        // starve while the shell is busy redrawing, so use a short timeout).
+        this._later(START_DELAY_MS, () => {
+            const current = Main.layoutManager.primaryMonitor ?? monitor;
+            this._start(current, toTablet);
         });
-        this._timeouts.push(id);
         return true;
     }
 
@@ -86,6 +89,7 @@ export class ModeTransition {
     }
 
     _start(monitor, toTablet) {
+        this._geometry = {width: monitor.width, height: monitor.height};
         this._wave(monitor, toTablet);
         this._spring();
         this._hud(monitor, toTablet);

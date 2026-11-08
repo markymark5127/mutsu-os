@@ -49,8 +49,8 @@ assert(M.HINGE_TABLET < M.HINGE_OPEN - 180, 'folds all the way round');
 
 const t = new M.ModeTransition();
 assert.equal(t.play(true), true);
-assert.equal(ui.children.length, 0, 'waits for the next frame, after the switch');
-idles.shift()();
+assert.equal(ui.children.length, 0, "waits until just after the switch");
+timeouts.shift()();
 const [wave, hud] = ui.children;
 assert.equal(wave.style.includes('164, 201, 178'), true, 'sage wave into tablet');
 assert.equal(wave.eased.opacity, 0, 'the wave fades as it spreads');
@@ -64,7 +64,7 @@ timeouts.shift()();
 assert.equal(hud.destroyed, true, 'label fades away');
 // Back to the desktop.
 t.play(false);
-idles.shift()();
+timeouts.shift()();
 assert(ui.children.at(-2).style.includes('222, 205, 176'), 'sand wave back to the desktop');
 assert.equal(ui.children.at(-1).children[2].text, 'Desktop');
 // Off when GNOME's animations are off, or locked.
