@@ -12,7 +12,7 @@ const load = (file, names, deps = {}) => {
         ...Object.values(deps));
 };
 const g = load('tabletGeometry.js', ['sameSequence', 'planTabletEntry', 'planTabletExit', 'homeMetrics', 'slotAt', 'pageSnap', 'classifyDrag',
-    'pullDownAllowed', 'bladeTransform', 'groupWindows', 'hingeTablet', 'resolveTablet',
+    'pullDownAllowed', 'bladeTransform', 'groupWindows', 'hingeTablet', 'hingeFromAccels', 'resolveTablet',
     'isWindowMaximized']);
 
 // Home grid fits every common 2-in-1 screen, both orientations.
@@ -209,8 +209,9 @@ assert.equal(journal.pending, 0);
 console.log('Settings journal checks passed (disk copy, crash recovery, defaults, user changes win).');
 
 // Posture monitor.
-const {findHardwareSources, readHardware, PostureMonitor} = load('posture.js',
-    ['findHardwareSources', 'readHardware', 'PostureMonitor'], {hingeTablet: g.hingeTablet});
+const {findHardwareSources, readHardware, PostureMonitor, readHingeAngle, parseMountMatrix} = load('posture.js',
+    ['findHardwareSources', 'readHardware', 'PostureMonitor', 'readHingeAngle', 'parseMountMatrix'],
+    {hingeTablet: g.hingeTablet, hingeFromAccels: g.hingeFromAccels});
 const files = {'/sys/bus/iio/devices/iio:device3/in_angl0_raw': '90\n'};
 const readFile = p => files[p] ?? null;
 const listDir = p => p === '/sys/bus/iio/devices' ? ['iio:device0', 'iio:device3'] : [];
@@ -237,6 +238,49 @@ assert.equal(changes, 2);
 monitor.destroy();
 assert.equal(seat.disconnected, 7);
 assert.equal(cancelled, 1);
+// Chosen hinge angle: presets and custom thresholds, with hysteresis.
+assert.equal(g.hingeTablet(190, false, 180), true, 'past flat');
+assert.equal(g.hingeTablet(170, true, 180), true, 'just below past-flat keeps tablet (hysteresis)');
+assert.equal(g.hingeTablet(150, true, 180), false);
+assert.equal(g.hingeTablet(200, false, 225), false, 'laptop at 200: not yet tent');
+assert.equal(g.hingeTablet(240, false, 225), true, 'tent');
+assert.equal(g.hingeTablet(300, false, 359), false, 'not fully folded');
+assert.equal(g.hingeTablet(345, false, 359), true, 'fully folded (sensors stop short of 360)');
+// Two accelerometers: base flat, screen at 90 / flat / folded back.
+assert.equal(g.hingeFromAccels([0, 1, 0], [0, 0, 1]), 90);
+assert.equal(g.hingeFromAccels([0, 0, 1], [0, 0, 1]), 180);
+assert.equal(g.hingeFromAccels([0, -1, 0], [0, 0, 1]), 270, 'tent / stand');
+assert.equal(g.hingeFromAccels([0.99, 0.05, 0.05], [0, 0, 1]), null, 'hinge pointing down: unknown');
+assert.deepEqual(parseMountMatrix('0, 1, 0; -1, 0, 0; 0, 0, 1'), [[0, 1, 0], [-1, 0, 0], [0, 0, 1]]);
+{
+    const accelFiles = {
+        '/sys/bus/iio/devices/iio:device1/in_accel_x_raw': '0', '/sys/bus/iio/devices/iio:device1/in_accel_y_raw': '-1000',
+        '/sys/bus/iio/devices/iio:device1/in_accel_z_raw': '0', '/sys/bus/iio/devices/iio:device1/label': 'accel-display',
+        '/sys/bus/iio/devices/iio:device2/in_accel_x_raw': '0', '/sys/bus/iio/devices/iio:device2/in_accel_y_raw': '0',
+        '/sys/bus/iio/devices/iio:device2/in_accel_z_raw': '1000', '/sys/bus/iio/devices/iio:device2/dev': '236:2',
+        '/run/udev/data/c236:2': 'E:ACCEL_LOCATION=base\n',
+        '/sys/bus/platform/devices/tablet-mode-switch/tablet-mode': '0',
+    };
+    const rf = p => accelFiles[p] ?? null;
+    const ld = p => p === '/sys/bus/iio/devices' ? ['iio:device1', 'iio:device2'] : [];
+    const src = findHardwareSources(rf, ld);
+    assert(src.some(x => x.kind === 'accels'), 'display + base accelerometers found (label and udev)');
+    assert.equal(readHingeAngle(src, rf), 270);
+    assert.equal(readHardware(src, rf, null, 0), false, 'automatic: the tablet switch decides');
+    assert.equal(readHardware(src, rf, null, 225), true, 'tent preset: 270 degrees is tablet');
+    assert.equal(readHardware(src, rf, null, 359), false, 'fully-folded preset: 270 is not');
+    let t2 = 0;
+    const m2 = new PostureMonitor({seat: null, readFile: rf, listDir: ld, poll: () => 1, cancel() {},
+        threshold: () => t2}, () => {});
+    assert.equal(m2.angleDecides, false);
+    t2 = 225;
+    assert.equal(m2.refresh(), true);
+    assert.equal(m2.hardware, true);
+    assert.equal(m2.angleDecides, true);
+    assert.equal(m2.angle, 270);
+    assert.equal(g.resolveTablet({mode: 'automatic', seatTouch: true, hardware: false, angleDecides: true}), false,
+        'chosen angle overrides the laptop switch');
+}
 const quiet = new PostureMonitor({seat, readFile: () => null, listDir: () => [],
     poll: () => assert.fail('no files, no polling'), cancel() {}}, () => {});
 quiet.destroy();

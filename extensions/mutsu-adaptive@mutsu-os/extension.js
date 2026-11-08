@@ -153,17 +153,23 @@ export default class MutsuAdaptiveExtension extends Extension {
             seat: this._seat(),
             readFile,
             listDir,
-            poll: (seconds, fn) => GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, seconds, () => {
+            poll: (ms, fn) => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
                 fn();
                 return GLib.SOURCE_CONTINUE;
             }),
             cancel: id => GLib.source_remove(id),
+            threshold: () => this._settings?.get_int('tablet-hinge-angle') ?? 0,
         }, () => {
             // A real fold/unfold ends any manual override.
             this._override = null;
             this._evaluate();
         });
         log(`Mutsu Adaptive: posture sources: ${this._posture.description}`);
+        this._connect(this._settings, 'changed::tablet-hinge-angle', () => {
+            this._posture?.refresh();
+            this._override = null;
+            this._evaluate();
+        });
         this._evaluate(true);
         this._syncLocked();
     }
@@ -257,6 +263,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             override: this._override,
             seatTouch: this._posture?.seatTouch ?? false,
             hardware: this._posture?.hardware ?? null,
+            angleDecides: this._posture?.angleDecides ?? false,
         });
         this._requestTablet(want, immediate);
         this._syncIndicators(want);

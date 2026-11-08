@@ -16,10 +16,10 @@ class Emitter {
     get count() { return this._h.size; }
 }
 const geometry = new Function(`${strip('tabletGeometry.js')}; return {resolveTablet, maximizeWindow,
-    unmaximizeWindow, isWindowMaximized, hingeTablet, planTabletEntry, planTabletExit};`)();
+    unmaximizeWindow, isWindowMaximized, hingeTablet, hingeFromAccels, planTabletEntry, planTabletExit};`)();
 const {SettingsJournal} = new Function(`${strip('settingsJournal.js')}; return {SettingsJournal};`)();
-const {PostureMonitor} = new Function('hingeTablet',
-    `${strip('posture.js')}; return {PostureMonitor};`)(geometry.hingeTablet);
+const {PostureMonitor} = new Function('hingeTablet', 'hingeFromAccels',
+    `${strip('posture.js')}; return {PostureMonitor};`)(geometry.hingeTablet, geometry.hingeFromAccels);
 
 let timers = new Map(), tid = 0;
 const GLib = {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false, SOURCE_CONTINUE: true,
@@ -60,7 +60,7 @@ const Gio = {
 const ext = Object.assign(new Emitter(), {values: {'mode': 'automatic', 'saved-state': '', 'open-home-on-tablet': false,
     'touch-text-scale': 1.15, 'rotation-lock': false, 'collapse-dock-in-tablet': true,
     'enable-experimental-gestures': true, 'automatic-keyboard': true, 'gesture-exceptions': []}});
-Object.assign(ext, {get_string(k) { return this.values[k]; }, get_boolean(k) { return this.values[k]; },
+Object.assign(ext, {get_string(k) { return this.values[k]; }, get_boolean(k) { return this.values[k]; }, get_int(k) { return this.values[k] ?? 0; },
     get_double(k) { return this.values[k]; }, get_strv(k) { return this.values[k]; },
     set_string(k, v) { this.values[k] = v; this.emit(`changed::${k}`); }});
 

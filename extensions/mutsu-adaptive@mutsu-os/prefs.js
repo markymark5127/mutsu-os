@@ -1,6 +1,8 @@
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
+import {findHardwareSources, hasAngleSource, readHingeAngle} from './posture.js';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 export default class MutsuAdaptivePrefs extends ExtensionPreferences {
@@ -25,6 +27,7 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
             settings.set_string('mode', modes[modeRow.selected] || 'automatic');
         });
         mode.add(modeRow);
+        this._hingeRows(mode, settings);
 
         const behavior = new Adw.PreferencesGroup({title: 'When in tablet mode'});
         page.add(behavior);
@@ -49,6 +52,92 @@ export default class MutsuAdaptivePrefs extends ExtensionPreferences {
         button.connect('clicked', () => settings.set_string('home-layout', ''));
         reset.add_suffix(button);
         home.add(reset);
+    }
+
+    // Where Automatic switches: the laptop's own tablet sensor, or a hinge
+    // angle (presets plus custom) on laptops that report the angle.
+    _hingeRows(group, settings) {
+        const presets = [[0, 'Laptop\'s tablet sensor'], [180, 'Past flat (over 180°)'],
+            [225, 'Tent (over 225°)'], [359, 'Fully folded (360°)'], [-1, 'Custom angle']];
+        const row = new Adw.ComboRow({
+            title: 'Switch to tablet at',
+            subtitle: 'Automatic mode only',
+            model: Gtk.StringList.new(presets.map(p => p[1])),
+        });
+        const custom = new Adw.SpinRow({
+            title: 'Custom angle',
+            subtitle: 'Tablet mode once the hinge opens past this; back to desktop 25° below',
+            adjustment: new Gtk.Adjustment({lower: 90, upper: 359, step_increment: 5, page_increment: 15}),
+        });
+        const status = new Adw.ActionRow({title: 'Hinge angle', subtitle: 'Checking…'});
+        const sync = () => {
+            const value = settings.get_int('tablet-hinge-angle');
+            const index = presets.findIndex(p => p[0] === value);
+            const selected = index >= 0 ? index : presets.length - 1;
+            if (row.selected !== selected)
+                row.selected = selected;
+            custom.visible = selected === presets.length - 1;
+            if (value > 0 && custom.value !== value)
+                custom.value = value;
+        };
+        row.connect('notify::selected', () => {
+            const preset = presets[row.selected]?.[0] ?? 0;
+            if (preset >= 0)
+                settings.set_int('tablet-hinge-angle', preset);
+            else if (settings.get_int('tablet-hinge-angle') <= 0 ||
+                     presets.some(p => p[0] === settings.get_int('tablet-hinge-angle')))
+                settings.set_int('tablet-hinge-angle', 200);
+            sync();
+        });
+        custom.connect('notify::value', () => {
+            if (row.selected === presets.length - 1)
+                settings.set_int('tablet-hinge-angle', Math.round(custom.value));
+        });
+        const changedId = settings.connect('changed::tablet-hinge-angle', sync);
+        sync();
+        group.add(row);
+        group.add(custom);
+        group.add(status);
+
+        // Live readout, so the user can see what the laptop reports.
+        const readFile = path => {
+            try {
+                const [ok, bytes] = GLib.file_get_contents(path);
+                return ok ? new TextDecoder().decode(bytes) : null;
+            } catch (e) {
+                return null;
+            }
+        };
+        const listDir = path => {
+            try {
+                const names = [];
+                const it = Gio.File.new_for_path(path).enumerate_children('standard::name',
+                    Gio.FileQueryInfoFlags.NONE, null);
+                for (let info; (info = it.next_file(null));)
+                    names.push(info.get_name());
+                return names;
+            } catch (e) {
+                return [];
+            }
+        };
+        const sources = findHardwareSources(readFile, listDir);
+        const refresh = () => {
+            if (!hasAngleSource(sources)) {
+                status.subtitle = 'This laptop does not report its hinge angle, so Automatic uses its tablet sensor whatever you pick here.';
+                return GLib.SOURCE_CONTINUE;
+            }
+            const angle = readHingeAngle(sources, readFile);
+            status.subtitle = angle === null
+                ? 'Hold the laptop level to read the angle'
+                : `Now: ${angle}° (0° closed, 180° flat, 360° folded into a tablet)`;
+            return GLib.SOURCE_CONTINUE;
+        };
+        refresh();
+        const timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, refresh);
+        row.connect('destroy', () => {
+            GLib.source_remove(timer);
+            settings.disconnect(changedId);
+        });
     }
 
     _switch(group, settings, key, title, subtitle) {

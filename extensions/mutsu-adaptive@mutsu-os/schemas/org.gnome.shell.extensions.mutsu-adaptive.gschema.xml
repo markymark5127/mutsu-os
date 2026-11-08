@@ -41,6 +41,12 @@
       <summary>Hide the dock in tablet mode</summary>
       <description>Autohides the dock while in tablet mode and restores it on exit.</description>
     </key>
+    <key name="tablet-hinge-angle" type="i">
+      <range min="0" max="359"/>
+      <default>0</default>
+      <summary>Hinge angle that starts tablet mode (Automatic mode)</summary>
+      <description>0: follow the laptop's own tablet sensor. Otherwise tablet mode starts once the hinge opens past this many degrees (180 past flat, 225 tent, 359 fully folded) on laptops that report their hinge angle, and ends 25 degrees below it.</description>
+    </key>
     <key name="tablet-window-buttons" type="b">
       <default>false</default>
       <summary>Window buttons (traffic lights) in tablet mode</summary>

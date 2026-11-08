@@ -197,25 +197,52 @@ export function groupWindows(windows, keyFor) {
 }
 
 // Hinge angle with hysteresis so a laptop opened flat does not flicker.
-export function hingeTablet(angle, previous) {
+// Hinge angle (0 closed, 180 flat, 360 folded into a tablet) to posture.
+// threshold: tablet mode once the hinge opens past it. Leaving needs the
+// hinge to close HINGE_HYSTERESIS degrees below it, so sensor jitter near
+// the threshold does not flap. "Fully folded" (>= 355) enters at 340:
+// sensors rarely report a full 360.
+export const HINGE_HYSTERESIS = 25;
+export function hingeTablet(angle, previous, threshold = 200) {
     if (angle === null || angle === undefined || Number.isNaN(angle))
         return null;
-    if (angle >= 200)
+    const enter = threshold >= 355 ? 340 : threshold;
+    if (angle >= enter)
         return true;
-    if (angle <= 160)
+    if (angle <= enter - HINGE_HYSTERESIS)
         return false;
     return !!previous;
 }
 
+// Hinge angle from two accelerometers, one in the display and one in the
+// base (as on convertibles without a hinge-angle sensor). Each vector is in
+// its part's own frame after the mount matrix: x along the hinge, y up the
+// screen / toward the back of the keyboard, z out of the screen / up from the
+// keyboard. Returns null when the hinge points at the ground (gravity along
+// the hinge says nothing about the angle).
+export function hingeFromAccels(display, base, minShare = 0.5) {
+    const [, dy, dz] = display, [, by, bz] = base;
+    const gd = Math.hypot(...display), gb = Math.hypot(...base);
+    if (!gd || !gb || Math.hypot(dy, dz) < minShare * gd || Math.hypot(by, bz) < minShare * gb)
+        return null;
+    const degrees = (Math.atan2(dz, dy) - Math.atan2(bz, by)) * 180 / Math.PI + 180;
+    return Math.round(((degrees % 360) + 360) % 360);
+}
+
+// When the user picked a hinge angle and the laptop reports one, the angle
+// alone decides (GNOME's own tablet switch is ignored); otherwise Automatic
+// follows the laptop's tablet switch / touch mode.
 // Effective posture. A manual override from the Quick Settings toggle wins
 // in Automatic mode until the hardware posture next changes.
-export function resolveTablet({mode, override = null, seatTouch = false, hardware = null}) {
+export function resolveTablet({mode, override = null, seatTouch = false, hardware = null, angleDecides = false}) {
     if (mode === 'always-tablet')
         return true;
     if (mode === 'always-desktop')
         return false;
     if (override !== null && override !== undefined)
         return !!override;
+    if (angleDecides)
+        return hardware === true;
     return !!seatTouch || hardware === true;
 }
 
