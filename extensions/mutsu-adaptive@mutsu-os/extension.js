@@ -516,9 +516,16 @@ export default class MutsuAdaptiveExtension extends Extension {
     // Unfolding: what is on screen stays; apps waiting in multitasking stay
     // minimized and anything else still showing joins them.
     _arrangeForDesktop() {
-        const pair = this._switcher?.split?.pair ?? null;
-        for (const window of planTabletExit(this._visibleWindows(), global.display.focus_window, pair))
+        const split = this._switcher?.split;
+        const pair = split?.pair ?? null;
+        // Slide Over apps fold away off their edge (handled by Split View),
+        // not GNOME's minimize into the dock; the app behind them stays.
+        const slides = split?.slides ?? [];
+        const focus = slides.includes(global.display.focus_window) ? null : global.display.focus_window;
+        const windows = this._visibleWindows().filter(w => !slides.includes(w));
+        for (const window of planTabletExit(windows, focus, pair))
             window.minimize();
+        split?.leaveTablet?.();
     }
 
     _goHome() {

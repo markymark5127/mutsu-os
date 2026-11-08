@@ -269,6 +269,15 @@ assert.deepEqual(multi.slides,[d],'closing a Slide Over app removes it');
 multi.arrange(d,a);
 assert.deepEqual(multi.slides,[],'moving a Slide Over app into Split View takes it out');
 assert.equal(d.above,false);
+// From a minimized app (multitasking) it still arrives as Slide Over.
+const m1=window();m1.minimized=true;
+multi.slideOver(m1);
+assert.equal(m1.minimized,false);assert.deepEqual(m1.frame,frame);
+// Leaving tablet mode: Slide Over apps fold away and become ordinary apps.
+multi.leaveTablet();
+assert.equal(m1.minimized,true,'Slide Over app put away when tablet mode ends');
+assert.equal(m1.above,false);
+assert.deepEqual(multi.slides,[]);
 multi.destroy();
 assert.equal(chrome.length,0,'divider, handles and tabs removed');
 assert.equal(slideOverRelease(200,2),'tuck-right');

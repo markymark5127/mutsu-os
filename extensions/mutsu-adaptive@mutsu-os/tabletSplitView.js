@@ -247,8 +247,44 @@ export class TabletSplitView {
             window.connect('position-changed', () => this._followSlide(e)),
         ];
         this._entries.unshift(e);
-        this._show(e, null);
+        // Whether it was full screen, waiting in multitasking or minimized,
+        // it arrives the Slide Over way: in from its edge, never GNOME's
+        // zoom out of the dock.
+        this._show(e, e.x === null ? 'right' : 'left');
         return true;
+    }
+
+    // Tablet mode is ending: Slide Over apps on screen fold off their edge
+    // (not into the dock) and wait minimized as ordinary apps; tucked ones
+    // are already minimized. Then Slide Over is cleared.
+    leaveTablet() {
+        const monitor = this._monitor();
+        for (const e of this._entries) {
+            if (!this._onScreen(e) || !monitor)
+                continue;
+            const window = e.window;
+            const r = window.get_frame_rect();
+            const edge = r.x + r.width / 2 < monitor.x + monitor.width / 2 ? 'left' : 'right';
+            const actor = window.get_compositor_private?.();
+            const finish = () => {
+                if (actor) {
+                    actor.translation_x = 0;
+                    actor.scale_x = 1;
+                    actor.opacity = 255;
+                    Main.wm?.skipNextEffect?.(actor);
+                }
+                try { window.minimize(); } catch (err) {}
+            };
+            if (!actor?.ease) {
+                finish();
+                continue;
+            }
+            actor.remove_all_transitions?.();
+            actor.set_pivot_point?.(edge === 'left' ? 0 : 1, 0.5);
+            actor.ease({translation_x: this._tuckOffset(edge, r, monitor), scale_x: 0.82, opacity: 120,
+                duration: 220, mode: Clutter.AnimationMode.EASE_IN_CUBIC, onStopped: finish});
+        }
+        this.clear();
     }
 
     // Bring an app on screen; `fromSide` slides it in from that edge.

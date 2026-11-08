@@ -432,6 +432,51 @@ def slide_flow(T):
     record(S, "second app flicked to a taken edge tucks away off the other edge",
            first.get("right") and second.get("left") and second.get("tabLeft") and first.get("tabRight")
            and any(v < -50 for v in (second.get("slideOffsets") or [])), {"first": first, "second": second})
+    # Leaving tablet mode with a Slide Over app on screen: it folds off its
+    # edge (no GNOME minimize into the dock) and waits minimized.
+    tap_tab("right")
+    js(f"""(() => {{ const s = {T}.ext()._switcher.split, w = s.front, wm = Main.wm, orig = wm._shouldAnimateActor;
+        globalThis.__mutsuExitWin = w; globalThis.__mutsuAnim = [];
+        wm._shouldAnimateActor = function (a, types) {{
+            const r = orig.call(this, a, types);
+            if (a?.meta_window === w) globalThis.__mutsuAnim.push(r);
+            return r; }};
+        {T}.ext()._settings.set_string('mode', 'always-desktop'); return true; }})()""")
+    wait(2.5)
+    out = js("""(() => { delete Main.wm._shouldAnimateActor;
+        return {min: globalThis.__mutsuExitWin?.minimized, gnomeMinimizeAnimation: globalThis.__mutsuAnim,
+            above: globalThis.__mutsuExitWin?.is_above?.()}; })()""")
+    record(S, "leaving tablet mode folds Slide Over away (no minimize-to-dock animation)",
+           out.get("min") is True and True not in (out.get("gnomeMinimizeAnimation") or [])
+           and not out.get("above"), out)
+    # Back in tablet mode, a minimized app put in Slide Over slides in from
+    # its edge instead of GNOME's zoom out of the dock.
+    js(f"{T}.ext()._settings.set_string('mode', 'always-tablet')")
+    wait(3)
+    js(f"""(() => {{ const w = globalThis.__mutsuExitWin, wm = Main.wm, orig = wm._shouldAnimateActor;
+        globalThis.__mutsuAnim = []; globalThis.__mutsuTx = [];
+        wm._shouldAnimateActor = function (a, types) {{
+            const r = orig.call(this, a, types);
+            if (a?.meta_window === w) globalThis.__mutsuAnim.push(r);
+            return r; }};
+        const GLib = imports.gi.GLib;
+        if (!w.minimized) w.minimize();
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {{
+            globalThis.__mutsuAnim = [];
+            {T}.ext()._switcher.split.slideOver(w);
+            for (const ms of [40, 90, 140])
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
+                    globalThis.__mutsuTx.push(Math.round(w.get_compositor_private()?.translation_x ?? 0));
+                    return GLib.SOURCE_REMOVE; }});
+            return GLib.SOURCE_REMOVE; }});
+        return true; }})()""")
+    wait(2.5)
+    came = js("""(() => { delete Main.wm._shouldAnimateActor;
+        return {min: globalThis.__mutsuExitWin.minimized, gnomeUnminimizeAnimation: globalThis.__mutsuAnim,
+            slideOffsets: globalThis.__mutsuTx}; })()""")
+    record(S, "a minimized app put in Slide Over slides in from the edge (no zoom out of the dock)",
+           came.get("min") is False and True not in (came.get("gnomeUnminimizeAnimation") or [])
+           and any(abs(v) > 30 for v in (came.get("slideOffsets") or [])), came)
     js(f"{T}.ext()._settings.set_string('mode', 'always-desktop')")
     wait(2)
 
