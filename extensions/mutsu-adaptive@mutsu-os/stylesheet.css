@@ -127,7 +127,8 @@
 .mutsu-touch-menu-destructive { color: #d1453b; }
 
 /* ---- Multitasking blades ---- */
-.mutsu-blades { background-color: rgba(19, 24, 22, 0.78); color: white; }
+.mutsu-blades { color: white; }
+.mutsu-blades-backdrop { background-color: rgba(19, 24, 22, 0.78); }
 .mutsu-spaces { spacing: 8px; }
 .mutsu-space {
   spacing: 8px;
@@ -160,13 +161,19 @@
   text-align: center;
   background-color: rgba(255, 255, 255, 0.1);
 }
-.mutsu-blade-actions { spacing: 8px; }
-.mutsu-blade-action {
-  padding: 9px 14px;
-  border-radius: 16px;
-  font-size: 13px;
-  background-color: rgba(255, 255, 255, 0.14);
+.mutsu-blade-actions {
+  spacing: 1px;
+  margin: 0 -12px -12px -12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
+.mutsu-blade-action {
+  padding: 14px 0;
+  font-size: 14px;
+  font-weight: bold;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.mutsu-blade-action-left { border-radius: 0 0 0 25px; }
+.mutsu-blade-action-right { border-radius: 0 0 25px 0; }
 .mutsu-blade-action:hover, .mutsu-blade-action:focus { background-color: rgba(255, 255, 255, 0.26); }
 .mutsu-pane {
   spacing: 6px;

@@ -56,7 +56,6 @@ export class TabletBlades {
             return;
         }
         this._root = root;
-        this._addBlur(root);
         this._router = new TouchRouter(root, this);
         root.connect('key-press-event', (_a, event) => this._key(event));
         this._watch(global.display, 'window-created', () => this._rebuildSoon());
@@ -123,6 +122,12 @@ export class TabletBlades {
             window.disconnect(id);
         this._windowSignals = [];
         this._root.destroy_all_children();
+        // The blur lives on its own still backdrop: blurring the root, whose
+        // blades move and rotate, re-blurred every frame and left smears.
+        const backdrop = new St.Widget({style_class: 'mutsu-blades-backdrop',
+            width: m.width, height: m.height, reactive: false});
+        this._root.add_child(backdrop);
+        this._addBlur(backdrop);
         const {all, groups} = this._windows();
         if (!all.length) {
             this.hide();
@@ -238,12 +243,17 @@ export class TabletBlades {
             blade.add_child(more);
         }
         blade.add_child(new St.Widget({y_expand: true}));
-        const actions = new St.BoxLayout({style_class: 'mutsu-blade-actions'});
-        for (const [label, action] of [
-            ['Split View', () => this._chooseSplit(group, blade)],
-            ['Slide Over', () => { this.hide(false); this._split.slideOver(group.windows[0]); }],
+        // The card's chin: two equal halves, edge to edge.
+        const actions = new St.BoxLayout({style_class: 'mutsu-blade-actions', x_expand: true});
+        if (actions.layout_manager)
+            actions.layout_manager.homogeneous = true;
+        for (const [label, side, action] of [
+            ['Split View', 'left', () => this._chooseSplit(group, blade)],
+            ['Slide Over', 'right', () => { this.hide(false); this._split.slideOver(group.windows[0]); }],
         ]) {
-            const button = new St.Label({text: label, style_class: 'mutsu-blade-action'});
+            const button = new St.Bin({style_class: `mutsu-blade-action mutsu-blade-action-${side}`,
+                x_expand: true, child: new St.Label({text: label, x_align: Clutter.ActorAlign.CENTER,
+                    y_align: Clutter.ActorAlign.CENTER})});
             makeTappable(button, action, label);
             actions.add_child(button);
         }

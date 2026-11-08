@@ -34,8 +34,14 @@ class Keyboard extends Emitter {
     add_style_class_name(name) { this.classes.add(name); }
     remove_style_class_name(name) { this.classes.delete(name); }
 }
-const {TabletKeyboard, tabletKeyboardSize} = new Function('InjectionManager','Keyboard','Main',
-    `${source}; return {TabletKeyboard, tabletKeyboardSize};`)(InjectionManager, Keyboard, Main);
+const {TabletKeyboard, tabletKeyboardSize, keyboardShift} = new Function('InjectionManager','Keyboard','Main',
+    `${source}; return {TabletKeyboard, tabletKeyboardSize, keyboardShift};`)(InjectionManager, Keyboard, Main);
+
+// Slide the app only enough to centre the cursor above the keyboard.
+const screen = {x: 0, y: 0, width: 1280, height: 800};
+assert.equal(keyboardShift({y: 100, h: 20}, screen, 320), 0, 'cursor already visible: app stays put');
+assert.equal(keyboardShift({y: 500, h: 20}, screen, 320), 270, 'cursor moved to the middle of the space above');
+assert.equal(keyboardShift({y: 780, h: 20}, screen, 320), 320, 'never more than the keyboard height');
 
 for (const screen of [{width:1024,height:768}, {width:768,height:1024},
     {width:1280,height:800}, {width:640,height:360}]) {

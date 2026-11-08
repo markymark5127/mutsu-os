@@ -11,6 +11,16 @@ export function tabletKeyboardSize(monitor) {
         fontSize: Math.round(Math.max(16, Math.min(20, height / 15)))};
 }
 
+// How far to slide an app up when the on-screen keyboard opens: just enough
+// to put the text cursor in the middle of the visible space above the
+// keyboard, never more than the keyboard's height, never down.
+export function keyboardShift(cursor, monitor, keyboardHeight) {
+    const visibleBottom = monitor.y + monitor.height - keyboardHeight;
+    const middle = monitor.y + (visibleBottom - monitor.y) / 2;
+    const want = cursor.y + cursor.h / 2 - middle;
+    return Math.round(Math.max(0, Math.min(keyboardHeight, want)));
+}
+
 // Retain GNOME's actual keys, input methods, suggestions, emoji and focus
 // handling. Only its tablet geometry and square-key aspect constraint change.
 export class TabletKeyboard {
@@ -27,6 +37,41 @@ export class TabletKeyboard {
                     const result = original.apply(this, args);
                     owner._apply(this);
                     return result;
+                });
+        }
+        // The keyboard floats over the app. GNOME slides the app up by the
+        // whole keyboard height; slide it only as far as needed to bring the
+        // text cursor to the middle of the space left above the keyboard.
+        if (typeof Keyboard.prototype.setCursorLocation === 'function') {
+            this._injections.overrideMethod(Keyboard.prototype, 'setCursorLocation', original =>
+                function (window, x, y, w, h) {
+                    this._mutsuCursor = window ? {y, h} : null;
+                    return original.call(this, window, x, y, w, h);
+                });
+        }
+        if (typeof Keyboard.prototype._animateWindow === 'function') {
+            this._injections.overrideMethod(Keyboard.prototype, '_animateWindow', original =>
+                function (window, show) {
+                    const actor = window?.get_compositor_private?.();
+                    const monitor = Main.layoutManager.keyboardMonitor;
+                    const height = Main.layoutManager.keyboardBox?.height ?? 0;
+                    if (!show || !actor || !monitor || !this._mutsuCursor ||
+                        typeof this._focusWindowStartY !== 'number')
+                        return original.call(this, window, show);
+                    const shift = keyboardShift(this._mutsuCursor, monitor, height);
+                    const finalY = this._focusWindowStartY - shift;
+                    actor.ease({
+                        y: finalY,
+                        duration: 150,
+                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                        onStopped: () => {
+                            if (window.get_compositor_private() !== actor)
+                                return; // closed meanwhile
+                            actor.y = finalY;
+                            this._windowSlideAnimationComplete?.(window, finalY);
+                        },
+                    });
+                    return undefined;
                 });
         }
         this._connect(Main.layoutManager, 'monitors-changed', () => this._sync());

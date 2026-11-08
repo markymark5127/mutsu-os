@@ -346,14 +346,31 @@ def slide_flow(T):
     record(S, "dragging the handle moves the app sideways at the same size",
            moved.get("min") is False and moved.get("x", 0) < st.get("x", 0) - 100
            and moved.get("y") == st.get("y") and moved.get("w") == st.get("w"), {"before": st, "after": moved})
-    # Flick right: tucks away, arrow tab on the right edge.
-    js(f"""(() => {{ const t = {T}, h = t.ext()._switcher.split._handle;
+    # Flick right: tucks away to the right edge (folds off the side, not
+    # GNOME's minimize-into-the-dock animation), arrow tab on that edge.
+    js(f"""(() => {{ const t = {T}, h = t.ext()._switcher.split._handle, w = globalThis.__mutsuOther;
+        const wm = Main.wm, orig = wm._shouldAnimateActor;
+        globalThis.__mutsuAnim = []; globalThis.__mutsuTx = [];
+        wm._shouldAnimateActor = function (a, types) {{
+            const r = orig.call(this, a, types);
+            if (a?.meta_window === w) globalThis.__mutsuAnim.push(r);
+            return r; }};
+        const GLib = imports.gi.GLib;
+        for (const ms of [150, 200, 250])
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
+                globalThis.__mutsuTx.push(Math.round(w.get_compositor_private()?.translation_x ?? 0));
+                return GLib.SOURCE_REMOVE; }});
         const [x, y] = t.center(h); t.swipe(x, y, x + 300, y, 70); return true; }})()""")
     wait(2)
     tucked = js(f"""(() => {{ const s = {T}.ext()._switcher.split;
-        return {{min: globalThis.__mutsuOther.minimized, tab: s._tab.visible, side: s._tuckSide}}; }})()""")
+        delete Main.wm._shouldAnimateActor;
+        return {{min: globalThis.__mutsuOther.minimized, tab: s._tab.visible, side: s._tuckSide,
+            gnomeMinimizeAnimation: globalThis.__mutsuAnim, slideOffsets: globalThis.__mutsuTx}}; }})()""")
     record(S, "a quick flick tucks it away to the side", tucked.get("min") is True and tucked.get("tab")
            and tucked.get("side") == "right", tucked)
+    record(S, "tucking slides off the edge (no minimize-to-dock animation)",
+           True not in (tucked.get("gnomeMinimizeAnimation") or [])
+           and any(v > 50 for v in (tucked.get("slideOffsets") or [])), tucked)
     js(f"""(() => {{ const t = {T}, tab = t.ext()._switcher.split._tab;
         const [x, y] = t.center(tab); t.tap(x, y); return true; }})()""")
     wait(2)

@@ -82,7 +82,8 @@ class Entry extends Actor {
     constructor(p) { super(p); this.clutter_text = Object.assign(new Emitter(), {set_selection() {}}); }
 }
 class Grid { attach(child) { this.owner?.add_child(child); } }
-const St = {Widget: Actor, BoxLayout: Actor, Label: Actor, Icon: Actor, Button: Actor, Entry};
+class BinActor extends Actor { constructor(p = {}) { super(p); if (p.child) this.add_child(p.child); } }
+const St = {Widget: Actor, BoxLayout: Actor, Label: Actor, Icon: Actor, Button: Actor, Entry, Bin: BinActor};
 const vbox = props => new Actor(props);
 const T = ['TOUCH_BEGIN', 'TOUCH_UPDATE', 'TOUCH_END', 'TOUCH_CANCEL', 'BUTTON_PRESS',
     'BUTTON_RELEASE', 'MOTION', 'KEY_PRESS'];

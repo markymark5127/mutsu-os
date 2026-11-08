@@ -62,6 +62,22 @@ function fade(window, show, done = null) {
     });
 }
 
+// In touch mode Search opens with the on-screen keyboard up, like typing
+// into any search field on a tablet.
+function openKeyboardSoon() {
+    let touch = false;
+    try {
+        touch = global.stage.get_context().get_backend().get_default_seat().get_touch_mode();
+    } catch (e) {}
+    if (!touch || !Main.keyboard?.open)
+        return;
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+        if (isSearchWindow(global.display.focus_window))
+            Main.keyboard.open(Main.layoutManager.focusIndex ?? Main.layoutManager.primaryIndex);
+        return GLib.SOURCE_REMOVE;
+    });
+}
+
 export function dismissSearch(window) {
     if (!window || window.minimized || window._mutsuDismissing)
         return;
@@ -114,6 +130,7 @@ export class SearchIntegration {
             if (isSearchWindow(actor.meta_window))
                 GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                     fade(actor.meta_window, true);
+                    openKeyboardSoon();
                     return GLib.SOURCE_REMOVE;
                 });
         });
@@ -130,6 +147,7 @@ export class SearchIntegration {
             Main.overview.hide();
             Main.activateWindow(window);
             fade(window, true);
+            openKeyboardSoon();
         });
         this._focusId = global.display.connect('notify::focus-window', () => {
             const focus = global.display.focus_window;
