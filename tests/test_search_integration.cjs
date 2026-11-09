@@ -28,8 +28,9 @@ class Workspace { _isOverviewWindow() { return true; } }
 const globalMock = {display: new Display(), stage: new Emitter(),
     window_manager: new Emitter(), get_window_actors: () => []};
 const APP = 'io.github.markymark5127.AIDesktop';
+class MetaWindow extends Emitter { is_skip_taskbar() { return false; } }
 function makeWindow(title, id = APP, transient = null) {
-    return Object.assign(new Emitter(), {
+    return Object.assign(new MetaWindow(), {
         get_title: () => title, get_gtk_application_id: () => id,
         get_transient_for: () => transient, get_monitor: () => 0,
         get_frame_rect: () => ({x: 100, y: 100, width: 640, height: 100}),
@@ -68,8 +69,11 @@ const GLib = {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false, idle_add: (_p, fn) => f
     SpawnFlags: {SEARCH_PATH: 1}};
 const {SearchIntegration, isSearchWindow, searchFadeMs} = new Function('InjectionManager','Workspace','Main',
     'Clutter','GLib','Meta','Shell','global', `${source}; return {SearchIntegration, isSearchWindow, searchFadeMs};`)(
-    InjectionManager, Workspace, Main, Clutter, GLib, {Display}, {AppSystem}, globalMock);
+    InjectionManager, Workspace, Main, Clutter, GLib, {Display, Window: MetaWindow}, {AppSystem}, globalMock);
 const integration = new SearchIntegration();
+assert.equal(search.is_skip_taskbar(), true, 'Search never listed in docks or as a minimized app');
+assert.equal(other.is_skip_taskbar(), false);
+assert.equal(impostor.is_skip_taskbar(), false);
 assert(isSearchWindow(search));
 assert(!isSearchWindow(wizard));
 assert(!isSearchWindow(impostor));
@@ -110,6 +114,7 @@ assert.deepEqual(spawned, ['/usr/bin/mutsu-search', '--query', 'fire'], 'typing 
 assert.equal(overviewText.text, '', 'overview search is cleared');
 assert(overviewHidden > 0);
 integration.destroy();
+assert.equal(search.is_skip_taskbar(), false, 'restored on disable');
 assert.equal(overviewEntry.opacity, 255, 'disable restores the overview search box');
 assert.equal(overviewText.signals.size, 0);
 assert.deepEqual(globalMock.display.get_tab_list(), windows, 'disable restores switcher');

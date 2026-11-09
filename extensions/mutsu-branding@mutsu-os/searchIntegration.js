@@ -117,6 +117,12 @@ export class SearchIntegration {
                         windows.some(window => !isSearchWindow(window));
                 });
             });
+        // Everything in the Shell that asks "should this window be listed?"
+        // (docks, minimized-window tiles, switchers) is told no for Search.
+        this._injections.overrideMethod(Meta.Window.prototype, 'is_skip_taskbar', original =>
+            function (...args) {
+                return isSearchWindow(this) || original.apply(this, args);
+            });
         this._injections.overrideMethod(Meta.Display.prototype, 'get_tab_list', original =>
             function (...args) {
                 return original.apply(this, args).filter(window => !isSearchWindow(window));
@@ -134,12 +140,16 @@ export class SearchIntegration {
                 });
         }
         this._unminimizeId = global.window_manager.connect('unminimize', (_manager, actor) => {
-            if (isSearchWindow(actor.meta_window))
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    fade(actor.meta_window, true);
-                    openKeyboardSoon();
-                    return GLib.SOURCE_REMOVE;
-                });
+            if (!isSearchWindow(actor.meta_window))
+                return;
+            // Hidden right away so it can't flash fully drawn before the fade.
+            if (globalThis.mutsuTabletMode)
+                actor.opacity = 0;
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                fade(actor.meta_window, true);
+                openKeyboardSoon();
+                return GLib.SOURCE_REMOVE;
+            });
         });
         this._redirectOverviewSearch();
         this._mapId = global.window_manager.connect('map', (_manager, actor) => {

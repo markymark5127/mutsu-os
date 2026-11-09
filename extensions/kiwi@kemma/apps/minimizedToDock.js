@@ -53,8 +53,15 @@ let separatorSyncLater = 0;
 
 /* -------------------------------------------------------------- snapshots */
 
+// Mutsu Search is part of the OS, not an app: it never becomes a dock tile.
+function _isMutsuSearch(win) {
+    return win?.get_gtk_application_id?.() === 'io.github.markymark5127.AIDesktop' &&
+        win.get_title?.() === 'Mutsu OS Search';
+}
+
 function _isEligible(win) {
-    return !!win && win.window_type === Meta.WindowType.NORMAL && !win.is_skip_taskbar();
+    return !!win && win.window_type === Meta.WindowType.NORMAL && !win.is_skip_taskbar() &&
+        !_isMutsuSearch(win);
 }
 
 // Mutsu tablet mode: apps waiting in multitasking and a tucked-away Slide
