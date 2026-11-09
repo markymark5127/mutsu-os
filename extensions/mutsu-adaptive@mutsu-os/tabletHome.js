@@ -287,22 +287,14 @@ export class TabletHome {
         } else {
             this._time = this._date = null;
         }
-        header.add_child(new St.Widget({x_expand: true}));
-        const search = new St.BoxLayout({style_class: 'mutsu-home-search',
-            y_align: Clutter.ActorAlign.CENTER});
-        search.add_child(new St.Icon({icon_name: 'edit-find-symbolic', icon_size: 16}));
-        search.add_child(new St.Label({text: 'Search', y_align: Clutter.ActorAlign.CENTER}));
-        makeTappable(search, () => this._search(), 'Search. Or pull down on Home');
-        header.add_child(search);
+        // No search box: pull down on Home (or press Super) for Search, like
+        // an iPad.
         header.add_child(new St.Widget({x_expand: true}));
         if (this._editing) {
             const done = new St.Label({text: 'Done', style_class: 'mutsu-home-done',
                 y_align: Clutter.ActorAlign.CENTER});
             makeTappable(done, () => this.setEditing(false), 'Done editing Home Screen');
             header.add_child(done);
-        } else if (widgets) {
-            // Balance the clock so Search stays centred.
-            header.add_child(new St.Widget({style_class: 'mutsu-home-clock-widget', opacity: 0}));
         }
         this._root.add_child(header);
     }
@@ -833,7 +825,15 @@ export class TabletHome {
         }
 
         const page = this._pages[this._page] ?? [];
-        const slot = slotAt(x, y, m);
+        // Where the dragged *icon* is, not the finger: you line the icon up
+        // on top of the other app, wherever on it you grabbed it (grabbing by
+        // the label put the finger outside the target's centre zone).
+        const cloneW = d.clone.width || m.icon + 40;
+        const cloneH = d.clone.height || m.icon + 40;
+        const grabbedInside = d.offsetX >= 0 && d.offsetX <= cloneW && d.offsetY >= 0 && d.offsetY <= cloneH;
+        const iconX = grabbedInside ? x - d.offsetX + cloneW / 2 : x;
+        const iconY = grabbedInside ? y - d.offsetY + 8 + m.icon / 2 : y;
+        const slot = slotAt(iconX, iconY, m);
         // What is *shown* in that slot: once icons have slid aside for the
         // drag, the stored order no longer matches the screen, and stacking
         // onto the icon under your finger picked a different (hidden) one.

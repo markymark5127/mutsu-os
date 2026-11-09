@@ -66,8 +66,8 @@ const Clutter = {EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2}, EVENT_PROPAGATE: 
 const GLib = {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false, idle_add: (_p, fn) => fn(),
     spawn_async(_d, argv) { spawned = argv; },
     SpawnFlags: {SEARCH_PATH: 1}};
-const {SearchIntegration, isSearchWindow} = new Function('InjectionManager','Workspace','Main',
-    'Clutter','GLib','Meta','Shell','global', `${source}; return {SearchIntegration, isSearchWindow};`)(
+const {SearchIntegration, isSearchWindow, searchFadeMs} = new Function('InjectionManager','Workspace','Main',
+    'Clutter','GLib','Meta','Shell','global', `${source}; return {SearchIntegration, isSearchWindow, searchFadeMs};`)(
     InjectionManager, Workspace, Main, Clutter, GLib, {Display}, {AppSystem}, globalMock);
 const integration = new SearchIntegration();
 assert(isSearchWindow(search));
@@ -117,4 +117,7 @@ assert.equal(globalMock.stage.signals.size, 0);
 assert.equal(globalMock.display.signals.size, 0);
 assert.equal(globalMock.window_manager.signals.size, 0);
 assert.equal(search.signals.size, 0);
-console.log('Search integration checks passed (identity, dock, switchers, focus, outside tap, keyboard, popover, dialog, overview redirect, cleanup).');
+assert.equal(searchFadeMs(true, false), 0, 'desktop: Search just appears');
+assert.equal(searchFadeMs(false, false), 0, 'desktop: and just disappears');
+assert(searchFadeMs(true, true) > 0 && searchFadeMs(false, true) > 0, 'tablet: fades');
+console.log('Search integration checks passed (fade only in tablet, identity, dock, switchers, focus, outside tap, keyboard, popover, dialog, overview redirect, cleanup).');

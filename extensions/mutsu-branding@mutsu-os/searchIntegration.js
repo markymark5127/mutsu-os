@@ -32,8 +32,15 @@ function isKeyboardTarget(actor) {
     return false;
 }
 
-// Search should come and go like part of the Shell (a quick fade), not like
-// an app window minimizing into the dock.
+// Search comes and goes like part of the Shell, never like an app window
+// minimizing or zooming: in tablet mode it fades in and out (opacity only);
+// on the desktop it simply appears and disappears.
+export function searchFadeMs(show, tablet) {
+    if (!tablet)
+        return 0;
+    return show ? 180 : 140;
+}
+
 function fade(window, show, done = null) {
     const actor = window?.get_compositor_private();
     if (!actor) {
@@ -41,23 +48,23 @@ function fade(window, show, done = null) {
         return;
     }
     actor.remove_all_transitions();
-    actor.set_pivot_point(0.5, 0.2);
-    if (show) {
-        actor.opacity = 0;
-        actor.set_scale(0.97, 0.97);
+    actor.set_scale(1, 1);
+    const duration = searchFadeMs(show, !!globalThis.mutsuTabletMode);
+    if (!duration) {
+        actor.opacity = 255;
+        done?.();
+        return;
     }
+    if (show)
+        actor.opacity = 0;
     actor.ease({
         opacity: show ? 255 : 0,
-        scale_x: show ? 1 : 0.97,
-        scale_y: show ? 1 : 0.97,
-        duration: show ? 140 : 110,
+        duration,
         mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         onStopped: () => {
             done?.();
-            if (!show) {
+            if (!show)
                 actor.opacity = 255;
-                actor.set_scale(1, 1);
-            }
         },
     });
 }

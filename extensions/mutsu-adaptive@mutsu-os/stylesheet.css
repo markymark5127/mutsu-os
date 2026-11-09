@@ -25,22 +25,6 @@
 }
 .mutsu-home-time { font-size: 34px; font-weight: 300; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45); }
 .mutsu-home-date { font-size: 14px; font-weight: bold; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45); }
-.mutsu-home-search {
-  spacing: 8px;
-  min-width: 220px;
-  padding: 10px 18px;
-  border-radius: 22px;
-  background-color: rgba(255, 255, 255, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-}
-.mutsu-home-search:hover, .mutsu-home-search:focus { background-color: rgba(255, 255, 255, 0.32); }
-.mutsu-home-done {
-  padding: 10px 20px;
-  border-radius: 22px;
-  font-weight: bold;
-  background-color: rgba(255, 255, 255, 0.9);
-  color: #1d2421;
-}
 .mutsu-home-pull {
   spacing: 8px;
   padding: 10px 18px;

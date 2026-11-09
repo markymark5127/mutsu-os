@@ -193,9 +193,7 @@ send('TOUCH_BEGIN', 640, 10, 300, root);
 send('TOUCH_UPDATE', 640, 200, 320, root);
 send('TOUCH_END', 640, 200, 330, root);
 assert.equal(searches, 1, 'the top edge is not a search pull');
-const searchPill = find(a => a.accessible_name?.startsWith('Search'));
-tap(searchPill, 400);
-assert.equal(searches, 2, 'Search pill is a tappable alternative');
+assert.equal(find(a => a.accessible_name?.startsWith('Search')), undefined, 'no search box on Home (pull down instead)');
 
 // Long-press menu, then Add to Dock.
 const firefox = tile('org.mozilla.firefox.desktop');
@@ -221,8 +219,8 @@ runTimers();
 send('TOUCH_UPDATE', nx + 40, ny + 5, 1900, files);
 assert(home.editing, 'dragging after a hold enters edit (jiggle) mode');
 const m = geometry.homeMetrics(1280, 800);
-send('TOUCH_UPDATE', m.gridX + 5, m.gridY + m.cellH - 5, 2000, files);
-send('TOUCH_END', m.gridX + 5, m.gridY + m.cellH - 5, 2100, files);
+send('TOUCH_UPDATE', m.gridX + 5, m.gridY + 5, 2000, files); // the dragged icon now sits on the first slot
+send('TOUCH_END', m.gridX + 5, m.gridY + 5, 2100, files);
 runTimers();
 const after = new HomeLayout(settings.values['home-layout']).indexOf('org.gnome.TextEditor.desktop');
 assert.notEqual(after, before, 'dropping reorders and saves the layout');
