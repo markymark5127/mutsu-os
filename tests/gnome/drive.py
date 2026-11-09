@@ -218,13 +218,21 @@ def tablet_flow():
         const [[aId, a], [bId, b]] = [apps[1], apps[2]];
         const before = h._layout.items.filter(i => typeof i !== 'string').length;
         const [x0, y0] = t.center(a.tile), [x1, y1] = t.center(b.tile);
-        globalThis.__mutsuStack = {{aId, bId, before}};
+        globalThis.__mutsuStack = {{aId, bId, before, during: []}};
+        const GLib = imports.gi.GLib;
+        for (const ms of [700, 1000, 1400])
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
+                const d = h._drag;
+                globalThis.__mutsuStack.during.push(d ? {{onto: d.onto, ready: d.folderReady ?? null,
+                    target: d.target, pending: d.pending}} : null);
+                return GLib.SOURCE_REMOVE; }});
         t.swipe(x0, y0, x1, y1, 500, 1100); return {{aId, bId, before}}; }})()""")
     wait(3)
     folder = js(f"""(() => {{ const h = {T}.ext()._home, s = globalThis.__mutsuStack;
         const folders = h._layout.items.filter(i => typeof i !== 'string');
         const made = folders.find(f => f.apps.includes(s.aId) && f.apps.includes(s.bId));
-        return {{folders: folders.length, before: s.before, made: made ? made.name : null}}; }})()""")
+        return {{folders: folders.length, before: s.before, made: made ? made.name : null,
+            during: s.during}}; }})()""")
     record(S, "stacking a wiggling app on another makes a folder",
            isinstance(folder, dict) and folder.get("made") is not None, {"stack": stack, "result": folder})
     done = js(f"""(() => {{ const t = {T}, h = t.ext()._home;

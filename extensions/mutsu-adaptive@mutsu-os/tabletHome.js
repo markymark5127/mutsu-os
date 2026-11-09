@@ -833,7 +833,10 @@ export class TabletHome {
         const grabbedInside = d.offsetX >= 0 && d.offsetX <= cloneW && d.offsetY >= 0 && d.offsetY <= cloneH;
         const iconX = grabbedInside ? x - d.offsetX + cloneW / 2 : x;
         const iconY = grabbedInside ? y - d.offsetY + 8 + m.icon / 2 : y;
-        const slot = slotAt(iconX, iconY, m);
+        // Either one lined up on another app's centre counts.
+        const byIcon = slotAt(iconX, iconY, m);
+        const byFinger = slotAt(x, y, m);
+        const slot = !byIcon.onto && byFinger.onto ? byFinger : byIcon;
         // What is *shown* in that slot: once icons have slid aside for the
         // drag, the stored order no longer matches the screen, and stacking
         // onto the icon under your finger picked a different (hidden) one.
