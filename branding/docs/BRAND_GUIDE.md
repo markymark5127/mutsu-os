@@ -33,4 +33,4 @@ Short, quiet, single tones. No loops, no voice, no startup fanfare. The theme is
 
 ## Cursor
 
-A sage pointer that inherits Adwaita for the cursors we have not drawn yet. Sources live in `branding/cursors/japandi/`.
+A sage arrow head with no stem. Other cursors inherit Adwaita. Sources live in `branding/cursors/japandi/`.
