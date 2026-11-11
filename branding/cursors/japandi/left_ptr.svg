@@ -1,4 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <!-- Arrow head only. Tip is the hotspot. No stem, no tail. -->
-  <path d="M3 2 L3 18 L9 14 L20 14 Z" fill="#384B3C" stroke="#FFFCF6" stroke-width="1.6" stroke-linejoin="round"/>
+  <!-- Arrow head only, with rounded corners. Tip stays the hotspot. -->
+  <path d="M5.2 3.4
+           C3.4 2.2 2.8 4.4 3.4 6.6
+           L4.6 14.2
+           C4.8 16.2 6.6 16.6 7.8 15.2
+           L9.4 13.6
+           C10.2 12.8 11.2 13 12.2 13.4
+           L17.4 13.4
+           C19.6 13.4 20 11.4 18.2 10.6
+           Z"
+        fill="#384B3C" stroke="#FFFCF6" stroke-width="1.5"
+        stroke-linejoin="round" stroke-linecap="round"/>
 </svg>
