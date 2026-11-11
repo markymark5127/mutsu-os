@@ -205,6 +205,12 @@ export default class MutsuAdaptiveExtension extends Extension {
         }, kind => {
             // A real fold/unfold ends any manual override.
             this._override = null;
+            // Unfolding is decisive too: it also ends tablet mode that came
+            // from holding the screen sideways or in a tent (bottom-up), which
+            // otherwise waited for a key press. Turning it again re-latches
+            // after the usual hold.
+            if (kind === 'switch' && !this._posture?.seatTouch && this._tilt?.latched)
+                this._tilt = {orientation: this._tilt.orientation, since: Date.now(), latched: false};
             this._evaluate(false, kind === 'switch' ? SWITCH_DEBOUNCE_MS : DEBOUNCE_MS);
         });
         log(`Mutsu Adaptive: posture sources: ${this._posture.description}`);

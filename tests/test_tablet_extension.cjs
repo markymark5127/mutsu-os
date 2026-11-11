@@ -256,6 +256,16 @@ seat.touch_mode = false; seat.emit('notify::touch-mode'); flush();
 assert.equal(instances.home, 0, 'unfolding after the toggle follows the hinge');
 seat.touch_mode = true; seat.emit('notify::touch-mode'); flush();
 assert.equal(instances.home, 1, 'folding after the toggle follows the hinge');
+// Tent mode (screen upside down) also latches tablet; unfolding still wins
+// at once, without waiting for a key press.
+sensor.orientation = 'bottom-up'; sensor.emit('g-properties-changed');
+now += 1300; flush();
+assert.equal(e._tiltActive(), true, 'tent latches tablet from the orientation');
+sensor.orientation = 'normal'; sensor.emit('g-properties-changed');
+seat.touch_mode = false; seat.emit('notify::touch-mode'); flush();
+assert.equal(instances.home, 0, 'unfolding from tent goes straight to the desktop');
+seat.touch_mode = true; seat.emit('notify::touch-mode'); flush();
+assert.equal(instances.home, 1, 'folding again after tent');
 
 // Locking keeps tablet mode; only chrome hides.
 sessionMode.isLocked = true; sessionMode.emit('updated');
