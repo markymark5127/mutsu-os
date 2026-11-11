@@ -88,21 +88,13 @@ RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login /us
     PYTHONPATH=/usr/libexec/mutsu-os/src /usr/bin/python3 -m aidesktop --setup-status >/dev/null
 
 ### MAC-STYLE SHORTCUTS
-# Toshy is the default Mac-shortcut mapper. keyd stays as a fallback.
+# keyd maps Mac-style shortcuts (system service, map baked in below).
 # Super/Command+Space still opens Mutsu Search (see 20-mutsu-shortcut.dconf).
 RUN dnf5 install -y gnome-tweaks
 COPY packaging/keyd/default.conf /tmp/mutsu-keyd.conf
 COPY packaging/install-mac-shortcuts.sh /tmp/mutsu-install-mac-shortcuts.sh
 RUN bash /tmp/mutsu-install-mac-shortcuts.sh && \
     rm -f /tmp/mutsu-keyd.conf /tmp/mutsu-install-mac-shortcuts.sh
-COPY extensions/focused-window-dbus@flexagoon.com /tmp/mutsu-focused-window-src
-COPY packaging/install-focused-window.sh /tmp/mutsu-install-focused-window.sh
-RUN bash /tmp/mutsu-install-focused-window.sh && \
-    rm -rf /tmp/mutsu-focused-window-src /tmp/mutsu-install-focused-window.sh
-COPY packaging/toshy-src /tmp/mutsu-toshy-src
-COPY packaging/install-toshy.sh /tmp/mutsu-install-toshy.sh
-RUN bash /tmp/mutsu-install-toshy.sh && \
-    rm -rf /tmp/mutsu-toshy-src /tmp/mutsu-install-toshy.sh
 COPY packaging/set-mac-shortcuts.sh /usr/libexec/mutsu-os/set-mac-shortcuts.sh
 # On-screen gamepad (tablet mode): virtual Xbox 360 pad via uinput, opened
 # by the logged-in user (uaccess, same as Steam's own rule).
