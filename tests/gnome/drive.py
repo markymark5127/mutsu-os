@@ -747,6 +747,9 @@ def analyze_log():
     for uuid, items in sorted(problems.items()):
         unique = list(dict.fromkeys(items))
         record("Shell log", f"{uuid}: {len(unique)} error(s)", False, unique[0].splitlines()[0])
+        # The whole stack, so the log shows where it came from.
+        for item in unique[:3]:
+            print("\n".join("    " + l[:300] for l in item.splitlines()))
         with open(os.path.join(OUT, f"errors-{uuid}.txt"), "w") as fh:
             fh.write("\n\n".join(unique))
 
