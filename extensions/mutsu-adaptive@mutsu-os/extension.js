@@ -523,18 +523,22 @@ export default class MutsuAdaptiveExtension extends Extension {
         }
         if (this._settings.get_boolean('rotation-lock'))
             j.change(TOUCHSCREEN, 'orientation-lock', s => s.set_boolean('orientation-lock', true));
+    }
+
+    // Settings that must change with the switch itself: the dock's, before
+    // it is hidden; Touchshell's gestures, which would otherwise compete with
+    // Mutsu's (its bottom edge, auto-maximize); Kiwi's top-bar buttons, which
+    // would show over full-screen apps.
+    _applyGestureSettings() {
+        const j = this._journal;
+        // Dash-to-Dock rebuilds its dock when these change, so they go first,
+        // before the desktop dock is hidden (a later change would bring back a
+        // fresh, unhidden dock).
         if (this._settings.get_boolean('collapse-dock-in-tablet')) {
             const dock = j.settings(DOCK_SCHEMA);
             if (dock)
                 applyTabletDock(dock, j);
         }
-    }
-
-    // Settings that must change with the switch itself: Touchshell's gestures
-    // would otherwise compete with Mutsu's (its bottom edge, auto-maximize)
-    // and Kiwi's top-bar buttons would show over full-screen apps.
-    _applyGestureSettings() {
-        const j = this._journal;
         for (const [key, value] of Object.entries(TOUCHSHELL_TABLET))
             j.change(TOUCHSHELL, key, s => s.set_string(key, value));
         if (!this._settings.get_boolean('tablet-window-buttons'))
