@@ -21,7 +21,10 @@ lib=""
 while read -r candidate; do
   [[ -f "$candidate" && ! -L "$candidate" ]] || continue
   case "$candidate" in *.so*|*.gresource|*/bin/*|*/libexec/*) ;; *) continue ;; esac
-  if gresource list "$candidate" 2>/dev/null | grep -qx /org/gnome/shell/ui/layout.js; then
+  # (Read the whole list first: grep -q stopping early would SIGPIPE
+  # gresource, and pipefail would call that a miss.)
+  listing="$(gresource list "$candidate" 2>/dev/null || true)"
+  if grep -qx /org/gnome/shell/ui/layout.js <<<"$listing"; then
     lib="$candidate"
     break
   fi
