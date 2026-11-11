@@ -675,6 +675,14 @@ def analyze_log():
         if key is None:
             continue
         problems.setdefault(key, []).append("\n".join(lines[i:i + 8]))
+    # Clutter / Cogl warnings, printed for diagnosis (not a failure yet):
+    # which actors trip "needs an allocation" or a zero-size viewport.
+    noisy = [line for line in lines if re.search(
+        r"needs an allocation|set_viewport|BrightnessContrastEffect|application_id|Clutter-(WARNING|CRITICAL)|"
+        r"Cogl-(WARNING|CRITICAL)|St-(WARNING|CRITICAL)", line)]
+    print(f"Clutter/Cogl/St warnings: {len(noisy)}")
+    for line in list(dict.fromkeys(noisy))[:25]:
+        print("  " + line[:300])
     if not problems:
         record("Shell log", "no extension errors", True)
     for uuid, items in sorted(problems.items()):
