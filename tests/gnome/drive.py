@@ -604,8 +604,10 @@ def gamepad_flow():
             return {{face: L.face, left: L.left, dpad: !!L.dpad}}; }})()""")
         record(S, "chips swap to the GameCube layout and the D-pad",
                layout == {"face": "gamecube", "left": "dpad", "dpad": True}, layout)
-        js(f"{T}.ext()._settings.set_string('gamepad-face', 'diamond')")
-        js(f"{T}.ext()._settings.set_string('gamepad-left', 'stick')")
+        saved = js(f"{T}.ext()._settings.get_string('gamepad-games')")
+        record(S, "the swapped layout is remembered for this game",
+               isinstance(saved, str) and '"steam_app_570"' in saved and 'gamecube' in saved, saved)
+        js(f"{T}.ext()._settings.set_string('gamepad-games', '{{}}')")
     finally:
         proc.terminate()
         wait(1)

@@ -131,3 +131,40 @@ export function encode(commands) {
 }
 
 export const TRIGGERS = new Set(['zl', 'zr']);
+
+// Real game controllers from /proc/bus/input/devices: entries with a
+// joystick handler (jsN). Our own virtual pad and Steam's virtual copies of
+// pads don't count (Steam Input wraps any pad, ours included).
+const VIRTUAL_PADS = [/mutsu on-screen gamepad/i, /steam virtual/i, /steam deck/i];
+
+export function physicalGamepads(procDevices) {
+    const pads = [];
+    for (const block of String(procDevices ?? '').split(/\n\s*\n/)) {
+        const name = /^N: Name="([^"]*)"/m.exec(block)?.[1] ?? '';
+        const handlers = /^H: Handlers=(.*)$/m.exec(block)?.[1] ?? '';
+        if (!/\bjs\d+\b/.test(handlers))
+            continue;
+        if (VIRTUAL_PADS.some(pattern => pattern.test(name)))
+            continue;
+        pads.push(name || 'Game controller');
+    }
+    return pads;
+}
+
+// Layout remembered per game (window class), falling back to the defaults.
+export function layoutForGame(saved, game, defaults) {
+    const entry = game && saved && typeof saved === 'object' ? saved[game] : null;
+    return {
+        left: entry?.left === 'dpad' || entry?.left === 'stick' ? entry.left : defaults.left,
+        face: entry?.face === 'gamecube' || entry?.face === 'diamond' ? entry.face : defaults.face,
+    };
+}
+
+export function parseSavedLayouts(json) {
+    try {
+        const value = JSON.parse(json || '{}');
+        return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    } catch (e) {
+        return {};
+    }
+}

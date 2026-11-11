@@ -21,7 +21,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {eventActor} from './touchRouter.js';
 import {sameSequence} from './tabletGeometry.js';
 import {isSteamGame, stickValue, dpadValue, gamepadLayout, faceButtonAt, encode,
-    TRIGGERS} from './gamepadLogic.js';
+    TRIGGERS, physicalGamepads, layoutForGame, parseSavedLayouts} from './gamepadLogic.js';
 
 export const HELPER = '/usr/libexec/mutsu-os/mutsu-virtual-gamepad';
 
@@ -29,8 +29,18 @@ const LABELS = {a: 'A', b: 'B', x: 'X', y: 'Y', l: 'L', r: 'R', zl: 'ZL', zr: 'Z
     select: '⧉', home: '⌂', start: '☰'};
 
 export class TabletGamepad {
-    constructor(settings, {spawn = null} = {}) {
+    constructor(settings, {spawn = null, pads = null} = {}) {
         this._settings = settings;
+        // A real controller plugged in: the overlay steps aside (a Show
+        // controls chip stays) until it's unplugged or you ask for it.
+        this._pads = pads ?? new PadWatcher();
+        this._padsConnected = this._pads.connected;
+        this._showDespitePad = false;
+        this._pads.onChange = connected => {
+            this._padsConnected = connected;
+            this._showDespitePad = false;
+            this._sync();
+        };
         this._spawn = spawn ?? (argv => this._spawnHelper(argv));
         this._helper = null;
         this._root = null;
@@ -40,7 +50,7 @@ export class TabletGamepad {
         this._signals = [];
         this._connect(global.display, 'notify::focus-window', () => this._sync());
         this._connect(Main.layoutManager, 'monitors-changed', () => this._rebuild());
-        for (const key of ['gamepad-overlay', 'gamepad-left', 'gamepad-face'])
+        for (const key of ['gamepad-overlay', 'gamepad-left', 'gamepad-face', 'gamepad-games'])
             this._connect(settings, `changed::${key}`, () => this._rebuild());
         this._connect(global.stage, 'captured-event', (_stage, event) => this._event(event));
         this._sync();
@@ -56,25 +66,54 @@ export class TabletGamepad {
     _wanted() {
         if (!this._settings.get_boolean('gamepad-overlay'))
             return false;
+        return !!this._currentGame();
+    }
+
+    // The focused game's window class (the key its layout is saved under).
+    _currentGame() {
         const window = global.display.focus_window;
         if (!window)
-            return false;
-        return isSteamGame(window.get_wm_class?.(), window.get_gtk_application_id?.() ?? '');
+            return null;
+        const cls = window.get_wm_class?.() ?? '';
+        const appId = window.get_gtk_application_id?.() ?? '';
+        if (!isSteamGame(cls, appId))
+            return null;
+        return String(isSteamGame(cls) ? cls : appId).toLowerCase();
     }
+
+    _layoutChoice(game = this._currentGame()) {
+        const defaults = {
+            left: this._settings.get_string('gamepad-left') === 'dpad' ? 'dpad' : 'stick',
+            face: this._settings.get_string('gamepad-face') === 'gamecube' ? 'gamecube' : 'diamond',
+        };
+        let saved = {};
+        try {
+            saved = parseSavedLayouts(this._settings.get_string('gamepad-games'));
+        } catch (e) {}
+        return layoutForGame(saved, game, defaults);
+    }
+
+    get autoHidden() { return this._padsConnected && !this._showDespitePad; }
 
     _sync() {
         const wanted = this._wanted();
+        // Another game came forward with a different saved layout.
+        if (wanted && this._root && this._layout) {
+            const choice = this._layoutChoice();
+            if (choice.left !== this._layout.left || choice.face !== this._layout.face)
+                this._destroyActors();
+        }
         if (wanted && !this._root)
             this._build();
         if (!this._root)
             return;
-        const show = wanted && !this._hidden;
+        const show = wanted && !this._hidden && !this.autoHidden;
         if (!show)
             this._releaseAll();
         this._root.visible = wanted;
         for (const actor of this._controls ?? [])
             actor.visible = show;
-        this._showChip.visible = wanted && this._hidden;
+        this._showChip.visible = wanted && !show;
         this._setUnredirect(wanted);
     }
 
@@ -99,8 +138,7 @@ export class TabletGamepad {
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
             return;
-        const left = this._settings.get_string('gamepad-left') === 'dpad' ? 'dpad' : 'stick';
-        const face = this._settings.get_string('gamepad-face') === 'gamecube' ? 'gamecube' : 'diamond';
+        const {left, face} = this._layoutChoice();
         const topInset = Main.panel?.height ?? 32;
         this._layout = gamepadLayout(monitor, left, face, topInset);
         const L = this._layout;
@@ -306,17 +344,30 @@ export class TabletGamepad {
     }
 
     _toggle(name) {
-        if (name === 'left') {
-            const next = this._layout.left === 'dpad' ? 'stick' : 'dpad';
-            this._settings.set_string('gamepad-left', next);
-        } else if (name === 'face') {
-            const next = this._layout.face === 'gamecube' ? 'diamond' : 'gamecube';
-            this._settings.set_string('gamepad-face', next);
+        if (name === 'left' || name === 'face') {
+            // Remembered for this game; other games keep their own (or the
+            // defaults from settings).
+            const game = this._currentGame();
+            const next = {left: this._layout.left, face: this._layout.face};
+            if (name === 'left')
+                next.left = next.left === 'dpad' ? 'stick' : 'dpad';
+            else
+                next.face = next.face === 'gamecube' ? 'diamond' : 'gamecube';
+            if (!game) {
+                this._settings.set_string(name === 'left' ? 'gamepad-left' : 'gamepad-face',
+                    name === 'left' ? next.left : next.face);
+                return;
+            }
+            const saved = parseSavedLayouts(this._settings.get_string('gamepad-games'));
+            saved[game] = next;
+            this._settings.set_string('gamepad-games', JSON.stringify(saved));
         } else if (name === 'hide') {
             this._hidden = true;
             this._sync();
         } else if (name === 'show') {
             this._hidden = false;
+            if (this._padsConnected)
+                this._showDespitePad = true;
             this._sync();
         }
     }
@@ -415,6 +466,8 @@ export class TabletGamepad {
     }
 
     destroy() {
+        this._pads.onChange = null;
+        this._pads.destroy?.();
         for (const [object, id] of this._signals)
             object.disconnect(id);
         this._signals = [];
@@ -422,5 +475,68 @@ export class TabletGamepad {
         this._setUnredirect(false);
         this._helper?.close();
         this._helper = null;
+    }
+}
+
+// Watches for real game controllers: /dev/input changes trigger a re-read of
+// /proc/bus/input/devices (async, small).
+class PadWatcher {
+    constructor() {
+        this.connected = false;
+        this.onChange = null;
+        this._monitor = null;
+        this._timer = 0;
+        try {
+            this._monitor = Gio.File.new_for_path('/dev/input').monitor_directory(
+                Gio.FileMonitorFlags.NONE, null);
+            this._monitor.connect('changed', () => this._queue());
+        } catch (e) {
+            this._monitor = null;
+        }
+        this._read(true);
+    }
+
+    _queue() {
+        if (this._timer)
+            return;
+        // Devices appear in bursts (event + js nodes); settle first.
+        this._timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+            this._timer = 0;
+            this._read(false);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _read(initial) {
+        const file = Gio.File.new_for_path('/proc/bus/input/devices');
+        const apply = text => {
+            const connected = physicalGamepads(text).length > 0;
+            if (connected === this.connected)
+                return;
+            this.connected = connected;
+            if (!initial)
+                this.onChange?.(connected);
+        };
+        if (initial) {
+            try {
+                const [, bytes] = file.load_contents(null);
+                apply(new TextDecoder().decode(bytes));
+            } catch (e) {}
+            return;
+        }
+        file.load_contents_async(null, (f, result) => {
+            try {
+                const [, bytes] = f.load_contents_finish(result);
+                apply(new TextDecoder().decode(bytes));
+            } catch (e) {}
+        });
+    }
+
+    destroy() {
+        if (this._timer)
+            GLib.source_remove(this._timer);
+        this._timer = 0;
+        this._monitor?.cancel();
+        this._monitor = null;
     }
 }

@@ -8,8 +8,10 @@ const strip = file => fs.readFileSync(path.join(folder, file), 'utf8')
     .replace(/^import [\s\S]*?;$/gm, '').replace(/export /g, '');
 
 const logic = new Function(`${strip('gamepadLogic.js')};
-    return {isSteamGame, stickValue, dpadValue, gamepadLayout, faceButtonAt, encode, TRIGGERS, STICK_MAX};`)();
-const {isSteamGame, stickValue, dpadValue, gamepadLayout, faceButtonAt, encode} = logic;
+    return {isSteamGame, stickValue, dpadValue, gamepadLayout, faceButtonAt, encode, TRIGGERS, STICK_MAX,
+        physicalGamepads, layoutForGame, parseSavedLayouts};`)();
+const {isSteamGame, stickValue, dpadValue, gamepadLayout, faceButtonAt, encode, physicalGamepads, layoutForGame,
+    parseSavedLayouts} = logic;
 
 // Steam games only.
 assert.equal(isSteamGame('steam_app_1245620'), true);
@@ -75,6 +77,32 @@ assert.equal(faceButtonAt(diamond, diamond.buttons.b.cx, diamond.buttons.b.cy), 
 assert.equal(faceButtonAt(diamond, 0, 0), null);
 assert.equal(encode([{k: ['a', true]}, {a: ['lx', -12.4]}, {h: [0, -1]}]), 'k a 1;a lx -12;h 0 -1');
 
+// Real controllers, not virtual ones.
+const proc = `I: Bus=0003 Vendor=045e Product=028e Version=0110
+N: Name="Mutsu On-Screen Gamepad"
+H: Handlers=event20 js0
+
+I: Bus=0003 Vendor=28de Product=11ff Version=0001
+N: Name="Steam Virtual Gamepad"
+H: Handlers=event21 js1
+
+I: Bus=0011 Vendor=0001 Product=0001 Version=ab41
+N: Name="AT Translated Set 2 keyboard"
+H: Handlers=sysrq kbd event3 leds`;
+assert.deepEqual(physicalGamepads(proc), [], 'our pad, Steam virtual pads and keyboards are not controllers');
+assert.deepEqual(physicalGamepads(proc + `
+
+I: Bus=0005 Vendor=054c Product=0ce6 Version=8100
+N: Name="DualSense Wireless Controller"
+H: Handlers=event22 js2`), ['DualSense Wireless Controller']);
+// Per-game layouts.
+const defaults = {left: 'stick', face: 'diamond'};
+assert.deepEqual(layoutForGame({steam_app_1: {left: 'dpad', face: 'gamecube'}}, 'steam_app_1', defaults),
+    {left: 'dpad', face: 'gamecube'});
+assert.deepEqual(layoutForGame({steam_app_1: {left: 'dpad'}}, 'steam_app_2', defaults), defaults, 'other games: defaults');
+assert.deepEqual(layoutForGame({steam_app_1: {left: 'nonsense'}}, 'steam_app_1', defaults), defaults);
+assert.deepEqual(parseSavedLayouts('not json'), {});
+
 // ---- the overlay ----------------------------------------------------------
 class Emitter {
     constructor() { this.signals = new Map(); this.next = 0; }
@@ -130,7 +158,8 @@ const {TabletGamepad} = new Function('Clutter', 'Gio', 'GLib', 'St', 'Main',
     e => globalThis.global.stage.get_event_actor(e), (a, b) => a === b, ...Object.values(logic));
 
 const settings = new Settings();
-const pad = new TabletGamepad(settings, {spawn: argv => {
+const pads = {connected: false, onChange: null};
+const pad = new TabletGamepad(settings, {pads, spawn: argv => {
     spawned.push(argv);
     return {write: line => sent.push(line.trim()), close() { this.closed = true; }};
 }});
@@ -170,7 +199,8 @@ const chips = [...pad._hits.entries()];
 const chipFor = id => chips.find(([, v]) => v === id)[0];
 touch(T.TOUCH_BEGIN, chipFor('toggle:left'), 0, 0, 'c1');
 touch(T.TOUCH_END, null, 0, 0, 'c1');
-assert.equal(settings.values['gamepad-left'], 'dpad');
+assert.equal(JSON.parse(settings.values['gamepad-games']).steam_app_570.left, 'dpad', 'remembered for this game');
+assert.equal(settings.values['gamepad-left'], 'stick', 'defaults for other games unchanged');
 assert(pad.layout.dpad && !pad.layout.stick, 'D-pad instead of the circle pad');
 const d = pad.layout.dpad;
 const dpadActor = [...pad._hits.entries()].find(([, v]) => v === 'dpad')[0];
@@ -183,8 +213,24 @@ touch(T.TOUCH_END, null, 0, 0, 'd1');
 assert.equal(sent.at(-1), 'h 0 0');
 touch(T.TOUCH_BEGIN, [...pad._hits.entries()].find(([, v]) => v === 'toggle:face')[0], 0, 0, 'c2');
 touch(T.TOUCH_END, null, 0, 0, 'c2');
-assert.equal(settings.values['gamepad-face'], 'gamecube');
+assert.equal(JSON.parse(settings.values['gamepad-games']).steam_app_570.face, 'gamecube');
 assert(pad.layout.buttons.a.radius > pad.layout.buttons.b.radius * 1.5);
+// Another game: its own layout (the defaults); back to the first: its saved one.
+focus.cls = 'steam_app_42';
+display.emit('notify::focus-window');
+assert(pad.layout.stick && pad.layout.face === 'diamond', 'another game starts from the defaults');
+focus.cls = 'steam_app_570';
+display.emit('notify::focus-window');
+assert(pad.layout.dpad && pad.layout.face === 'gamecube', 'the first game keeps its layout');
+// A real controller plugged in: the overlay steps aside, Show controls stays.
+pads.connected = true; pads.onChange(true);
+assert.equal(pad._buttonActors.a.visible, false, 'hidden while a real controller is connected');
+assert.equal(pad._showChip.visible, true);
+touch(T.TOUCH_BEGIN, pad._showChip, 0, 0, 'p1');
+touch(T.TOUCH_END, null, 0, 0, 'p1');
+assert.equal(pad._buttonActors.a.visible, true, 'Show controls brings it back anyway');
+pads.connected = false; pads.onChange(false);
+assert.equal(pad._buttonActors.a.visible, true, 'unplugged: shown');
 
 // Hide / show.
 touch(T.TOUCH_BEGIN, [...pad._hits.entries()].find(([, v]) => v === 'toggle:hide')[0], 0, 0, 'h1');
@@ -212,4 +258,4 @@ assert.equal(pad.visible, false);
 pad.destroy();
 assert.equal(chrome.length, 0, 'overlay removed');
 assert.equal(unredirect, 0);
-console.log('On-screen gamepad checks passed (game detection, stick, D-pad, ABXY + slide, triggers, GameCube, hide, focus).');
+console.log('On-screen gamepad checks passed (real-controller hide, per-game layouts, game detection, stick, D-pad, ABXY + slide, triggers, GameCube, hide, focus).');
