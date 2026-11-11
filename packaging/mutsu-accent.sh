@@ -26,6 +26,7 @@ write_block() {
 write_block "$HOME/.config/gtk-4.0/gtk.css" ':root {
   --accent-bg-color: #7F9A82;
   --accent-fg-color: #ffffff;
+  --accent-color: #5E7A62;
 }'
 write_block "$HOME/.config/gtk-3.0/gtk.css" '@define-color accent_bg_color #7F9A82;
 @define-color accent_fg_color #ffffff;

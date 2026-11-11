@@ -397,3 +397,17 @@
 .slider { -barlevel-active-background-color: #7F9A82; }
 StEntry { selection-background-color: rgba(127, 154, 130, 0.35); }
 .osd-monitor-label, .osd-break-countdown-label { background-color: #7F9A82; color: #ffffff; }
+/* The rest of the places GNOME paints its (green) accent. */
+.level-bar { background-color: #7F9A82; }
+.calendar-today, .calendar-today:hover, .calendar-today:focus { background-color: #7F9A82; color: #ffffff; }
+.url-highlighter { link-color: #5E7761; }
+.button.default, .modal-dialog-button.default, .notification-button.default,
+.button:default, .modal-dialog-button:default { background-color: #7F9A82; color: #ffffff; }
+.button.default:hover, .modal-dialog-button.default:hover,
+.button:default:hover, .modal-dialog-button:default:hover { background-color: #8AA58D; }
+.search-entry:focus, StEntry:focus { border-color: #7F9A82; }
+.keyboard-key.default-key, .keyboard-key:checked, .keyboard-key.enter-key { background-color: #7F9A82; color: #ffffff; }
+.workspace-thumbnail-indicator { border-color: #7F9A82; }
+.app-grid-running-dot, .app-well-app-running-dot { background-color: #7F9A82; }
+.page-indicator:checked .page-indicator-icon { background-color: #7F9A82; }
+.window-caption:focus, .window-clone-border { border-color: #7F9A82; }
