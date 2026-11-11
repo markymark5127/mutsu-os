@@ -22,7 +22,8 @@ results = []  # (section, name, ok, detail)
 
 def record(section, name, ok, detail=""):
     results.append((section, name, bool(ok), str(detail)))
-    print(f"[{'PASS' if ok else 'FAIL'}] {section}: {name} {detail}", flush=True)
+    # The time lines checks up with the shell's own warnings in the log.
+    print(f"{time.strftime('%H:%M:%S')} [{'PASS' if ok else 'FAIL'}] {section}: {name} {detail}", flush=True)
 
 
 try:
@@ -579,6 +580,15 @@ def gamepad_flow():
         record(S, "appears over a game Steam launched", isinstance(state, dict) and state.get("visible"), state)
         if not (isinstance(state, dict) and state.get("visible")):
             return
+        # A real controller on the CI host would step the overlay aside; note
+        # what it saw, then act as if none were plugged in.
+        pads = js(f"""(() => {{ const g = {T}.ext()._gamepad;
+            const seen = {{padsConnected: g._padsConnected, autoHidden: g.autoHidden}};
+            g._padsConnected = false; g._sync();
+            seen.controls = (g._controls ?? []).filter(a => a.visible).length;
+            return seen; }})()""")
+        record(S, "controls show when no real controller is plugged in",
+               isinstance(pads, dict) and pads.get("controls", 0) > 0, pads)
         # Record what would go to the virtual controller.
         js(f"""(() => {{ const g = {T}.ext()._gamepad; globalThis.__mutsuPad = [];
             g._helper = null; g._spawn = () => ({{write: l => globalThis.__mutsuPad.push(l.trim()), close() {{}}}});
@@ -605,6 +615,8 @@ def gamepad_flow():
         record(S, "chips swap to the GameCube layout and the D-pad",
                layout == {"face": "gamecube", "left": "dpad", "dpad": True}, layout)
         saved = js(f"{T}.ext()._settings.get_string('gamepad-games')")
+        if not isinstance(saved, str):
+            saved = json.dumps(saved)
         record(S, "the swapped layout is remembered for this game",
                isinstance(saved, str) and '"steam_app_570"' in saved and 'gamecube' in saved, saved)
         js(f"{T}.ext()._settings.set_string('gamepad-games', '{{}}')")

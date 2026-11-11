@@ -3,6 +3,9 @@ name: Mutsu GNOME Settings (test build)
 # Builds Mutsu's GNOME Settings on its own, in the same base image the OS
 # uses, so a broken patch shows up in minutes instead of an hour into the
 # image build. The image build runs the same script.
+#
+# The base image has more layers than Docker can stack ("max depth
+# exceeded"), so it runs under Podman rather than as a job container.
 on:
   workflow_dispatch:
   push:
@@ -18,22 +21,25 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    container:
-      image: ghcr.io/ublue-os/bazzite-gnome:stable
-      options: --privileged
     steps:
       - uses: actions/checkout@v4
-      - name: Build gnome-control-center with Mutsu's pages
-        run: bash packaging/settings/build-gnome-settings.sh /tmp/mutsu-settings-rpms
-      - name: Mutsu panel is in the build
+      - name: Free disk space
         run: |
-          set -eux
-          rpm2cpio /tmp/mutsu-settings-rpms/gnome-control-center-[0-9]*.rpm | cpio -t 2>/dev/null | grep -E 'gnome-mutsu-updates-panel.desktop'
-          dnf5 -y install /tmp/mutsu-settings-rpms/*.rpm
-          rpm -q gnome-control-center | grep mutsu
-          strings "$(command -v gnome-control-center)" | grep -q mutsu-updates
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+      - name: Build gnome-control-center with Mutsu's pages
+        run: |
+          mkdir -p out
+          podman run --rm --privileged -v "$PWD:/src:Z" -w /src \
+            ghcr.io/ublue-os/bazzite-gnome:stable bash -euxc '
+              bash packaging/settings/build-gnome-settings.sh /src/out
+              rpm2cpio out/gnome-control-center-[0-9]*.rpm | cpio -t 2>/dev/null | grep -E "gnome-mutsu-updates-panel.desktop"
+              dnf5 -y install out/*.rpm
+              rpm -q gnome-control-center | grep mutsu
+              strings "$(command -v gnome-control-center)" | grep -q mutsu-updates
+            '
       - uses: actions/upload-artifact@v4
         with:
           name: mutsu-gnome-settings-rpms
-          path: /tmp/mutsu-settings-rpms/*.rpm
+          path: out/*.rpm
           retention-days: 7

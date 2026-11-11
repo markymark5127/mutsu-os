@@ -3,6 +3,13 @@ FROM scratch AS ctx
 COPY build_files /
 COPY system_files /system_files
 
+# Mutsu's GNOME Settings: the base image's own gnome-control-center rebuilt
+# with Mutsu's pages (Software Updates). Built in a throwaway stage so the
+# compilers never reach the final image; only the RPMs are copied over.
+FROM ghcr.io/ublue-os/bazzite-gnome:stable AS settings
+COPY packaging/settings/ /tmp/mutsu-settings/
+RUN bash /tmp/mutsu-settings/build-gnome-settings.sh /out
+
 # Base Image
 FROM ghcr.io/ublue-os/bazzite-gnome:stable
 RUN dnf5 install -y plymouth-plugin-script librsvg2-tools && test -f /usr/lib64/plymouth/script.so
@@ -217,6 +224,36 @@ RUN bash /tmp/mutsu-install-terminal-branding.sh && \
     systemctl enable mutsu-hostname.service mutsu-live-session.service mutsu-flatpak-preinstall.service && \
     test -s /usr/share/flatpak/preinstall.d/mutsu-os.preinstall && \
     rm -rf /tmp/mutsu-terminal-assets /tmp/mutsu-install-terminal-branding.sh
+
+### SOFTWARE UPDATES
+# Settings → Software Updates drives bootc through mutsu-update-backend (a
+# root service the page starts through systemd); a daily timer checks and,
+# unless turned off, installs in the background. It replaces Bazzite's uupd.
+COPY --from=settings /out/ /tmp/mutsu-settings-rpms/
+COPY packaging/mutsu-update-backend /usr/libexec/mutsu-os/mutsu-update-backend
+COPY packaging/updates/mutsu-update-notify /usr/libexec/mutsu-os/mutsu-update-notify
+COPY packaging/updates/*.service packaging/updates/*.timer /tmp/mutsu-update-units/
+COPY packaging/updates/mutsu-update-notify.path /tmp/mutsu-update-units/
+COPY packaging/updates/50-mutsu-updates.rules /usr/share/polkit-1/rules.d/50-mutsu-updates.rules
+RUN set -eux; \
+    dnf5 -y install /tmp/mutsu-settings-rpms/gnome-control-center-[0-9]*.rpm \
+        $(ls /tmp/mutsu-settings-rpms/gnome-control-center-filesystem-*.rpm 2>/dev/null); \
+    rpm -q gnome-control-center | grep -q mutsu; \
+    test -s /usr/share/applications/gnome-mutsu-updates-panel.desktop; \
+    chmod 0755 /usr/libexec/mutsu-os/mutsu-update-backend /usr/libexec/mutsu-os/mutsu-update-notify; \
+    for unit in /tmp/mutsu-update-units/*; do \
+        case "$unit" in \
+            *notify.service|*notify.path) install -Dm0644 "$unit" "/usr/lib/systemd/user/$(basename "$unit")" ;; \
+            *) install -Dm0644 "$unit" "/usr/lib/systemd/system/$(basename "$unit")" ;; \
+        esac; \
+    done; \
+    systemctl enable mutsu-update-timer.timer mutsu-update-status.service; \
+    systemctl --global enable mutsu-update-notify.path; \
+    for unit in uupd.timer rpm-ostreed-automatic.timer; do \
+        if systemctl list-unit-files "$unit" >/dev/null 2>&1; then systemctl mask "$unit"; fi; \
+    done; \
+    python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" /usr/libexec/mutsu-os/mutsu-update-backend; \
+    rm -rf /tmp/mutsu-settings-rpms /tmp/mutsu-update-units
 
 ### USER-FACING MUTSU IDENTITY
 # Clear inherited Bazzite first-run, wallpaper choices, and update launcher.

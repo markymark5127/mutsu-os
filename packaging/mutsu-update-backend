@@ -108,11 +108,29 @@ def remote_digest(image: str) -> str | None:
     if not image:
         return None
     result = run(["skopeo", "inspect", "--format", "{{.Digest}}", f"docker://{image}"], timeout=120)
-    return result.stdout.strip() or None if result.returncode == 0 else None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def check_output_says(text: str) -> bool | None:
+    """`bootc upgrade --check` output -> update available? (None: can't tell)"""
+    lowered = (text or "").lower()
+    if "no changes" in lowered or "no update available" in lowered:
+        return False
+    if "update available" in lowered:
+        return True
+    return None
 
 
 def update_available(status: dict) -> bool | None:
     """Is the registry's image newer than what's booted (or staged)?"""
+    # bootc compares the right manifest itself; skopeo is the fallback.
+    result = run(["bootc", "upgrade", "--check"], timeout=300)
+    if result.returncode == 0:
+        said = check_output_says(result.stdout + "\n" + result.stderr)
+        if said is not None:
+            return said
     image = status.get("image") or (status.get("booted") or {}).get("image")
     latest = remote_digest(image)
     if latest is None:

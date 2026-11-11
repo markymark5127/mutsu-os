@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# Native Mutsu-facing launcher. The system update engine remains upstream.
+# Mutsu OS Updater: opens Settings → Software Updates. Falls back to the
+# terminal update (ujust update) only if that page isn't there.
 set -euo pipefail
+
+if [[ -s /usr/share/applications/gnome-mutsu-updates-panel.desktop ]] && command -v gnome-control-center >/dev/null 2>&1; then
+  exec gnome-control-center mutsu-updates
+fi
 
 runner=/usr/libexec/mutsu-os/run-mutsu-update.sh
 if command -v xdg-terminal-exec >/dev/null 2>&1; then
@@ -9,6 +14,6 @@ fi
 if command -v ptyxis >/dev/null 2>&1; then
   exec ptyxis --new-window -- "$runner"
 fi
-echo >&2 "Mutsu OS Updates needs an installed terminal (xdg-terminal-exec or Ptyxis)."
+echo >&2 "Mutsu OS Updates needs Settings or a terminal (xdg-terminal-exec or Ptyxis)."
 echo >&2 "You can update manually using: ujust update"
 exit 1

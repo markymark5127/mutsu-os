@@ -212,6 +212,12 @@ export const PULL_SEARCH_PX = 72;
 
 // Perspective for multitasking blades. `offset` is the distance of a blade
 // from the viewport centre in blade widths: 0 is the focused blade.
+// A Clutter.Clone of an actor with no real size yet (a window still mapping)
+// ends up with a NaN allocation; only clone sources with a size.
+export function cloneable(width, height) {
+    return Number.isFinite(width) && Number.isFinite(height) && width >= 1 && height >= 1;
+}
+
 export function bladeTransform(offset) {
     const distance = Math.min(Math.abs(offset), 3);
     return {

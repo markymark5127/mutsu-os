@@ -4,7 +4,7 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {bladeTransform, groupWindows, isWindowMaximized, maximizeWindow, unmaximizeWindow}
+import {bladeTransform, cloneable, groupWindows, isWindowMaximized, maximizeWindow, unmaximizeWindow}
     from './tabletGeometry.js';
 import {TouchRouter, makeTappable, findHandler} from './touchRouter.js';
 import {vbox} from './stCompat.js';
@@ -305,8 +305,8 @@ export class TabletBlades {
         const preview = new St.Widget({style_class: 'mutsu-pane-preview', clip_to_allocation: true,
             x_expand: true, y_expand: true, layout_manager: new Clutter.BinLayout()});
         const source = window.get_compositor_private();
-        if (source) {
-            const rect = window.get_frame_rect();
+        const rect = window.get_frame_rect();
+        if (source && cloneable(rect.width, rect.height) && cloneable(...source.get_size())) {
             const boxW = this._bladeW - 24, boxH = Math.max(40, height - 34);
             const scale = Math.min(boxW / Math.max(1, rect.width), boxH / Math.max(1, rect.height));
             const clone = new Clutter.Clone({source, x_align: Clutter.ActorAlign.CENTER,
@@ -456,7 +456,7 @@ export class TabletBlades {
 
     longPress(s) {
         const blade = findHandler(s.source, this._root, '_mutsuBlade');
-        if (!blade)
+        if (!blade || !cloneable(this._bladeW, this._bladeH))
             return false;
         const [x, y] = blade.get_transformed_position();
         const clone = new Clutter.Clone({source: blade, opacity: 220});

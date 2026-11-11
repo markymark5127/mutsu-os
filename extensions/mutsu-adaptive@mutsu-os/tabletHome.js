@@ -5,7 +5,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
-import {homeMetrics, slotAt, pageSnap, pullDownAllowed, PULL_SEARCH_PX} from './tabletGeometry.js';
+import {homeMetrics, slotAt, pageSnap, pullDownAllowed, PULL_SEARCH_PX, cloneable} from './tabletGeometry.js';
 import {HomeLayout, itemId} from './homeLayout.js';
 import {TouchRouter, makeTappable, findHandler} from './touchRouter.js';
 import {TouchMenu} from './touchMenu.js';
@@ -747,6 +747,8 @@ export class TabletHome {
         if (!fromDock && !info)
             return;
         const [tx, ty] = actor.get_transformed_position();
+        if (!cloneable(...actor.get_size()) || !Number.isFinite(tx) || !Number.isFinite(ty))
+            return;
         const clone = new Clutter.Clone({source: actor, opacity: 230});
         clone.set_size(...actor.get_size());
         this._dragLayer.add_child(clone);

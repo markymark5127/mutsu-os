@@ -148,7 +148,7 @@ const settings = Object.assign(new Emitter(), {values: {'home-layout': '', 'home
     set_string(k, v) { this.values[k] = v; this.emit(`changed::${k}`); }});
 
 const geometry = load('tabletGeometry.js', ['homeMetrics', 'slotAt', 'pageSnap', 'pullDownAllowed',
-    'PULL_SEARCH_PX', 'classifyDrag', 'sameSequence', 'bladeTransform', 'groupWindows', 'isWindowMaximized',
+    'PULL_SEARCH_PX', 'classifyDrag', 'sameSequence', 'bladeTransform', 'cloneable', 'groupWindows', 'isWindowMaximized',
     'maximizeWindow', 'unmaximizeWindow'], {});
 const {HomeLayout, itemId} = load('homeLayout.js', ['HomeLayout', 'itemId'], {});
 const router = load('touchRouter.js', ['TouchRouter', 'makeTappable', 'findHandler', 'eventActor'],
@@ -434,7 +434,7 @@ assert.equal(display.handlerCount, 0, 'blades disconnect display signals');
 console.log('Multitasking blades checks passed (per-app blades, panes, traffic lights, swipe close/minimize, Spaces drop, Split View, keyboard, cleanup).');
 
 // ---- Pull-up dock: drag an app to a screen edge / Slide Over -------------
-const geo2 = load('tabletGeometry.js', ['dockDropZone', 'gripResize', 'isWindowMaximized'], {});
+const geo2 = load('tabletGeometry.js', ['dockDropZone', 'cloneable', 'gripResize', 'isWindowMaximized'], {});
 const arranged = [];
 const fakeSplit = {pair: null, slides: [], arrange: (l, r) => arranged.push(['split', l, r]),
     slideOver: w => arranged.push(['slide', w])};
@@ -448,7 +448,7 @@ const globalDock = {display, stage: stageEmitter};
 favorites.list = ['org.gnome.Nautilus.desktop'];
 const layoutDock = Object.assign(layoutManager, {addChrome: a => uiGroup.add_child(a), removeChrome: a => uiGroup.remove_child(a)});
 const {TabletDockPopup} = load('tabletDockPopup.js', ['TabletDockPopup'], {Clutter, GLib, Shell, St,
-    AppFavorites, Main: {...Main, layoutManager: layoutDock}, dockDropZone: geo2.dockDropZone,
+    AppFavorites, Main: {...Main, layoutManager: layoutDock}, dockDropZone: geo2.dockDropZone, cloneable: geo2.cloneable,
     ...router, windowForApp: (app, cb) => cb(app.get_windows()[0]), global: globalDock, vbox});
 const popup = new TabletDockPopup(() => {}, () => monitor, fakeSplit);
 popup.show();

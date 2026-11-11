@@ -124,3 +124,8 @@ IsRuntime=false
 [Flatpak Preinstall page.tesk.Refine]
 Branch=stable
 IsRuntime=false
+
+# Backups (the welcome wizard's Backups step sets it up)
+[Flatpak Preinstall org.gnome.DejaDup]
+Branch=stable
+IsRuntime=false

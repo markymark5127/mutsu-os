@@ -4,7 +4,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {dockDropZone} from './tabletGeometry.js';
+import {dockDropZone, cloneable} from './tabletGeometry.js';
 import {TouchRouter, makeTappable, findHandler, eventActor} from './touchRouter.js';
 import {windowForApp} from './tabletSplitView.js';
 import {vbox} from './stCompat.js';
@@ -112,6 +112,8 @@ export class TabletDockPopup {
     _startCarry(button, app, s) {
         const monitor = this._monitor();
         const [x, y] = button.get_transformed_position();
+        if (!cloneable(...button.get_size()))
+            return;
         const clone = new Clutter.Clone({source: button, opacity: 230});
         clone.set_size(...button.get_size());
         clone.set_pivot_point(0.5, 0.5);

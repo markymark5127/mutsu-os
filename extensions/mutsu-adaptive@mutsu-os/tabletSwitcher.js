@@ -3,7 +3,7 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {navigationAction, sameSequence} from './tabletGeometry.js';
+import {navigationAction, sameSequence, cloneable} from './tabletGeometry.js';
 import {TabletDockPopup} from './tabletDockPopup.js';
 import {TabletSplitView} from './tabletSplitView.js';
 import {TabletBlades} from './tabletBlades.js';
@@ -200,6 +200,8 @@ export class TabletSwitcher {
             return;
         const monitor = this._monitor();
         const rect = window.get_frame_rect();
+        if (!cloneable(rect.width, rect.height) || !cloneable(...source.get_size()))
+            return;
         this._preview = new St.Widget({reactive: false, clip_to_allocation: true});
         this._preview.set_position(monitor.x, monitor.y);
         this._preview.set_size(monitor.width, monitor.height);

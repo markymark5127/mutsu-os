@@ -135,7 +135,10 @@ export const TRIGGERS = new Set(['zl', 'zr']);
 // Real game controllers from /proc/bus/input/devices: entries with a
 // joystick handler (jsN). Our own virtual pad and Steam's virtual copies of
 // pads don't count (Steam Input wraps any pad, ours included).
-const VIRTUAL_PADS = [/mutsu on-screen gamepad/i, /steam virtual/i, /steam deck/i];
+// Not controllers you hold: our own pad, Steam's virtual ones, and motion
+// sensors (laptop accelerometers, a controller's IMU) that also get js nodes.
+const VIRTUAL_PADS = [/mutsu on-screen gamepad/i, /steam virtual/i, /steam deck/i,
+    /accelerometer/i, /motion sensors?/i, /hdaps/i, /\bimu\b/i];
 
 export function physicalGamepads(procDevices) {
     const pads = [];

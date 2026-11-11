@@ -88,8 +88,16 @@ H: Handlers=event21 js1
 
 I: Bus=0011 Vendor=0001 Product=0001 Version=ab41
 N: Name="AT Translated Set 2 keyboard"
-H: Handlers=sysrq kbd event3 leds`;
-assert.deepEqual(physicalGamepads(proc), [], 'our pad, Steam virtual pads and keyboards are not controllers');
+H: Handlers=sysrq kbd event3 leds
+
+I: Bus=0019 Vendor=0000 Product=0000 Version=0000
+N: Name="ST LIS3LV02DL Accelerometer"
+H: Handlers=event5 js3
+
+I: Bus=0005 Vendor=054c Product=0ce6 Version=8100
+N: Name="DualSense Wireless Controller Motion Sensors"
+H: Handlers=event23 js4`;
+assert.deepEqual(physicalGamepads(proc), [], 'our pad, Steam virtual pads, sensors and keyboards are not controllers');
 assert.deepEqual(physicalGamepads(proc + `
 
 I: Bus=0005 Vendor=054c Product=0ce6 Version=8100
