@@ -62,6 +62,8 @@ COPY packaging/wait-local-model.py /usr/libexec/mutsu-os/wait-local-model.py
 COPY packaging/mutsu-welcome.service /usr/lib/systemd/user/mutsu-welcome.service
 COPY packaging/mutsu-welcome.desktop /etc/xdg/autostart/mutsu-welcome.desktop
 COPY packaging/mutsu-newelle-link.service /usr/lib/systemd/user/mutsu-newelle-link.service
+COPY packaging/mutsu-accent.service /usr/lib/systemd/user/mutsu-accent.service
+COPY packaging/mutsu-accent.sh /usr/libexec/mutsu-os/mutsu-accent.sh
 COPY packaging/io.github.markymark5127.AIDesktop.desktop /usr/share/applications/io.github.markymark5127.AIDesktop.desktop
 COPY packaging/90-mutsu-wallpaper.gschema.override /usr/share/glib-2.0/schemas/90-mutsu-wallpaper.gschema.override
 COPY packaging/20-mutsu-shortcut.dconf /etc/dconf/db/mutsu.d/20-mutsu-shortcut
@@ -72,10 +74,11 @@ COPY packaging/60-mutsu-kiwi.dconf /etc/dconf/db/mutsu.d/60-mutsu-kiwi
 COPY packaging/configure-shortcut-defaults.sh /tmp/mutsu-configure-shortcut-defaults.sh
 COPY vendor/ai-desktop/scripts/configure-newelle-key.sh /usr/share/mutsu-os/scripts/configure-newelle-key.sh
 COPY vendor/ai-desktop/scripts/install-newelle-service.sh /usr/share/mutsu-os/scripts/install-newelle-service.sh
-RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login /usr/libexec/mutsu-os/setup-newelle-user.sh && \
+RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login /usr/libexec/mutsu-os/setup-newelle-user.sh /usr/libexec/mutsu-os/mutsu-accent.sh && \
     install -d /etc/systemd/user/default.target.wants /etc/systemd/user/graphical-session.target.wants /etc/xdg/autostart && \
     ln -sfn /usr/lib/systemd/user/mutsu-welcome.service /etc/systemd/user/graphical-session.target.wants/mutsu-welcome.service && \
     ln -sfn /usr/lib/systemd/user/mutsu-newelle-link.service /etc/systemd/user/graphical-session.target.wants/mutsu-newelle-link.service && \
+    ln -sfn /usr/lib/systemd/user/mutsu-accent.service /etc/systemd/user/graphical-session.target.wants/mutsu-accent.service && \
     rm -f /etc/xdg/autostart/mutsu-first-login.desktop && \
     python3 -m compileall -q /usr/libexec/mutsu-os/src && \
     glib-compile-schemas /usr/share/glib-2.0/schemas && \

@@ -367,3 +367,33 @@
   font-size: 15px;
   font-weight: bold;
 }
+
+/* ---- Mutsu sage accent in the Shell ----------------------------------
+ * GNOME only offers fixed accent colours and the Shell can't be given a
+ * custom one, so the places the accent shows (quick settings, switches,
+ * check boxes, sliders, selections) are painted Mutsu sage here. Muted
+ * enough for Japandi, deep enough for white text on it. */
+.quick-toggle:checked,
+.quick-toggle:checked:focus {
+  background-color: #7F9A82;
+  color: #ffffff;
+}
+.quick-toggle:checked:hover { background-color: #8AA58D; color: #ffffff; }
+.quick-toggle:checked:active { background-color: #6F8A72; color: #ffffff; }
+.quick-toggle-has-menu .quick-toggle-menu-button:checked,
+.quick-toggle-has-menu .quick-toggle-menu-button:checked:focus {
+  background-color: #6A846D;
+  color: #ffffff;
+}
+.quick-toggle-has-menu .quick-toggle-menu-button:checked:hover { background-color: #76907A; }
+.quick-toggle-has-menu .quick-toggle-menu-button:checked:active { background-color: #5E7761; }
+.quick-settings-system-item .icon.active,
+.quick-toggle-menu .header .icon.active { background-color: #7F9A82; color: #ffffff; }
+.toggle-switch:checked { background: #7F9A82; color: #ffffff; }
+.toggle-switch:checked:hover { background-color: #8AA58D; }
+.check-box:checked StIcon { background-color: #7F9A82; color: #ffffff; border-color: transparent; }
+.check-box:checked:hover StIcon { background-color: #8AA58D; }
+.check-box:checked:active StIcon { background-color: #6F8A72; }
+.slider { -barlevel-active-background-color: #7F9A82; }
+StEntry { selection-background-color: rgba(127, 154, 130, 0.35); }
+.osd-monitor-label, .osd-break-countdown-label { background-color: #7F9A82; color: #ffffff; }
