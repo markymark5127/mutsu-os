@@ -140,7 +140,12 @@ jobs:
               break
             fi
             [ "$attempt" = 4 ] && exit 1
-            echo "apt failed (attempt $attempt); retrying in 60s"
+            echo "apt failed (attempt $attempt); retrying in 60s on Ubuntu's main archive"
+            # The runner's Azure mirror is the name that stops resolving; use
+            # archive.ubuntu.com / security.ubuntu.com directly instead.
+            sudo sh -c 'printf "%s\n" http://archive.ubuntu.com/ubuntu/ > /etc/apt/apt-mirrors.txt' || true
+            sudo sed -i 's#azure\.archive\.ubuntu\.com#archive.ubuntu.com#g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true
             sleep 60
           done
           python3 -m unittest discover -s tests -p test_newelle_build_environment.py -v
