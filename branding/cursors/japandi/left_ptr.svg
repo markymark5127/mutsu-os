@@ -1,14 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <!-- Arrow head only, with rounded corners. Tip stays the hotspot. -->
-  <path d="M5.2 3.4
-           C3.4 2.2 2.8 4.4 3.4 6.6
-           L4.6 14.2
-           C4.8 16.2 6.6 16.6 7.8 15.2
-           L9.4 13.6
-           C10.2 12.8 11.2 13 12.2 13.4
-           L17.4 13.4
-           C19.6 13.4 20 11.4 18.2 10.6
+  <!-- Smooth arrow head. Tip on the left is the hotspot. -->
+  <path d="M4.2 13.6
+           C3.2 10.4 5.4 6.6 10.6 5.8
+           C15.2 5.1 22.4 10.6 27.2 15.2
+           C29.2 16.8 29.1 19.2 27 20.4
+           C22.6 23 18.4 22.2 15.6 21.2
+           C13.8 20.6 13.2 21.6 12.4 24.2
+           C11.6 26.8 10.2 29.2 7.4 29
+           C4.8 28.8 3.6 26.2 3.8 23.2
+           C4 19.4 4.6 16.2 4.2 13.6
            Z"
-        fill="#384B3C" stroke="#FFFCF6" stroke-width="1.5"
+        fill="#384B3C" stroke="#FFFCF6" stroke-width="1.2"
         stroke-linejoin="round" stroke-linecap="round"/>
 </svg>
