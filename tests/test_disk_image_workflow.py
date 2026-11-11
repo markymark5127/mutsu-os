@@ -89,13 +89,15 @@ class DiskImageWorkflowTests(unittest.TestCase):
         self.assertIn("__pycache__/", ignore)
 
     def test_automatic_disk_builds_only_follow_published_main_images(self):
-        self.assertIn('workflows: ["Build container image"]', self.workflow)
+        # After the runtime check that followed the image build (that run's
+        # own event is workflow_run), never straight after the build.
+        self.assertIn('workflows: ["GNOME runtime check"]', self.workflow)
         self.assertIn("types: [completed]", self.workflow)
         self.assertRegex(self.workflow, r"(?s)workflow_run:\n.*?branches: \[main\]")
         self.assertIn("github.event.workflow_run.conclusion == 'success'", self.workflow)
         self.assertIn("github.event.workflow_run.head_branch == 'main'", self.workflow)
-        self.assertIn("github.event.workflow_run.event == 'push'", self.workflow)
-        self.assertIn("github.event.workflow_run.event == 'workflow_dispatch'", self.workflow)
+        self.assertIn("github.event.workflow_run.event == 'workflow_run'", self.workflow)
+        self.assertNotIn("github.event.workflow_run.event == 'push'", self.workflow)
         self.assertIn("github.event_name == 'workflow_dispatch'", self.workflow)
 
     def test_other_workflow_runs_cannot_cancel_live_disk_builds(self):

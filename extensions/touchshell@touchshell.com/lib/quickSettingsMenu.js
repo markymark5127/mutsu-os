@@ -67,7 +67,7 @@ class TouchshellMenuToggle extends QuickMenuToggle {
         item.connect('toggled', (_i, state) => {
             this._settings.set_string(key, state ? lastNonOff : 'off');
         });
-        this._cleanups.push(() => this._settings.disconnect(settingsId));
+        this._watch(item, settingsId);
         this.menu.addMenuItem(item);
     }
 
@@ -80,8 +80,24 @@ class TouchshellMenuToggle extends QuickMenuToggle {
         item.connect('toggled', (_i, state) => {
             this._settings.set_boolean(key, state);
         });
-        this._cleanups.push(() => this._settings.disconnect(settingsId));
+        this._watch(item, settingsId);
         this.menu.addMenuItem(item);
+    }
+
+    // Mutsu: stop following the setting when the item goes, however it goes.
+    // The Quick Settings menu can be torn down before this toggle (at session
+    // end), and a settings change then reached a destroyed switch ("can't
+    // access property 'factor', obj is null").
+    _watch(item, settingsId) {
+        const settings = this._settings;
+        let connected = true;
+        const stop = () => {
+            if (connected)
+                settings.disconnect(settingsId);
+            connected = false;
+        };
+        item.connect('destroy', stop);
+        this._cleanups.push(stop);
     }
 
     destroy() {

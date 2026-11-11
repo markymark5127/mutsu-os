@@ -21,7 +21,8 @@ def read(path: str) -> str:
 class CleanInstallTests(TestCase):
     def test_iso_is_produced_after_container_workflow(self):
         flow = read(".github/workflows/build-disk.yml")
-        self.assertIn('workflows: ["Build container image"]', flow)
+        # Via the GNOME runtime check, which follows the container build.
+        self.assertIn('workflows: ["GNOME runtime check"]', flow)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", flow)
         self.assertIn("github.event.workflow_run.head_branch == 'main'", flow)
         self.assertIn("workflow_run.head_sha", flow)
