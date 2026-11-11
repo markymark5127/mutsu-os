@@ -25,8 +25,12 @@ echo "Rebuilding $srpm (installed: $nvr)"
 
 rpm -i --define "_topdir $top" "$srpm"
 spec="$top/SPECS/gnome-control-center.spec"
-# Mark it as Mutsu's build, a release above the stock one.
-sed -i -E 's/^(Release:\s*[^%[:space:]]+)/\1.mutsu1/' "$spec"
+# Mark it as Mutsu's build, a release above the stock one: 1.fc45 becomes
+# 1.mutsu1.fc45 (Fedora's spec says %autorelease, so set it outright).
+stock_release="$(rpm -q --qf '%{RELEASE}' gnome-control-center)"
+dist="$(rpm --eval '%{?dist}')"
+base="${stock_release%"$dist"}"
+sed -i -E "s/^Release:.*/Release:        ${base}.mutsu1%{?dist}/" "$spec"
 grep -E '^Release:' "$spec"
 dnf5 -y builddep "$spec"
 
