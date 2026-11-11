@@ -439,6 +439,7 @@ export default class MutsuAdaptiveExtension extends Extension {
         const start = (name, fn) => this._part(t, name, fn);
         this._cancelSettle();
         // What the switch shows: apps arranged, Home, gestures, chrome.
+        start('gesture settings', () => this._applyGestureSettings());
         start('window controls', () => setTabletWindowChrome(true,
             {buttons: this._settings.get_boolean('tablet-window-buttons')}));
         this._home = start('Home', () => new TabletHome({
@@ -527,9 +528,15 @@ export default class MutsuAdaptiveExtension extends Extension {
             if (dock)
                 applyTabletDock(dock, j);
         }
+    }
+
+    // Settings that must change with the switch itself: Touchshell's gestures
+    // would otherwise compete with Mutsu's (its bottom edge, auto-maximize)
+    // and Kiwi's top-bar buttons would show over full-screen apps.
+    _applyGestureSettings() {
+        const j = this._journal;
         for (const [key, value] of Object.entries(TOUCHSHELL_TABLET))
             j.change(TOUCHSHELL, key, s => s.set_string(key, value));
-        // Kiwi's top-bar traffic lights for full-screen apps.
         if (!this._settings.get_boolean('tablet-window-buttons'))
             j.change(KIWI, 'show-window-controls', s => s.set_boolean('show-window-controls', false));
     }
