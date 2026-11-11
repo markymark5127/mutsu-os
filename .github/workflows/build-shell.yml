@@ -1,7 +1,7 @@
 name: Mutsu GNOME Shell (test build)
 
-# Builds Mutsu's GNOME Shell on its own, in the same base image the OS
-# uses, so a broken patch shows up in minutes instead of an hour into the
+# Makes Mutsu's GNOME Shell overlay and theme on their own, in the same
+# base image the OS uses, so a broken patch shows up in minutes instead of an hour into the
 # image build. The image build runs the same script.
 #
 # The base image has more layers than Docker can stack ("max depth
@@ -27,17 +27,23 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /
-      - name: Build gnome-shell with Mutsu's login change
+      - name: Make Mutsu's Shell overlay and theme from the base image's Shell
         run: |
           mkdir -p out
           podman run --rm --privileged -v "$PWD:/src:Z" -w /src \
             ghcr.io/ublue-os/bazzite-gnome:stable bash -euxc '
-              bash packaging/shell/build-gnome-shell.sh /src/out
-              dnf5 -y install $(ls out/*.rpm | grep -v -- "-devel-\|-tests-")
-              bash packaging/shell/verify-mutsu-shell.sh
+              dnf5 -y install glib2-devel
+              bash packaging/shell/make-shell-overlay.sh /src/out/overlay
+              python3 packaging/shell/bake-shell-theme.py \
+                /usr/share/gnome-shell/gnome-shell-theme.gresource /src/out/gnome-shell-theme.gresource \
+                branding/shell/japandi.css \
+                "extensions/mutsu-adaptive@mutsu-os/stylesheet.css::/* ---- Mutsu sage accent"
             '
+      - name: The patched JavaScript parses
+        run: |
+          for f in out/overlay/ui/*.js; do cp "$f" "/tmp/$(basename "$f" .js).mjs"; node --check "/tmp/$(basename "$f" .js).mjs"; done
       - uses: actions/upload-artifact@v4
         with:
-          name: mutsu-gnome-shell-rpms
-          path: out/*.rpm
+          name: mutsu-gnome-shell-overlay
+          path: out/
           retention-days: 7

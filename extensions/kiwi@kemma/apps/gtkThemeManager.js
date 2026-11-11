@@ -43,8 +43,23 @@ class GtkThemeManager {
                 this._copyTree(source.get_child(child.get_name()), dest.get_child(child.get_name()));
             children.close(null);
         } else {
-            source.copy(dest, Gio.FileCopyFlags.OVERWRITE, null, null);
+            this._copyIfChanged(source, dest);
         }
+    }
+
+    // Mutsu: GTK apps restyle whenever these files change, so a login that
+    // rewrote identical files made every open app flicker. Copy only real
+    // changes.
+    _copyIfChanged(source, dest) {
+        try {
+            if (dest.query_exists(null)) {
+                const [, a] = source.load_contents(null);
+                const [, b] = dest.load_contents(null);
+                if (a.length === b.length && a.every((byte, i) => byte === b[i]))
+                    return;
+            }
+        } catch (e) {}
+        source.copy(dest, Gio.FileCopyFlags.OVERWRITE, null, null);
     }
 
     _stageAssets(gtkConfigDir, sheets) {
@@ -52,8 +67,7 @@ class GtkThemeManager {
         const root = Gio.File.new_for_path(this._extension.path);
         GLib.mkdir_with_parents(kiwiDir.get_child('css').get_path(), 0o755);
         for (const name of sheets)
-            root.get_child('css').get_child(name).copy(kiwiDir.get_child('css').get_child(name),
-                Gio.FileCopyFlags.OVERWRITE, null, null);
+            this._copyIfChanged(root.get_child('css').get_child(name), kiwiDir.get_child('css').get_child(name));
         for (const folder of ['titlebuttons', 'titlebuttons-glass']) {
             const source = root.get_child('icons').get_child(folder);
             if (source.query_exists(null))
@@ -153,6 +167,7 @@ class GtkThemeManager {
                 const [contents] = await file.load_contents_async(null);
                 existingContent = new TextDecoder().decode(contents);
             }
+            const original = existingContent;
 
             // Strip any previous block, plus unmarked imports from older versions
             existingContent = existingContent
@@ -169,6 +184,9 @@ class GtkThemeManager {
                 return;
             }
 
+            // Mutsu: unchanged means don't touch it (no restyle at login).
+            if (exists && newContent === original)
+                return;
             file.replace_contents(newContent, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
         } catch (error) {
             console.error(`[Kiwi] Error processing GTK file ${filePath}: ${error}`);

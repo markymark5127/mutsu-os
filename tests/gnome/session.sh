@@ -24,6 +24,12 @@ gsettings set org.gnome.shell enabled-extensions "$uuids"
 gsettings set org.gnome.shell disable-extension-version-validation false
 echo "enabled-extensions: $uuids" | tee -a "$OUT/versions.txt"
 
+# Like the real session (org.gnome.Shell@.service.d/mutsu-shell-overlay.conf):
+# the login animation waits for extensions.
+if [ -d /usr/share/mutsu-os/shell-overlay/ui ]; then
+    export G_RESOURCE_OVERLAYS=/org/gnome/shell/ui=/usr/share/mutsu-os/shell-overlay/ui
+    echo "shell overlay: on" | tee -a "$OUT/versions.txt"
+fi
 gnome-shell --headless --wayland --no-x11 --virtual-monitor 1280x800 --unsafe-mode --force-animations \
     > "$OUT/shell.log" 2>&1 &
 shell=$!

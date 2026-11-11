@@ -11,7 +11,9 @@ slow or broken extension can't hold up the login):
   * layout.js waits for it before the startup animation, except on the
     login screen (greeter) and on a Shell restart.
 
-    apply-mutsu-shell.py <gnome-shell source dir>
+    apply-mutsu-shell.py <dir with js/ui/layout.js and js/ui/extensionSystem.js>
+
+make-shell-overlay.sh runs it on the files taken from the installed Shell.
 
 Edits by anchors and fails loudly if an anchor is missing, so a new GNOME
 release that moved the code stops the build instead of shipping unpatched.

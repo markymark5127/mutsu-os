@@ -10,6 +10,23 @@ FROM ghcr.io/ublue-os/bazzite-gnome:stable AS settings
 COPY packaging/settings/ /tmp/mutsu-settings/
 RUN bash /tmp/mutsu-settings/build-gnome-settings.sh /out
 
+# Mutsu's GNOME Shell pieces, made from the Shell this base image ships:
+# two of its own JavaScript files patched so the login animation waits for
+# extensions (served through a resource overlay), and its theme with Mutsu's
+# Japandi look and sage accent built in (there from the first frame, login
+# and lock screen included). Throwaway stage; only the results are copied.
+FROM ghcr.io/ublue-os/bazzite-gnome:stable AS shell
+COPY packaging/shell/ /tmp/mutsu-shell/
+COPY branding/shell/japandi.css /tmp/mutsu-shell-css/japandi.css
+COPY extensions/mutsu-adaptive@mutsu-os/stylesheet.css /tmp/mutsu-shell-css/adaptive.css
+RUN set -eux; \
+    dnf5 -y install glib2-devel; \
+    bash /tmp/mutsu-shell/make-shell-overlay.sh /out/overlay; \
+    python3 /tmp/mutsu-shell/bake-shell-theme.py \
+        /usr/share/gnome-shell/gnome-shell-theme.gresource /out/gnome-shell-theme.gresource \
+        /tmp/mutsu-shell-css/japandi.css \
+        "/tmp/mutsu-shell-css/adaptive.css::/* ---- Mutsu sage accent"
+
 # Base Image
 FROM ghcr.io/ublue-os/bazzite-gnome:stable
 RUN dnf5 install -y plymouth-plugin-script librsvg2-tools && test -f /usr/lib64/plymouth/script.so
@@ -86,6 +103,8 @@ RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login /us
     ln -sfn /usr/lib/systemd/user/mutsu-welcome.service /etc/systemd/user/graphical-session.target.wants/mutsu-welcome.service && \
     ln -sfn /usr/lib/systemd/user/mutsu-newelle-link.service /etc/systemd/user/graphical-session.target.wants/mutsu-newelle-link.service && \
     ln -sfn /usr/lib/systemd/user/mutsu-accent.service /etc/systemd/user/graphical-session.target.wants/mutsu-accent.service && \
+    HOME=/etc/skel bash /usr/libexec/mutsu-os/mutsu-accent.sh && \
+    grep -q 'mutsu-accent:start' /etc/skel/.config/gtk-4.0/gtk.css /etc/skel/.config/gtk-3.0/gtk.css && \
     rm -f /etc/xdg/autostart/mutsu-first-login.desktop && \
     python3 -m compileall -q /usr/libexec/mutsu-os/src && \
     glib-compile-schemas /usr/share/glib-2.0/schemas && \
@@ -224,6 +243,18 @@ RUN bash /tmp/mutsu-install-terminal-branding.sh && \
     systemctl enable mutsu-hostname.service mutsu-live-session.service mutsu-flatpak-preinstall.service && \
     test -s /usr/share/flatpak/preinstall.d/mutsu-os.preinstall && \
     rm -rf /tmp/mutsu-terminal-assets /tmp/mutsu-install-terminal-branding.sh
+
+### MUTSU GNOME SHELL
+COPY --from=shell /out/ /tmp/mutsu-shell-out/
+COPY packaging/shell/mutsu-shell-overlay.conf /usr/lib/systemd/user/org.gnome.Shell@.service.d/mutsu-shell-overlay.conf
+RUN set -eux; \
+    install -d /usr/share/mutsu-os/shell-overlay/ui; \
+    install -m0644 /tmp/mutsu-shell-out/overlay/ui/*.js /usr/share/mutsu-os/shell-overlay/ui/; \
+    install -m0644 /tmp/mutsu-shell-out/gnome-shell-theme.gresource /usr/share/gnome-shell/gnome-shell-theme.gresource; \
+    grep -aq 'Mutsu OS (built in)' /usr/share/gnome-shell/gnome-shell-theme.gresource; \
+    grep -q _mutsuWaitForExtensions /usr/share/mutsu-os/shell-overlay/ui/layout.js; \
+    echo japandi > /usr/share/mutsu-os/shell-theme-built-in; \
+    rm -rf /tmp/mutsu-shell-out
 
 ### SOFTWARE UPDATES
 # Settings → Software Updates drives bootc through mutsu-update-backend (a

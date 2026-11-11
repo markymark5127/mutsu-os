@@ -149,6 +149,11 @@ def desktop_checks():
     record(S, "one desktop by default", st.get("workspaces") == 1, st)
     record(S, "one search: overview search box hidden", st.get("overviewSearchHidden") is True, st)
     record(S, "top-left says Mutsu on the desktop", st.get("appName") in ("Mutsu", None), st)
+    if os.path.isdir("/usr/share/mutsu-os/shell-overlay/ui"):
+        login = js("""({waits: typeof Main.layoutManager._mutsuWaitForExtensions === 'function',
+            promise: !!Main.extensionManager.startupComplete})""")
+        record(S, "login animation waits for extensions (Mutsu's Shell overlay)",
+               isinstance(login, dict) and login.get("waits") is True and login.get("promise") is True, login)
 
 
 def tablet_flow():

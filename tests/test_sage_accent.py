@@ -27,6 +27,19 @@ class SageAccentTests(unittest.TestCase):
             self.assertIn("@define-color accent_bg_color #7F9A82",
                           Path(home, ".config/gtk-3.0/gtk.css").read_text())
 
+    def test_unchanged_file_is_not_rewritten(self):
+        """A rewrite makes every open GTK app restyle at login."""
+        with tempfile.TemporaryDirectory() as home:
+            self.run_script(home)
+            css = Path(home, ".config/gtk-4.0/gtk.css")
+            os.utime(css, (1_000_000, 1_000_000))
+            self.run_script(home)
+            self.assertEqual(css.stat().st_mtime, 1_000_000)
+
+    def test_new_accounts_start_themed(self):
+        text = (ROOT / "Containerfile").read_text()
+        self.assertIn("HOME=/etc/skel bash /usr/libexec/mutsu-os/mutsu-accent.sh", text)
+
     def test_opt_out(self):
         with tempfile.TemporaryDirectory() as home:
             Path(home, ".config/mutsu").mkdir(parents=True)

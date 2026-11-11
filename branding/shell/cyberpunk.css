@@ -45,3 +45,22 @@
   border-radius: 7px;
   box-shadow: 0 6px 22px rgba(0, 229, 255, 0.14);
 }
+
+/* Japandi is built into the Shell theme, so Cyberpunk restyles every
+ * surface Japandi touches (otherwise its cream pieces would show through). */
+.app-well-app:hover .overview-icon,
+.app-well-app:focus .overview-icon,
+.app-well-app:checked .overview-icon {
+  background-color: rgba(0, 229, 255, 0.16);
+  border-radius: 16px;
+}
+.app-folder-dialog {
+  background-color: #0A1428;
+  border: 1px solid #1D3553;
+  border-radius: 18px;
+}
+#dashtodockContainer .app-well-app:focus,
+#dash .app-well-app:focus {
+  background-color: rgba(0, 229, 255, 0.18);
+  border-radius: 12px;
+}

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Mutsu's sage accent for GTK apps. GNOME's accent list has no sage, so
 # libadwaita (GTK 4) and adw-gtk3 apps get it from a small, clearly marked
-# block in the user's gtk.css. Run at each login; idempotent; leaves the
-# rest of the file (and Kiwi's own block) alone. Remove the block to opt out
+# block in the user's gtk.css. New accounts get it from /etc/skel; this
+# runs at each login for older ones and only writes when something changed
+# (a rewrite makes running apps restyle). Leaves the rest of the file (and
+# Kiwi's own block) alone. Remove the block to opt out
 # for good: create ~/.config/mutsu/no-sage-accent.
 set -euo pipefail
 [[ -e "$HOME/.config/mutsu/no-sage-accent" ]] && exit 0
@@ -11,7 +13,7 @@ end='/* mutsu-accent:end */'
 write_block() {
   local file="$1" body="$2" tmp
   mkdir -p "$(dirname "$file")"
-  touch "$file"
+  [[ -e "$file" ]] || : > "$file"
   tmp="$(mktemp)"
   # Drop any previous Mutsu block, keep everything else as it was.
   awk -v s="$start" -v e="$end" '
@@ -20,8 +22,13 @@ write_block() {
     !skip {print}
   ' "$file" > "$tmp"
   # At the end: GTK wants @import lines (Kiwi's) before any rules.
-  { cat "$tmp"; printf '%s\n%s\n%s\n' "$start" "$body" "$end"; } > "$file"
-  rm -f "$tmp"
+  printf '%s\n%s\n%s\n' "$start" "$body" "$end" >> "$tmp"
+  if cmp -s "$tmp" "$file"; then
+    rm -f "$tmp"
+  else
+    cat "$tmp" > "$file"
+    rm -f "$tmp"
+  fi
 }
 write_block "$HOME/.config/gtk-4.0/gtk.css" ':root {
   --accent-bg-color: #7F9A82;

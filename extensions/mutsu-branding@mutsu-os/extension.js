@@ -11,8 +11,20 @@ import St from 'gi://St';
 import {SearchIntegration} from './searchIntegration.js';
 
 const BASE = '/usr/share/mutsu-os/branding/shell';
+// Names the look built into GNOME Shell's own theme at image build time
+// (see packaging/shell/bake-shell-theme.py); that one needs no loading.
+const BUILT_IN = '/usr/share/mutsu-os/shell-theme-built-in';
 const JAPANDI_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-japandi.svg';
 const DARK_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-symbolic-white.svg';
+
+function builtInLook() {
+    try {
+        const [ok, bytes] = GLib.file_get_contents(BUILT_IN);
+        return ok ? new TextDecoder().decode(bytes).trim() : null;
+    } catch (e) {
+        return null;
+    }
+}
 
 export default class MutsuBrandingExtension extends Extension {
     enable() {
@@ -106,10 +118,11 @@ export default class MutsuBrandingExtension extends Extension {
         if (!isJapandi && !isCyber)
             return;
 
-        // Shell stylesheet (safe to load on every enable)
+        // Shell stylesheet (safe to load on every enable). The built-in look
+        // is already in the Shell's theme from the first frame.
         const file = Gio.File.new_for_path(`${BASE}/${name}.css`);
         try {
-            if (file.query_exists(null)) {
+            if (file.query_exists(null) && builtInLook() !== name) {
                 const shellTheme = St.ThemeContext.get_for_stage(global.stage).get_theme();
                 shellTheme.load_stylesheet(file);
                 this._activeStylesheet = file;
