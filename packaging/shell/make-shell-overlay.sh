@@ -29,7 +29,8 @@ done < <(rpm -ql gnome-shell 2>/dev/null; ls /usr/lib64/gnome-shell/* /usr/bin/g
 if [[ -z "$lib" ]]; then
   echo "make-shell-overlay: GNOME Shell's JavaScript wasn't found. Resources seen:" >&2
   for f in $(rpm -ql gnome-shell | grep -E '\.so|\.gresource|/bin/|/libexec/'); do
-    [[ -f "$f" ]] && gresource list "$f" 2>/dev/null | head -3 | sed "s|^|  $f: |" >&2
+    [[ -f "$f" ]] || continue
+    echo "  $f: $(gresource list "$f" 2>&1 | head -3 | tr '\n' ' ')" >&2 || true
   done
   exit 1
 fi
