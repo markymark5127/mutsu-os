@@ -1,0 +1,43 @@
+name: Mutsu GNOME Shell (test build)
+
+# Builds Mutsu's GNOME Shell on its own, in the same base image the OS
+# uses, so a broken patch shows up in minutes instead of an hour into the
+# image build. The image build runs the same script.
+#
+# The base image has more layers than Docker can stack ("max depth
+# exceeded"), so it runs under Podman rather than as a job container.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, shell-test]
+    paths:
+      - 'packaging/shell/**'
+      - '.github/workflows/build-shell.yml'
+
+concurrency:
+  group: build-shell
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+      - name: Build gnome-shell with Mutsu's login change
+        run: |
+          mkdir -p out
+          podman run --rm --privileged -v "$PWD:/src:Z" -w /src \
+            ghcr.io/ublue-os/bazzite-gnome:stable bash -euxc '
+              bash packaging/shell/build-gnome-shell.sh /src/out
+              dnf5 -y install $(ls out/*.rpm | grep -v -- "-devel-\|-tests-")
+              bash packaging/shell/verify-mutsu-shell.sh
+            '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mutsu-gnome-shell-rpms
+          path: out/*.rpm
+          retention-days: 7
