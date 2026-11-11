@@ -9,7 +9,9 @@ slow or broken extension can't hold up the login):
   * extensionSystem.js keeps the promise of the first enable pass
     (ExtensionManager.startupComplete);
   * layout.js waits for it before the startup animation, except on the
-    login screen (greeter) and on a Shell restart.
+    login screen (greeter). Any failure in the wait is logged and ignored:
+    the Shell must always start. (GNOME 51 has no Meta.is_restart(); calling
+    it threw before the login screen and left a black screen.)
 
     apply-mutsu-shell.py <dir with js/ui/layout.js and js/ui/extensionSystem.js>
 
@@ -73,9 +75,15 @@ def main(src: str) -> None:
         (
             "        // Hack: Work around grab issue when testing greeter UI in nested",
             "        // Mutsu OS: open on the finished desktop, not on stock GNOME\n"
-            "        // with Mutsu's extensions arriving a moment later.\n"
-            f"        if (!Meta.is_restart() && !Main.sessionMode.isGreeter)\n"
-            f"            await this._mutsuWaitForExtensions({WAIT_MS});\n"
+            "        // with Mutsu's extensions arriving a moment later. Never on the\n"
+            "        // login screen, and nothing here may stop the Shell starting.\n"
+            "        if (!Main.sessionMode.isGreeter) {\n"
+            "            try {\n"
+            f"                await this._mutsuWaitForExtensions({WAIT_MS});\n"
+            "            } catch (e) {\n"
+            "                logError(e, 'Mutsu OS: waiting for extensions');\n"
+            "            }\n"
+            "        }\n"
             "\n"
             "        // Hack: Work around grab issue when testing greeter UI in nested",
             "the greeter grab hack before startup-prepared",

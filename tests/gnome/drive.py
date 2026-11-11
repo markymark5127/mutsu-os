@@ -154,6 +154,12 @@ def desktop_checks():
             promise: !!Main.extensionManager.startupComplete})""")
         record(S, "login animation waits for extensions (Mutsu's Shell overlay)",
                isinstance(login, dict) and login.get("waits") is True and login.get("promise") is True, login)
+        started = js("""({startingUp: Main.layoutManager._startingUp,
+            uiOpacity: Main.layoutManager.uiGroup.opacity,
+            uiScale: Main.layoutManager.uiGroup.scale_x})""")
+        record(S, "the Shell finished starting (not left on a black screen)",
+               isinstance(started, dict) and started.get("startingUp") is False
+               and started.get("uiOpacity") == 255 and started.get("uiScale") == 1, started)
 
 
 def tablet_flow():
@@ -721,6 +727,10 @@ def analyze_log():
         window = " ".join(lines[i:i + 12])
         owner = EXT_PATH.search(window)
         key = owner.group(1) if owner else ("mutsu-adaptive@mutsu-os" if "Mutsu" in line else None)
+        if key is None and re.search(r"\b(TypeError|ReferenceError|SyntaxError)\b", line):
+            # No extension in the stack: GNOME Shell's own code, which Mutsu
+            # patches (the login overlay). A TypeError there blacked out login.
+            key = "GNOME Shell"
         if key is None:
             continue
         problems.setdefault(key, []).append("\n".join(lines[i:i + 8]))

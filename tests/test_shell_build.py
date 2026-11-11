@@ -53,6 +53,9 @@ class ShellPatchTests(unittest.TestCase):
             wait = layout.index("await this._mutsuWaitForExtensions(3000)")
             self.assertLess(wait, layout.index("this.emit('startup-prepared')"))
             self.assertIn("!Main.sessionMode.isGreeter", layout)
+            # GNOME 51 has no Meta.is_restart(): calling it blacked out login.
+            self.assertNotIn("is_restart", layout)
+            self.assertIn("logError(e, 'Mutsu OS: waiting for extensions')", layout)
             ext = (ui / "extensionSystem.js").read_text()
             self.assertIn("this.startupComplete = this._sessionUpdated();", ext)
             # Twice is the same as once.
