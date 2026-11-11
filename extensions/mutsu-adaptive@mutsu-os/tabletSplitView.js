@@ -87,6 +87,7 @@ function putAway(window, actor) {
         // Back to its normal shape while hidden, ready for next time.
         actor.translation_x = 0;
         actor.scale_x = 1;
+        actor.set_pivot_point?.(0, 0);
     }
 }
 
@@ -436,22 +437,25 @@ export class TabletSplitView {
         this.hideSlide(other.window, toRight ? 'right' : 'left');
     }
 
-    // Slide an app in from `offset` px beside its spot. The path is drawn in
-    // screen space: every frame the translation is worked out against where
-    // the window actor really is, so it doesn't matter when the app (or GNOME)
-    // moves the actor to its new spot — part way through, or not until after
-    // the slide. Easing translation_x alone started from wherever the actor
-    // still was, so an app called back by the right arrow could come in from
-    // the left on real hardware.
+    // Slide an app in from `offset` px beside its spot.
+    //
+    // What moves on screen is a picture of the window (a Clutter.Clone),
+    // not the window itself: the real window stays invisible until it is in
+    // its place and anything GNOME does to it on unminimize (its zoom from
+    // the top-left corner, a late move to the new spot) has finished. So the
+    // slide is the same on both edges whatever the window is doing
+    // underneath; easing the window itself, an app called back by the right
+    // arrow could still be seen coming in from the left on real hardware.
     _slideActorIn(window, actor, frame, offset) {
         const rect = window.get_frame_rect(), buffer = window.get_buffer_rect?.() ?? rect;
-        const targetX = frame.x + (buffer.x - rect.x); // where the actor ends up
-        const place = progress => {
-            actor.translation_x = Math.round(targetX + offset * (1 - progress) - actor.get_x());
-        };
+        // Where the window actor ends up (the buffer includes its shadow).
+        const targetX = frame.x + (buffer.x - rect.x);
+        const targetY = frame.y + (buffer.y - rect.y);
         actor._mutsuSlidingIn = true;
-        actor._mutsuSlide?.stop();
-        if (!Clutter.Timeline) {
+        actor._mutsuSlideClone?.destroy();
+        actor._mutsuSlideClone = null;
+        const group = global.window_group;
+        if (!Clutter.Clone || !group?.add_child) {
             actor.translation_x = offset;
             actor.ease({translation_x: 0, duration: 240, mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
                 onStopped: () => {
@@ -460,43 +464,45 @@ export class TabletSplitView {
                 }});
             return;
         }
-        place(0);
-        const timeline = new Clutter.Timeline({actor, duration: 240});
-        timeline.set_progress_mode(Clutter.AnimationMode.EASE_OUT_CUBIC);
-        actor._mutsuSlide = timeline;
-        timeline.connect('new-frame', () => place(timeline.get_progress()));
-        timeline.connect('stopped', () => {
-            if (actor._mutsuSlide === timeline)
-                actor._mutsuSlide = null;
-            // Hold the spot until the actor itself gets there (briefly).
-            const settle = () => {
-                if (Math.abs(actor.get_x() - targetX) > 2)
-                    return false;
-                actor.translation_x = 0;
-                actor._mutsuSlidingIn = false;
-                return true;
-            };
-            if (settle())
-                return;
-            place(1);
-            let id = actor.connect('notify::x', () => {
-                place(1);
-                if (settle()) {
-                    actor.disconnect(id);
-                    id = 0;
-                }
-            });
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
-                if (id) {
-                    actor.disconnect(id);
-                    id = 0;
-                    actor.translation_x = 0;
-                    actor._mutsuSlidingIn = false;
-                }
-                return GLib.SOURCE_REMOVE;
-            });
+        actor.opacity = 0;
+        const clone = new Clutter.Clone({source: actor, reactive: false, x: targetX, y: targetY});
+        clone.translation_x = offset;
+        group.add_child(clone);
+        group.set_child_above_sibling(clone, null);
+        actor._mutsuSlideClone = clone;
+        let gone = false;
+        const goneId = actor.connect('destroy', () => {
+            gone = true;
+            clone.destroy();
         });
-        timeline.start();
+        clone.ease({
+            translation_x: 0,
+            duration: 240,
+            mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+            onStopped: () => {
+                const started = GLib.get_monotonic_time();
+                const reveal = () => {
+                    if (gone)
+                        return GLib.SOURCE_REMOVE;
+                    const placed = Math.abs(actor.get_x() - targetX) <= 2 &&
+                        Math.abs(actor.get_y() - targetY) <= 2 &&
+                        !Main.wm?._unminimizing?.has?.(actor);
+                    if (!placed && GLib.get_monotonic_time() - started < 700_000)
+                        return GLib.SOURCE_CONTINUE;
+                    actor.disconnect(goneId);
+                    actor.translation_x = 0;
+                    actor.scale_x = actor.scale_y = 1;
+                    actor.opacity = 255;
+                    actor._mutsuSlidingIn = false;
+                    if (actor._mutsuSlideClone === clone)
+                        actor._mutsuSlideClone = null;
+                    clone.destroy();
+                    return GLib.SOURCE_REMOVE;
+                };
+                if (reveal() === GLib.SOURCE_CONTINUE)
+                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 16, reveal);
+            },
+        });
     }
 
     _tuckOffset(side, frame, monitor) {

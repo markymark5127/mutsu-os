@@ -433,7 +433,12 @@ def slide_flow(T):
             for (let ms = 20; ms <= 600; ms += 20)
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
                     const a = w?.get_compositor_private();
-                    if (a) globalThis.__mutsuBack.push({{tx: Math.round(a.translation_x),
+                    // While it slides, what's on screen is the window's picture.
+                    const c = a?._mutsuSlideClone;
+                    if (c) globalThis.__mutsuBack.push({{tx: Math.round(c.translation_x),
+                        x: Math.round(c.x), y: Math.round(c.y), scale: +c.scale_x.toFixed(2),
+                        opacity: c.opacity, clone: true, real: a.opacity}});
+                    else if (a) globalThis.__mutsuBack.push({{tx: Math.round(a.translation_x),
                         x: Math.round(a.x), y: Math.round(a.y), scale: +a.scale_x.toFixed(2),
                         opacity: a.opacity}});
                     return GLib.SOURCE_REMOVE; }});
@@ -457,7 +462,9 @@ def slide_flow(T):
         never_past = all(sign * (d - final) >= -2 for d in drawn)
         no_zoom = all(p["scale"] == 1 for p in visible) and not any(
             p["x"] < 20 and p["y"] < 20 and p["tx"] == 0 for p in visible[:-1])
-        return started_beside and one_way and never_past and no_zoom
+        # Never two copies: the real window stays hidden while its picture moves.
+        one_copy = all(p.get("real", 0) == 0 for p in visible if p.get("clone"))
+        return started_beside and one_way and never_past and no_zoom and one_copy
 
     # Flick right: tucks off the right edge (folds off the side, not GNOME's
     # minimize-into-the-dock animation), arrow tab on that edge.
