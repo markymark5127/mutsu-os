@@ -9,7 +9,7 @@ const strip = file => fs.readFileSync(path.join(folder, file), 'utf8')
 
 const logic = new Function(`${strip('gamepadLogic.js')};
     return {isSteamGame, stickValue, dpadValue, gamepadLayout, faceButtonAt, encode, TRIGGERS, STICK_MAX,
-        physicalGamepads, layoutForGame, parseSavedLayouts};`)();
+        physicalGamepads, hasControllerButtons, layoutForGame, parseSavedLayouts};`)();
 const {isSteamGame, stickValue, dpadValue, gamepadLayout, faceButtonAt, encode, physicalGamepads, layoutForGame,
     parseSavedLayouts} = logic;
 
@@ -96,13 +96,22 @@ H: Handlers=event5 js3
 
 I: Bus=0005 Vendor=054c Product=0ce6 Version=8100
 N: Name="DualSense Wireless Controller Motion Sensors"
-H: Handlers=event23 js4`;
+H: Handlers=event23 js4
+
+I: Bus=0006 Vendor=0000 Product=0000 Version=0000
+N: Name="Microsoft Vmbus HID-compliant Mouse"
+H: Handlers=mouse0 event4 js5
+B: KEY=1f0000 0 0 0 0`;
 assert.deepEqual(physicalGamepads(proc), [], 'our pad, Steam virtual pads, sensors and keyboards are not controllers');
 assert.deepEqual(physicalGamepads(proc + `
 
 I: Bus=0005 Vendor=054c Product=0ce6 Version=8100
 N: Name="DualSense Wireless Controller"
-H: Handlers=event22 js2`), ['DualSense Wireless Controller']);
+H: Handlers=event22 js2
+B: KEY=7fdb000000000000 0 0 0 0`), ['DualSense Wireless Controller']);
+assert.equal(logic.hasControllerButtons('7fdb000000000000 0 0 0 0'), true, 'BTN_SOUTH and friends');
+assert.equal(logic.hasControllerButtons('ffff00000000 0 0 0 0'), true, 'BTN_JOYSTICK range');
+assert.equal(logic.hasControllerButtons('1f0000 0 0 0 0'), false, 'mouse buttons only');
 // Per-game layouts.
 const defaults = {left: 'stick', face: 'diamond'};
 assert.deepEqual(layoutForGame({steam_app_1: {left: 'dpad', face: 'gamecube'}}, 'steam_app_1', defaults),

@@ -140,6 +140,18 @@ export const TRIGGERS = new Set(['zl', 'zr']);
 const VIRTUAL_PADS = [/mutsu on-screen gamepad/i, /steam virtual/i, /steam deck/i,
     /accelerometer/i, /motion sensors?/i, /hdaps/i, /\bimu\b/i];
 
+// /proc/bus/input/devices "B: KEY=" bitmap (hex words, most significant
+// first, 64 bits each): any of BTN_JOYSTICK..BTN_THUMBR (0x120-0x13e)?
+export function hasControllerButtons(keyBitmap) {
+    const words = String(keyBitmap ?? '').trim().split(/\s+/).filter(Boolean).reverse();
+    for (let code = 0x120; code <= 0x13e; code++) {
+        const word = words[Math.floor(code / 64)];
+        if (word && /^[0-9a-f]+$/i.test(word) && (BigInt(`0x${word}`) >> BigInt(code % 64)) & 1n)
+            return true;
+    }
+    return false;
+}
+
 export function physicalGamepads(procDevices) {
     const pads = [];
     for (const block of String(procDevices ?? '').split(/\n\s*\n/)) {
@@ -148,6 +160,11 @@ export function physicalGamepads(procDevices) {
         if (!/\bjs\d+\b/.test(handlers))
             continue;
         if (VIRTUAL_PADS.some(pattern => pattern.test(name)))
+            continue;
+        // joydev also grabs things like a VM's absolute pointer; a real
+        // controller has joystick or gamepad buttons.
+        const keys = /^B: KEY=(.*)$/m.exec(block)?.[1];
+        if (keys !== undefined && !hasControllerButtons(keys))
             continue;
         pads.push(name || 'Game controller');
     }

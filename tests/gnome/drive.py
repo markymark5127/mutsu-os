@@ -584,6 +584,12 @@ def gamepad_flow():
         # what it saw, then act as if none were plugged in.
         pads = js(f"""(() => {{ const g = {T}.ext()._gamepad;
             const seen = {{padsConnected: g._padsConnected, autoHidden: g.autoHidden}};
+            try {{
+                const [, bytes] = imports.gi.Gio.File.new_for_path('/proc/bus/input/devices').load_contents(null);
+                seen.js = new TextDecoder().decode(bytes).split(/\\n\\s*\\n/)
+                    .filter(b => /Handlers=.*\\bjs\\d/.test(b))
+                    .map(b => (/N: Name="([^"]*)"/.exec(b)?.[1] ?? '?') + ' KEY=' + (/B: KEY=(.*)/.exec(b)?.[1] ?? '-'));
+            }} catch (e) {{ seen.js = String(e); }}
             g._padsConnected = false; g._sync();
             seen.controls = (g._controls ?? []).filter(a => a.visible).length;
             return seen; }})()""")
