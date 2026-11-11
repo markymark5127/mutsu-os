@@ -9,7 +9,7 @@ name: Mutsu GNOME Shell (test build)
 on:
   workflow_dispatch:
   push:
-    branches: [main, shell-test]
+    branches: [main]
     paths:
       - 'packaging/shell/**'
       - '.github/workflows/build-shell.yml'
