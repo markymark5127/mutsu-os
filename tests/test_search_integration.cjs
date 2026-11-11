@@ -67,8 +67,8 @@ const Clutter = {EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2}, EVENT_PROPAGATE: 
 const GLib = {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false, idle_add: (_p, fn) => fn(),
     spawn_async(_d, argv) { spawned = argv; },
     SpawnFlags: {SEARCH_PATH: 1}};
-const {SearchIntegration, isSearchWindow, searchFadeMs, searchEffect, fadeOnlyParams} = new Function('InjectionManager','Workspace','Main',
-    'Clutter','GLib','Meta','Shell','global', `${source}; return {SearchIntegration, isSearchWindow, searchFadeMs, searchEffect, fadeOnlyParams};`)(
+const {SearchIntegration, isSearchWindow, searchFadeMs, searchEffect, fadeOnlyParams, dismissSearch} = new Function('InjectionManager','Workspace','Main',
+    'Clutter','GLib','Meta','Shell','global', `${source}; return {SearchIntegration, isSearchWindow, searchFadeMs, searchEffect, fadeOnlyParams, dismissSearch};`)(
     InjectionManager, Workspace, Main, Clutter, GLib, {Display, Window: MetaWindow}, {AppSystem}, globalMock);
 const integration = new SearchIntegration();
 assert.equal(search.is_skip_taskbar(), true, 'Search never listed in docks or as a minimized app');
@@ -113,6 +113,34 @@ overviewText.text = 'fire'; overviewText.emit('text-changed');
 assert.deepEqual(spawned, ['/usr/bin/mutsu-search', '--query', 'fire'], 'typing in the overview opens Mutsu Search');
 assert.equal(overviewText.text, '', 'overview search is cleared');
 assert(overviewHidden > 0);
+// Tablet: Search fades out itself, then minimizes with no animation, and
+// another extension's minimize effect (Bazzite's magic lamp, which skips
+// GNOME's _shouldAnimateActor) is finished at once instead of folding
+// Search into the dock.
+{
+    globalThis.mutsuTabletMode = true;
+    search.minimized = false;
+    const eased = [];
+    search._actor.ease = function (props) { eased.push(props.opacity); this.opacity = props.opacity; props.onStopped?.(true); };
+    dismissSearch(search);
+    assert.deepEqual(eased, [0], 'tablet dismiss fades to transparent');
+    assert(search.minimized, 'then minimizes');
+    assert.equal(searchEffect(search, true), 'none', 'GNOME adds no animation after the fade');
+    const finished = [];
+    search._actor.meta_window = search;
+    search._actor.get_effects = () => [{get_name: () => 'minimize-magic-lamp-effect', destroy() { finished.push('lamp'); }}];
+    globalMock.window_manager.emit('minimize', search._actor);
+    assert.deepEqual(finished, ['lamp'], 'magic lamp minimize finished at once');
+    search.minimized = false;
+    search._actor.get_effects = () => [{get_name: () => 'unminimize-magic-lamp-effect', destroy() { finished.push('unlamp'); }}];
+    globalMock.window_manager.emit('unminimize', search._actor);
+    assert.deepEqual(finished, ['lamp', 'unlamp'], 'and its unminimize warp too');
+    assert.equal(search._mutsuFadedOut, false, 'shown again: the next dismiss fades again');
+    const otherActor = {meta_window: other, get_effects: () => [{get_name: () => 'minimize-magic-lamp-effect', destroy() { finished.push('other'); }}]};
+    globalMock.window_manager.emit('minimize', otherActor);
+    assert.equal(finished.includes('other'), false, 'other apps keep the lamp');
+    globalThis.mutsuTabletMode = false;
+}
 integration.destroy();
 assert.equal(search.is_skip_taskbar(), false, 'restored on disable');
 assert.equal(overviewEntry.opacity, 255, 'disable restores the overview search box');

@@ -5,7 +5,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {slideOverhang, sameSequence, splitFrames, splitVertical, maximizeWindow, unmaximizeWindow, isWindowMaximized,
-    slideOverFrame, slideOverRelease, dragVelocity} from './tabletGeometry.js';
+    slideOverFrame, slideOverRelease, dragVelocity, dropForeignEffects} from './tabletGeometry.js';
 
 const SLIDE_GAP = 12; // between two Slide Over apps on the row
 
@@ -15,30 +15,58 @@ const SLIDE_GAP = 12; // between two Slide Over apps on the row
 // used up the skip, so GNOME's zoom from the top-left corner still played.)
 let noEffectsInstalled = null;
 let noEffectsUsers = 0;
+//
+// Other extensions' own minimize/unminimize animations (Bazzite's magic lamp)
+// skip _shouldAnimateActor, so for the same windows they're finished the
+// moment they start (connect_after: their handler has already run).
 function installNoEffects() {
     noEffectsUsers++;
-    const wm = Main.wm;
-    if (noEffectsInstalled || typeof wm?._shouldAnimateActor !== 'function')
+    if (noEffectsInstalled)
         return;
-    const original = wm._shouldAnimateActor;
-    const ours = function (actor, types) {
-        if (noEffectsInstalled?.active && actor?._mutsuNoEffects)
-            return false;
-        return original.call(this, actor, types);
-    };
-    wm._shouldAnimateActor = ours;
-    noEffectsInstalled = {active: true, original, ours};
+    const wm = Main.wm;
+    const installed = {active: true, original: null, ours: null, ids: []};
+    if (typeof wm?._shouldAnimateActor === 'function') {
+        const original = wm._shouldAnimateActor;
+        installed.original = original;
+        installed.ours = function (actor, types) {
+            if (installed.active && actor?._mutsuNoEffects)
+                return false;
+            return original.call(this, actor, types);
+        };
+        wm._shouldAnimateActor = installed.ours;
+    }
+    const manager = global.window_manager;
+    for (const signal of ['minimize', 'unminimize']) {
+        const connect = manager?.connect_after ?? manager?.connect;
+        if (!connect)
+            break;
+        installed.ids.push(connect.call(manager, signal, (_manager, actor) => {
+            if (installed.active && actor?._mutsuNoEffects)
+                dropForeignEffects(actor);
+        }));
+    }
+    noEffectsInstalled = installed;
 }
 function uninstallNoEffects() {
     noEffectsUsers = Math.max(0, noEffectsUsers - 1);
     if (!noEffectsInstalled || noEffectsUsers > 0)
         return;
     const wm = Main.wm;
-    if (wm?._shouldAnimateActor === noEffectsInstalled.ours)
+    for (const id of noEffectsInstalled.ids)
+        global.window_manager?.disconnect(id);
+    if (noEffectsInstalled.ours && wm?._shouldAnimateActor === noEffectsInstalled.ours)
         wm._shouldAnimateActor = noEffectsInstalled.original;
     else
         noEffectsInstalled.active = false; // someone wrapped us: stay inert
     noEffectsInstalled = null;
+}
+// Stop only Slide Over's own animations on a window. remove_all_transitions()
+// also stopped the on-screen keyboard's "move the window above the keyboard"
+// slide, whose end handler then ran after the keyboard was gone (a
+// keyboard.js TypeError in the journal when tablet mode ended).
+function stopSlideTransitions(actor) {
+    for (const property of ['translation-x', 'scale-x', 'scale-y', 'opacity'])
+        actor.remove_transition?.(property);
 }
 function holdEffects(actor, ms = 1500) {
     if (!actor)
@@ -354,7 +382,7 @@ export class TabletSplitView {
                 finish();
                 continue;
             }
-            actor.remove_all_transitions?.();
+            stopSlideTransitions(actor);
             actor.set_pivot_point?.(edge === 'left' ? 0 : 1, 0.5);
             actor.ease({translation_x: this._tuckOffset(edge, r, monitor), scale_x: 0.82, opacity: 120,
                 duration: 220, mode: Clutter.AnimationMode.EASE_IN_CUBIC, onStopped: finish});
@@ -397,6 +425,7 @@ export class TabletSplitView {
             // window back where it belongs before sliding.
             const zooming = Main.wm?._unminimizing?.has?.(actor);
             actor.remove_all_transitions?.();
+            dropForeignEffects(actor);
             if (zooming)
                 actor.set_scale?.(1, 1);
             actor.scale_x = actor.scale_y = 1;
@@ -663,7 +692,7 @@ export class TabletSplitView {
             return;
         }
         const r = target.get_frame_rect();
-        actor.remove_all_transitions?.();
+        stopSlideTransitions(actor);
         actor.set_pivot_point?.(edge === 'left' ? 0 : 1, 0.5);
         actor.ease({
             translation_x: this._tuckOffset(edge, r, monitor),

@@ -45,7 +45,31 @@ export function searchFadeMs(show, tablet) {
 // or close) fades out; everything else, and anything on the desktop, has no
 // effect at all (Search's own fade handles appearing).
 export function searchEffect(window, tablet) {
+    if (window?._mutsuFadedOut)
+        return 'none'; // dismissSearch already faded it out
     return tablet && (window?.minimized || window?._mutsuClosing) ? 'fade' : 'none';
+}
+
+// Another extension's own minimize/unminimize animation on Search. Bazzite
+// turns on "Compiz alike magic lamp effect", which skips GNOME's
+// _shouldAnimateActor and warps the window into the dock itself, so Search
+// still folded into the dock in tablet mode. Effects named (un)minimize that
+// can finish themselves (destroy() tells Mutter the animation is done) are
+// finished at once. Same rule as mutsu-adaptive's tabletGeometry.js.
+export function dropForeignEffects(actor) {
+    let dropped = 0;
+    for (const effect of actor?.get_effects?.() ?? []) {
+        const name = effect?.get_name?.() ?? effect?.name ?? '';
+        if (!/minimize/i.test(name) || typeof effect.destroy !== 'function')
+            continue;
+        try {
+            effect.destroy();
+            dropped++;
+        } catch (e) {
+            console.warn(`Mutsu Search: couldn't finish the ${name} animation: ${e}`);
+        }
+    }
+    return dropped;
 }
 
 // GNOME's minimize animation, reduced to its opacity: no shrinking, no
@@ -120,11 +144,34 @@ function openKeyboardSoon() {
 }
 
 export function dismissSearch(window) {
-    if (!window || window.minimized)
+    if (!window || window.minimized || window._mutsuDismissing)
         return;
-    // On a tablet the minimize itself fades out (see searchEffect); on the
-    // desktop Search simply disappears.
-    window.minimize();
+    const actor = window.get_compositor_private?.();
+    const duration = searchFadeMs(false, !!globalThis.mutsuTabletMode);
+    if (!duration || !actor?.ease) {
+        // Desktop: Search simply disappears.
+        window.minimize();
+        return;
+    }
+    // Tablet: fade out first, then minimize with no animation of any kind
+    // (GNOME's or another extension's), so whatever minimize effect is
+    // installed, all that's seen is the fade. It stays at opacity 0 until
+    // it's shown again (the unminimize handler fades it back in).
+    window._mutsuDismissing = true;
+    actor.remove_all_transitions?.();
+    actor.set_scale?.(1, 1);
+    actor.ease({
+        opacity: 0,
+        duration,
+        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        onStopped: finished => {
+            window._mutsuDismissing = false;
+            if (finished === false || window.minimized)
+                return; // shown again mid-fade: its fade-in has taken over
+            window._mutsuFadedOut = true;
+            window.minimize();
+        },
+    });
 }
 
 function belongsToSearch(window, search) {
@@ -181,9 +228,19 @@ export class SearchIntegration {
                     return true;
                 });
         }
-        this._unminimizeId = global.window_manager.connect('unminimize', (_manager, actor) => {
+        // connect_after: another extension's (un)minimize handler has already
+        // put its effect on the window, so it can be finished here.
+        const after = (signal, fn) => (global.window_manager.connect_after ??
+            global.window_manager.connect).call(global.window_manager, signal, fn);
+        this._minimizeId = after('minimize', (_manager, actor) => {
+            if (isSearchWindow(actor.meta_window))
+                dropForeignEffects(actor);
+        });
+        this._unminimizeId = after('unminimize', (_manager, actor) => {
             if (!isSearchWindow(actor.meta_window))
                 return;
+            actor.meta_window._mutsuFadedOut = false;
+            dropForeignEffects(actor);
             // Hidden right away so it can't flash fully drawn before the fade.
             if (globalThis.mutsuTabletMode)
                 actor.opacity = 0;
@@ -287,6 +344,7 @@ export class SearchIntegration {
     destroy() {
         global.window_manager.disconnect(this._mapId);
         global.window_manager.disconnect(this._unminimizeId);
+        global.window_manager.disconnect(this._minimizeId);
         if (this._overviewEntry) {
             this._overviewEntry.clutter_text.disconnect(this._textId);
             Object.assign(this._overviewEntry, this._entryState);

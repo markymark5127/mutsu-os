@@ -306,9 +306,17 @@ picture-uri='file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png'
 primary-color='#f3efe7'
 secondary-color='#516b5c'
 
+# The login screen is its own account (gdm) with its own settings: without
+# these it showed GNOME's cursor, icons, font and clock until you logged in.
 [org/gnome/desktop/interface]
 color-scheme='prefer-light'
 accent-color='green'
+cursor-theme='MutsuJapandi'
+icon-theme='MutsuJapandi'
+clock-format='12h'
+
+[org/gnome/desktop/sound]
+theme-name='MutsuJapandi'
 DCONF
   dconf update
 else
@@ -369,6 +377,13 @@ if [[ -s "$brand/cursors/japandi/left_ptr.svg" ]]; then
   for alias in default arrow top_left_arrow left_arrow; do
     ln -sfn left_ptr "$cursors/$alias"
   done
+  # GNOME Shell 51 draws the pointer itself from SVG cursors
+  # (cursors_scalable); the Xcursor files above are only for Xwayland apps.
+  # Without these the login screen and Shell used GNOME's own arrow.
+  python3 "$brand/cursors/build-scalable-cursors.py" \
+    /usr/share/icons/MutsuJapandi "$brand/cursors/japandi/left_ptr.svg" 3 5 32
+  [[ -s /usr/share/icons/MutsuJapandi/cursors_scalable/default/metadata.json ]] || {
+    echo >&2 "ERROR: Mutsu's scalable arrow was not installed"; exit 1; }
   # Every other cursor (wait, pointer, text, the resize arrows...) comes
   # straight from Adwaita. The theme's Inherits line should cover this, but
   # GNOME Shell logged "can't load 'wait' / 'pointer' / 'ew-resize'..." on
@@ -464,6 +479,12 @@ if [[ -n "$inter_family" ]]; then
   install -d -m0755 /etc/dconf/db/mutsu.d
   printf "[org/gnome/desktop/interface]\nfont-name='%s 11'\ndocument-font-name='%s 11'\n" \
     "$inter_family" "$inter_family" > /etc/dconf/db/mutsu.d/41-mutsu-fonts
+  # The login screen too (its own gdm settings).
+  if [[ -d /etc/dconf/db/gdm.d ]]; then
+    printf "[org/gnome/desktop/interface]\nfont-name='%s 11'\n" "$inter_family" \
+      > /etc/dconf/db/gdm.d/41-mutsu-fonts
+  fi
+  command -v dconf >/dev/null 2>&1 && dconf update
   echo "GNOME interface font: $inter_family"
 else
   echo >&2 'Inter is not installed; GNOME keeps its default interface font.'

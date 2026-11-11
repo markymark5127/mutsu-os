@@ -4,10 +4,11 @@ const assert = require('node:assert/strict');
 const folder = process.argv[2];
 const geometry = fs.readFileSync(path.join(folder,'tabletGeometry.js'),'utf8').replace(/export /g,'');
 const {splitFrames, splitVertical, navigationAction, maximizeWindow, unmaximizeWindow, isWindowMaximized,
-    slideOverFrame, dockDropZone, gripResize, sameSequence, slideOverRelease, dragVelocity, slideOverhang} =
+    slideOverFrame, dockDropZone, gripResize, sameSequence, slideOverRelease, dragVelocity, slideOverhang,
+    dropForeignEffects} =
     new Function(`${geometry}; return {splitFrames,splitVertical,navigationAction,maximizeWindow,unmaximizeWindow,
         isWindowMaximized,slideOverFrame,dockDropZone,gripResize,sameSequence,slideOverRelease,dragVelocity,
-        slideOverhang};`)();
+        slideOverhang,dropForeignEffects};`)();
 for (const area of [{x:100,y:24,width:1200,height:800}, {x:0,y:30,width:1366,height:738}]) {
     for (const ratio of [0,0.3,0.5,0.7,1]) {
         const [left,right] = splitFrames(area,ratio);
@@ -78,11 +79,11 @@ const GLibMock={PRIORITY_DEFAULT:0,SOURCE_REMOVE:false,idle_add:(_p,fn)=>fn(),
     timeout_add:(_p,_ms,fn)=>fn(),timeout_add_seconds:()=>1,source_remove(){}};
 const loadSplit=()=>new Function('Clutter','GLib','Meta','Shell','St','Main','global','slideOverhang','splitFrames','splitVertical',
     'maximizeWindow','unmaximizeWindow','isWindowMaximized','slideOverFrame','sameSequence',
-    'slideOverRelease','dragVelocity',
+    'slideOverRelease','dragVelocity','dropForeignEffects',
     `${splitSource};return TabletSplitView;`)(Clutter,GLibMock,{},{},
     {Button,Label:class{constructor(p={}){Object.assign(this,p);}},Widget:ChromeWidget},Main,globalMock,
     slideOverhang,splitFrames,splitVertical,maximizeWindow,unmaximizeWindow,isWindowMaximized,slideOverFrame,sameSequence,
-    slideOverRelease,dragVelocity);
+    slideOverRelease,dragVelocity,dropForeignEffects);
 const Split=loadSplit();
 function window(){return Object.assign(new Emitter(),{allows_resize:()=>true,get_monitor:()=>0,
     get_workspace:()=>({}),unmake_fullscreen(){},unmaximize(){this.maximized=false;},
@@ -310,3 +311,26 @@ assert.deepEqual(gripResize({x:100,y:100,width:600,height:400},50,-300,screen),
 assert.deepEqual(gripResize({x:100,y:100,width:600,height:400},2000,2000,screen),
     {x:100,y:100,width:1180,height:700},'stays on screen');
 console.log('Dock drop zones and resize grip checks passed.');
+
+// Bazzite's magic lamp extension puts its own (un)minimize warp on the
+// window; Slide Over's slide (a clone, which draws the window's effects)
+// showed the warp coming from the dock instead of the slide from the edge.
+{
+    const finished=[];
+    const effect=name=>({get_name:()=>name,destroy(){finished.push(name);}});
+    const blur={get_name:()=>'blur',destroy(){finished.push('blur');}};
+    const plain={get_name:()=>'unminimize-other'}; // can't finish itself: left alone
+    const actor={get_effects:()=>[effect('unminimize-magic-lamp-effect'),blur,plain,effect('minimize-magic-lamp-effect')]};
+    assert.equal(dropForeignEffects(actor),2,'both lamp effects finished');
+    assert.deepEqual(finished,['unminimize-magic-lamp-effect','minimize-magic-lamp-effect'],'other effects untouched');
+    assert.equal(dropForeignEffects(null),0);
+    assert.equal(dropForeignEffects({get_effects:()=>[]}),0);
+}
+{
+    const src=fs.readFileSync(path.join(folder,'tabletSplitView.js'),'utf8');
+    assert(/connect_after/.test(src)&&/dropForeignEffects\(actor\)/.test(src),
+        'Slide Over finishes other extensions\' (un)minimize effects on its windows');
+    const leave=src.slice(src.indexOf('leaveTablet() {'),src.indexOf('_show(e, fromSide) {'));
+    assert(!/remove_all_transitions/.test(leave),'leaving tablet mode only stops Slide Over\'s own animations');
+}
+console.log('Slide Over vs. other minimize effects checks passed.');

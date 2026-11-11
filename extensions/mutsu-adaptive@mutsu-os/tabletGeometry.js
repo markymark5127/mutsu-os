@@ -336,3 +336,29 @@ export function sameSequence(a, b) {
     } catch (e) {}
     return true;
 }
+
+// Other extensions' minimize / unminimize animations. Bazzite turns on
+// "Compiz alike magic lamp effect", which doesn't ask GNOME's
+// _shouldAnimateActor: on Mutter's minimize/unminimize signal it puts its
+// own warp effect on the window (from the dock icon, or the bottom middle of
+// the screen). Slide Over's slide is a picture (clone) of the window, and a
+// clone draws the window's effects too, so the lamp warp played inside the
+// slide: an app called back by the right arrow tab seemed to come in from
+// the left. An effect whose name says (un)minimize and that can finish
+// itself (destroy(), which tells Mutter the animation is done) is finished
+// straight away. Returns how many were dropped.
+export function dropForeignEffects(actor) {
+    let dropped = 0;
+    for (const effect of actor?.get_effects?.() ?? []) {
+        const name = effect?.get_name?.() ?? effect?.name ?? '';
+        if (!/minimize/i.test(name) || typeof effect.destroy !== 'function')
+            continue;
+        try {
+            effect.destroy();
+            dropped++;
+        } catch (e) {
+            console.warn(`Mutsu Adaptive: couldn't finish the ${name} animation: ${e}`);
+        }
+    }
+    return dropped;
+}
