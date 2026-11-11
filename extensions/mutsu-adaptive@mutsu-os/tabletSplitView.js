@@ -396,12 +396,8 @@ export class TabletSplitView {
             // window back where it belongs before sliding.
             const zooming = Main.wm?._unminimizing?.has?.(actor);
             actor.remove_all_transitions?.();
-            if (zooming) {
+            if (zooming)
                 actor.set_scale?.(1, 1);
-                const rect = window.get_buffer_rect?.();
-                if (rect)
-                    actor.set_position(rect.x, rect.y);
-            }
             actor.scale_x = actor.scale_y = 1;
             actor.opacity = 255;
             if (!fromSide || !actor.ease) {
@@ -410,48 +406,12 @@ export class TabletSplitView {
                 return;
             }
             const frame = this._frame(e);
-            actor.translation_x = this._tuckOffset(fromSide, frame, this._monitor() ?? monitor);
-            actor._mutsuSlidingIn = true;
-            actor.ease({translation_x: 0, duration: 240, mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
-                onStopped: () => {
-                    actor._mutsuSlidingIn = false;
-                    actor.translation_x = 0;
-                }});
+            const offset = this._tuckOffset(fromSide, frame, this._monitor() ?? monitor);
+            this._slideActorIn(window, actor, frame, offset);
         };
-        // The app may still be where it was (e.g. at the left end of the
-        // row) until it confirms the move to its new spot; a Wayland app does
-        // that a frame or two later. Sliding before then started from the
-        // old place, so an app called back by the right arrow came in from
-        // the left. Wait (invisible) until it is in place, then slide.
-        const target = this._frame(e);
-        const inPlace = () => {
-            const r = window.get_frame_rect();
-            return Math.abs(r.x - target.x) <= 2 && Math.abs(r.y - target.y) <= 2;
-        };
-        if (!actor || !fromSide || inPlace()) {
-            slideIn();
-        } else {
-            let done = false, fallback = 0, id = 0;
-            const go = () => {
-                if (done)
-                    return;
-                done = true;
-                if (id)
-                    window.disconnect(id);
-                if (fallback)
-                    GLib.source_remove(fallback);
-                slideIn();
-            };
-            id = window.connect('position-changed', () => {
-                if (inPlace())
-                    go();
-            });
-            fallback = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
-                fallback = 0;
-                go();
-                return GLib.SOURCE_REMOVE;
-            });
-        }
+        // Slide straight away: the slide follows the actor wherever it is, so
+        // there's no need to wait for the app to confirm its new spot.
+        slideIn();
         Main.activateWindow(window);
         this._sync();
     }
@@ -474,6 +434,69 @@ export class TabletSplitView {
             return;
         }
         this.hideSlide(other.window, toRight ? 'right' : 'left');
+    }
+
+    // Slide an app in from `offset` px beside its spot. The path is drawn in
+    // screen space: every frame the translation is worked out against where
+    // the window actor really is, so it doesn't matter when the app (or GNOME)
+    // moves the actor to its new spot — part way through, or not until after
+    // the slide. Easing translation_x alone started from wherever the actor
+    // still was, so an app called back by the right arrow could come in from
+    // the left on real hardware.
+    _slideActorIn(window, actor, frame, offset) {
+        const rect = window.get_frame_rect(), buffer = window.get_buffer_rect?.() ?? rect;
+        const targetX = frame.x + (buffer.x - rect.x); // where the actor ends up
+        const place = progress => {
+            actor.translation_x = Math.round(targetX + offset * (1 - progress) - actor.get_x());
+        };
+        actor._mutsuSlidingIn = true;
+        actor._mutsuSlide?.stop();
+        if (!Clutter.Timeline) {
+            actor.translation_x = offset;
+            actor.ease({translation_x: 0, duration: 240, mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+                onStopped: () => {
+                    actor._mutsuSlidingIn = false;
+                    actor.translation_x = 0;
+                }});
+            return;
+        }
+        place(0);
+        const timeline = new Clutter.Timeline({actor, duration: 240});
+        timeline.set_progress_mode(Clutter.AnimationMode.EASE_OUT_CUBIC);
+        actor._mutsuSlide = timeline;
+        timeline.connect('new-frame', () => place(timeline.get_progress()));
+        timeline.connect('stopped', () => {
+            if (actor._mutsuSlide === timeline)
+                actor._mutsuSlide = null;
+            // Hold the spot until the actor itself gets there (briefly).
+            const settle = () => {
+                if (Math.abs(actor.get_x() - targetX) > 2)
+                    return false;
+                actor.translation_x = 0;
+                actor._mutsuSlidingIn = false;
+                return true;
+            };
+            if (settle())
+                return;
+            place(1);
+            let id = actor.connect('notify::x', () => {
+                place(1);
+                if (settle()) {
+                    actor.disconnect(id);
+                    id = 0;
+                }
+            });
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+                if (id) {
+                    actor.disconnect(id);
+                    id = 0;
+                    actor.translation_x = 0;
+                    actor._mutsuSlidingIn = false;
+                }
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+        timeline.start();
     }
 
     _tuckOffset(side, frame, monitor) {

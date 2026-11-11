@@ -425,7 +425,7 @@ def slide_flow(T):
         js(f"""(() => {{ const t = {T}, s = t.ext()._switcher.split, tab = s.tabs.{side};
             const w = s.tuckedOn('{side}'); globalThis.__mutsuBack = [];
             const GLib = imports.gi.GLib;
-            for (const ms of [80, 160, 240, 320])
+            for (let ms = 20; ms <= 600; ms += 20)
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
                     const a = w?.get_compositor_private();
                     if (a) globalThis.__mutsuBack.push({{tx: Math.round(a.translation_x),
@@ -437,15 +437,22 @@ def slide_flow(T):
         return js("globalThis.__mutsuBack")
 
     def came_back_from(samples, side):
-        """Visible samples slid in from `side` and never zoomed from a corner."""
+        """On screen the app moved in from `side` the whole way (judged by
+        where it was drawn: actor position plus offset) and never zoomed."""
         if not isinstance(samples, list) or not samples:
             return False
         visible = [p for p in samples if p.get("opacity", 0) > 0]
-        sideways = [p["tx"] for p in visible if p["tx"] != 0]
-        right_way = all(v > 0 for v in sideways) if side == "right" else all(v < 0 for v in sideways)
+        if not visible:
+            return False
+        drawn = [p["x"] + p["tx"] for p in visible]
+        final = drawn[-1]
+        sign = 1 if side == "right" else -1
+        started_beside = sign * (drawn[0] - final) > 50
+        one_way = all(sign * (a - b) >= -2 for a, b in zip(drawn, drawn[1:]))
+        never_past = all(sign * (d - final) >= -2 for d in drawn)
         no_zoom = all(p["scale"] == 1 for p in visible) and not any(
-            p["x"] < 20 and p["y"] < 20 for p in visible)
-        return bool(sideways) and right_way and no_zoom
+            p["x"] < 20 and p["y"] < 20 and p["tx"] == 0 for p in visible[:-1])
+        return started_beside and one_way and never_past and no_zoom
 
     # Flick right: tucks off the right edge (folds off the side, not GNOME's
     # minimize-into-the-dock animation), arrow tab on that edge.
