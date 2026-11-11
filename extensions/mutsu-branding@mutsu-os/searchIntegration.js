@@ -41,6 +41,40 @@ export function searchFadeMs(show, tablet) {
     return show ? 180 : 140;
 }
 
+// Which of GNOME's window effects Search gets: on a tablet leaving (minimize
+// or close) fades out; everything else, and anything on the desktop, has no
+// effect at all (Search's own fade handles appearing).
+export function searchEffect(window, tablet) {
+    return tablet && (window?.minimized || window?._mutsuClosing) ? 'fade' : 'none';
+}
+
+// GNOME's minimize animation, reduced to its opacity: no shrinking, no
+// flight towards the dock icon.
+export function fadeOnlyParams(params, duration) {
+    const out = {opacity: 0, duration, mode: Clutter.AnimationMode.EASE_OUT_QUAD};
+    for (const key of ['onStopped', 'onComplete', 'delay'])
+        if (key in params)
+            out[key] = params[key];
+    return out;
+}
+
+function fadeOnlyNextEase(actor) {
+    if (actor._mutsuFadeOnly)
+        return;
+    actor._mutsuFadeOnly = true;
+    const ownEase = Object.prototype.hasOwnProperty.call(actor, 'ease') ? actor.ease : null;
+    const ease = actor.ease;
+    actor.ease = function (params) {
+        if (ownEase)
+            actor.ease = ownEase;
+        else
+            delete actor.ease;
+        actor._mutsuFadeOnly = false;
+        actor.set_scale?.(1, 1);
+        return ease.call(this, fadeOnlyParams(params, searchFadeMs(false, true)));
+    };
+}
+
 function fade(window, show, done = null) {
     const actor = window?.get_compositor_private();
     if (!actor) {
@@ -86,13 +120,11 @@ function openKeyboardSoon() {
 }
 
 export function dismissSearch(window) {
-    if (!window || window.minimized || window._mutsuDismissing)
+    if (!window || window.minimized)
         return;
-    window._mutsuDismissing = true;
-    fade(window, false, () => {
-        window._mutsuDismissing = false;
-        window.minimize();
-    });
+    // On a tablet the minimize itself fades out (see searchEffect); on the
+    // desktop Search simply disappears.
+    window.minimize();
 }
 
 function belongsToSearch(window, search) {
@@ -136,7 +168,17 @@ export class SearchIntegration {
         if (Main.wm && typeof Main.wm._shouldAnimateActor === 'function') {
             this._injections.overrideMethod(Main.wm, '_shouldAnimateActor', original =>
                 function (actor, types) {
-                    return !isSearchWindow(actor?.meta_window) && original.call(this, actor, types);
+                    const window = actor?.meta_window;
+                    if (!isSearchWindow(window))
+                        return original.call(this, actor, types);
+                    if (searchEffect(window, !!globalThis.mutsuTabletMode) !== 'fade')
+                        return false;
+                    // Tablet: GNOME's minimize would shrink Search into the
+                    // dock (and its close would zoom). Let it run, but as a
+                    // plain fade: its next ease keeps only the opacity (and
+                    // GNOME's own completion).
+                    fadeOnlyNextEase(actor);
+                    return true;
                 });
         }
         this._unminimizeId = global.window_manager.connect('unminimize', (_manager, actor) => {
@@ -232,8 +274,14 @@ export class SearchIntegration {
     _track(window) {
         if (this._windows.has(window))
             return;
-        const id = window.connect('unmanaged', () => this._windows.delete(window));
-        this._windows.set(window, id);
+        const ids = [
+            window.connect('unmanaged', () => this._windows.delete(window)),
+            // Closing (Escape, opening a result): fades out like a dismiss.
+            window.connect('unmanaging', () => {
+                window._mutsuClosing = true;
+            }),
+        ];
+        this._windows.set(window, ids);
     }
 
     destroy() {
@@ -246,8 +294,8 @@ export class SearchIntegration {
         }
         global.display.disconnect(this._focusId);
         global.stage.disconnect(this._eventId);
-        for (const [window, id] of this._windows)
-            window.disconnect(id);
+        for (const [window, ids] of this._windows)
+            ids.forEach(id => window.disconnect(id));
         this._windows.clear();
         this._injections.clear();
     }

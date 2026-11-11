@@ -67,8 +67,8 @@ const Clutter = {EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2}, EVENT_PROPAGATE: 
 const GLib = {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false, idle_add: (_p, fn) => fn(),
     spawn_async(_d, argv) { spawned = argv; },
     SpawnFlags: {SEARCH_PATH: 1}};
-const {SearchIntegration, isSearchWindow, searchFadeMs} = new Function('InjectionManager','Workspace','Main',
-    'Clutter','GLib','Meta','Shell','global', `${source}; return {SearchIntegration, isSearchWindow, searchFadeMs};`)(
+const {SearchIntegration, isSearchWindow, searchFadeMs, searchEffect, fadeOnlyParams} = new Function('InjectionManager','Workspace','Main',
+    'Clutter','GLib','Meta','Shell','global', `${source}; return {SearchIntegration, isSearchWindow, searchFadeMs, searchEffect, fadeOnlyParams};`)(
     InjectionManager, Workspace, Main, Clutter, GLib, {Display, Window: MetaWindow}, {AppSystem}, globalMock);
 const integration = new SearchIntegration();
 assert.equal(search.is_skip_taskbar(), true, 'Search never listed in docks or as a minimized app');
@@ -125,4 +125,15 @@ assert.equal(search.signals.size, 0);
 assert.equal(searchFadeMs(true, false), 0, 'desktop: Search just appears');
 assert.equal(searchFadeMs(false, false), 0, 'desktop: and just disappears');
 assert(searchFadeMs(true, true) > 0 && searchFadeMs(false, true) > 0, 'tablet: fades');
+assert.equal(searchEffect({minimized: true}, true), 'fade', 'tablet: dismissing Search fades out');
+assert.equal(searchEffect({minimized: true}, false), 'none', 'desktop: no minimize animation');
+assert.equal(searchEffect({minimized: false}, true), 'none', 'appearing uses Search\'s own fade');
+assert.equal(searchEffect({minimized: false, _mutsuClosing: true}, true), 'fade', 'tablet: closing fades out too');
+const done = () => {};
+const faded = fadeOnlyParams({opacity: 0, scale_x: 0.1, scale_y: 0.1, x: 600, y: 900, duration: 250,
+    mode: 7, onStopped: done}, 140);
+assert.deepEqual(Object.keys(faded).sort(), ['duration', 'mode', 'onStopped', 'opacity'],
+    'no shrinking or flight into the dock, GNOME still told when it is done');
+assert.equal(faded.onStopped, done);
+assert.equal(faded.duration, 140);
 console.log('Search integration checks passed (fade only in tablet, identity, dock, switchers, focus, outside tap, keyboard, popover, dialog, overview redirect, cleanup).');
