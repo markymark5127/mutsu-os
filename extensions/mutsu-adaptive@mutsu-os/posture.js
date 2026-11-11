@@ -163,7 +163,8 @@ export class PostureMonitor {
             try {
                 this._seatId = seat.connect('notify::touch-mode', () => {
                     this.seatTouch = this._seatTouch();
-                    this._onChange();
+                    // A hardware switch (already debounced by the kernel).
+                    this._onChange('switch');
                 });
             } catch (e) {
                 this._seatId = 0;

@@ -3,16 +3,33 @@
 # Keep bazzite-user-setup and hardware setup. Those are not the portal.
 set -euo pipefail
 
+# write_hidden <dest> <src> [extra key=value]: a valid hidden desktop entry
+# that keeps the source's name. Reads src fully before writing dest, so the
+# two may be the same file.
+write_hidden() {
+  local dest="$1" src="$2" extra="${3:-}" name
+  name="$(grep -m1 '^Name=' "$src" 2>/dev/null | cut -d= -f2- || true)"
+  [[ -n "$name" ]] || name="$(basename "$src" .desktop)"
+  {
+    printf '[Desktop Entry]\nType=Application\nName=%s\nExec=true\n' "$name"
+    printf 'NoDisplay=true\nHidden=true\n'
+    [[ -z "$extra" ]] || printf '%s\n' "$extra"
+  } > "$dest.mutsu-tmp"
+  mv -f "$dest.mutsu-tmp" "$dest"
+}
+
 hide_desktop() {
   local src="$1"
   local name
   name="$(basename "$src")"
   [[ -f "$src" ]] || return 0
   install -d -m 0755 /etc/xdg/autostart
-  {
-    cat "$src"
-    printf '\nHidden=true\nX-GNOME-Autostart-enabled=false\n'
-  } > "/etc/xdg/autostart/$name"
+  # A small, valid entry of its own. (Appending to a copy of the source
+  # with `cat src > dest` truncated it when src and dest were the same file,
+  # leaving files with no [Desktop Entry] group: "Key file does not start
+  # with a group".)
+  write_hidden "/etc/xdg/autostart/$name" "$src" 'X-GNOME-Autostart-enabled=false'
+
   echo "Hid Bazzite first-boot entry: $name"
 }
 
@@ -54,10 +71,7 @@ hide_app() {
   # Overwrite the desktop file in /usr/share/applications, which is a real directory.
   local dest="/usr/share/applications/$name"
   install -d -m 0755 /usr/share/applications
-  {
-    cat "$src"
-    printf '\nNoDisplay=true\nHidden=true\n'
-  } > "$dest"
+  write_hidden "$dest" "$src"
   echo "NoDisplay override for: $name"
 }
 

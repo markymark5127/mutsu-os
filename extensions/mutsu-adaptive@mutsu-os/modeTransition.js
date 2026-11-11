@@ -24,11 +24,11 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 // all the way round, flat under the keyboard.
 export const HINGE_OPEN = -110;
 export const HINGE_TABLET = -355;
-export const WAVE_MS = 700;
-export const SPRING_MS = 520;
-export const HINGE_MS = 620;
-export const HUD_HOLD_MS = 450;
-export const START_DELAY_MS = 60;
+export const WAVE_MS = 520;
+export const SPRING_MS = 380;
+export const HINGE_MS = 420;
+export const HUD_HOLD_MS = 220;
+export const START_DELAY_MS = 0;
 
 const COLOURS = {tablet: 'rgba(164, 201, 178, 0.55)', desktop: 'rgba(222, 205, 176, 0.55)'};
 
@@ -169,7 +169,7 @@ export class ModeTransition {
         screen.ease({rotation_angle_z: to, duration: HINGE_MS,
             mode: Clutter.AnimationMode.EASE_IN_OUT_CUBIC});
         this._later(HINGE_MS + HUD_HOLD_MS, () => {
-            box.ease({opacity: 0, scale_x: 0.96, scale_y: 0.96, duration: 220,
+            box.ease({opacity: 0, scale_x: 0.96, scale_y: 0.96, duration: 160,
                 mode: Clutter.AnimationMode.EASE_IN_QUAD,
                 onStopped: () => this._drop(box)});
         });

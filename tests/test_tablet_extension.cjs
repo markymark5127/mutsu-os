@@ -27,6 +27,7 @@ const GLib = {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false, SOURCE_CONTINUE: true,
     timeout_add_seconds: (_p, _s, fn) => { timers.set(++tid, fn); return tid; },
     idle_add: (_p, fn) => { timers.set(++tid, fn); return tid; },
     source_remove: id => timers.delete(id), file_get_contents: () => { throw new Error('no'); },
+    get_monotonic_time: () => now * 1000,
     file_test: () => true, FileTest: {IS_EXECUTABLE: 0},
     Variant: {parse: (_t, text) => ({text, print: () => text, unpack: () => Number(text)})}};
 const flush = () => { while (timers.size) { const t = [...timers.values()]; timers.clear(); t.forEach(f => f()); } };

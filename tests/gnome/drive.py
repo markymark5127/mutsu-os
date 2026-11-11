@@ -682,13 +682,23 @@ def mode_animation_flow():
                 scale: global.window_group.scale_x}; })()""")
         return js("globalThis.__mutsuAnimSeen"), after
 
+    def timings(label):
+        """How long the switch kept the Shell busy (the journal has the same)."""
+        got = js(f"{T}.ext()._lastSwitch ?? null")
+        total = got.get("total") if isinstance(got, dict) else None
+        # A virtual machine without a GPU: generous. On hardware it's far less.
+        record(S, f"{label}: the switch itself is quick (under 400 ms here)",
+               isinstance(total, (int, float)) and total < 400, got)
+
     seen, after = sample("always-tablet")
+    timings("into tablet")
     record(S, "into tablet: wave, folding hinge labelled Tablet",
            isinstance(seen, list) and any(s.get("hud") and s.get("label") == "Tablet" for s in seen)
            and any(s.get("wave") for s in seen), seen)
     record(S, "cleans up and leaves the apps at full size",
            after.get("left") == 0 and after.get("scale") == 1, after)
     seen, after = sample("always-desktop")
+    timings("back to desktop")
     record(S, "back to desktop: labelled Desktop, cleaned up",
            isinstance(seen, list) and any(s.get("label") == "Desktop" for s in seen)
            and after.get("left") == 0 and after.get("scale") == 1, {"seen": seen, "after": after})

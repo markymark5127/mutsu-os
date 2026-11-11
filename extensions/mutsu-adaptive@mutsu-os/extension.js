@@ -33,6 +33,13 @@ import {maximizeWindow, unmaximizeWindow, isWindowMaximized, resolveTablet,
 // Recovery: gnome-extensions disable mutsu-adaptive@mutsu-os
 
 const DEBOUNCE_MS = 400;
+// The fold switch and the Quick Settings toggle are decisive: act almost at
+// once. (Sensor polls keep the longer debounce: angles wobble.)
+const SWITCH_DEBOUNCE_MS = 80;
+// Work that doesn't change what's on screen during the switch (bigger text,
+// dock and gesture settings, the gamepad, new-window sizing) waits until the
+// switch animation has played, so the switch itself is one quick step.
+const SETTLE_MS = 560;
 const INTERFACE = 'org.gnome.desktop.interface';
 const TOUCHSCREEN = 'org.gnome.settings-daemon.peripherals.touchscreen';
 const TOUCHSHELL = 'org.gnome.shell.extensions.touchshell';
@@ -195,10 +202,10 @@ export default class MutsuAdaptiveExtension extends Extension {
             }),
             cancel: id => GLib.source_remove(id),
             threshold: () => this._settings?.get_int('tablet-hinge-angle') ?? 0,
-        }, () => {
+        }, kind => {
             // A real fold/unfold ends any manual override.
             this._override = null;
-            this._evaluate();
+            this._evaluate(false, kind === 'switch' ? SWITCH_DEBOUNCE_MS : DEBOUNCE_MS);
         });
         log(`Mutsu Adaptive: posture sources: ${this._posture.description}`);
         this._tilt = {orientation: 'undefined', since: 0, latched: false};
@@ -232,6 +239,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             object.disconnect(id);
         this._signals = [];
         this._leaveTablet();
+        this._cancelSettle(); // the journal is restored right below
         this._qsToggle?.destroy();
         this._qsToggle = null;
         this._indicator?.destroy();
@@ -299,10 +307,10 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (this._settings.get_string('mode') !== 'automatic')
             this._setMode('automatic');
         this._override = want;
-        this._evaluate();
+        this._evaluate(false, SWITCH_DEBOUNCE_MS);
     }
 
-    _evaluate(immediate = false) {
+    _evaluate(immediate = false, debounceMs = DEBOUNCE_MS) {
         if (!this._settings)
             return;
         const want = resolveTablet({
@@ -313,7 +321,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             angleDecides: this._posture?.angleDecides ?? false,
             tilted: this._tiltActive(),
         });
-        this._requestTablet(want, immediate);
+        this._requestTablet(want, immediate, debounceMs);
         this._syncIndicators(want);
     }
 
@@ -341,7 +349,7 @@ export default class MutsuAdaptiveExtension extends Extension {
             this._qsToggle.visible = !locked;
     }
 
-    _requestTablet(wantTablet, immediate = false) {
+    _requestTablet(wantTablet, immediate = false, debounceMs = DEBOUNCE_MS) {
         if (this._debounceSource)
             GLib.source_remove(this._debounceSource);
         this._debounceSource = 0;
@@ -351,25 +359,27 @@ export default class MutsuAdaptiveExtension extends Extension {
             const want = this._pendingTablet;
             this._pendingTablet = null;
             const was = this._inTablet;
+            // The animation is queued first so it starts on the next frame,
+            // right as the screen changes, not after all the work.
+            if (was !== want && this._settings.get_boolean('mode-animation')) {
+                try {
+                    this._transition?.play(want);
+                } catch (error) {
+                    logError(error, 'Mutsu Adaptive: mode animation failed');
+                }
+            }
             if (want)
                 this._enterTablet();
             else
                 this._leaveTablet();
             this._syncIndicators();
             this._syncRotation();
-            if (was !== this._inTablet && this._settings.get_boolean('mode-animation')) {
-                try {
-                    this._transition?.play(this._inTablet);
-                } catch (error) {
-                    logError(error, 'Mutsu Adaptive: mode animation failed');
-                }
-            }
         };
         if (immediate) {
             apply();
             return;
         }
-        this._debounceSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DEBOUNCE_MS, () => {
+        this._debounceSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, debounceMs, () => {
             apply();
             return GLib.SOURCE_REMOVE;
         });
@@ -377,23 +387,58 @@ export default class MutsuAdaptiveExtension extends Extension {
 
     // ---- entering and leaving ----------------------------------------------
 
+    // Runs `fn`, timing it into `timings` (ms). One part failing (for
+    // example after a GNOME API change) must not leave the switch half done;
+    // errors go to the journal with a stack.
+    _part(timings, name, fn) {
+        const start = GLib.get_monotonic_time();
+        try {
+            return fn();
+        } catch (error) {
+            logError(error, `Mutsu Adaptive: ${name} failed`);
+            return null;
+        } finally {
+            timings[name] = Math.round((GLib.get_monotonic_time() - start) / 1000);
+        }
+    }
+
+    // After the switch animation: the parts that don't change what's on
+    // screen right away. Cancelled if the mode switches back first.
+    _settleLater(name, fn) {
+        this._cancelSettle();
+        this._settleSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SETTLE_MS, () => {
+            this._settleSource = 0;
+            const timings = {};
+            this._part(timings, name, fn);
+            this._lastSwitch = {...(this._lastSwitch ?? {}), settled: timings};
+            log(`Mutsu Adaptive: ${name} in ${timings[name]} ms`);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _cancelSettle() {
+        if (this._settleSource)
+            GLib.source_remove(this._settleSource);
+        this._settleSource = 0;
+    }
+
+    _logSwitch(what, timings, start) {
+        const total = Math.round((GLib.get_monotonic_time() - start) / 1000);
+        this._lastSwitch = {what, total, parts: timings};
+        const parts = Object.entries(timings).map(([k, v]) => `${k} ${v}`).join(', ');
+        log(`Mutsu Adaptive: ${what} in ${total} ms (${parts})`);
+    }
+
     _enterTablet() {
         globalThis.mutsuTabletMode = true; // read by Kiwi: no minimized-window tiles
         if (this._inTablet)
             return;
         this._inTablet = true;
-        // Each part starts on its own: one failing (for example after a GNOME
-        // API change) must not leave tablet mode half-started with no Home,
-        // gestures or menu actions. Errors go to the journal with a stack.
-        const start = (name, fn) => {
-            try {
-                return fn();
-            } catch (error) {
-                logError(error, `Mutsu Adaptive: ${name} failed to start`);
-                return null;
-            }
-        };
-        start('touch settings', () => this._applyTouchSettings());
+        const begin = GLib.get_monotonic_time();
+        const t = {};
+        const start = (name, fn) => this._part(t, name, fn);
+        this._cancelSettle();
+        // What the switch shows: apps arranged, Home, gestures, chrome.
         start('window controls', () => setTabletWindowChrome(true,
             {buttons: this._settings.get_boolean('tablet-window-buttons')}));
         this._home = start('Home', () => new TabletHome({
@@ -401,7 +446,6 @@ export default class MutsuAdaptiveExtension extends Extension {
             monitor: () => this._tabletMonitor(),
             search: () => this._openSearch(),
         }));
-        this._session = start('touch session', () => new TabletSession(this._settings, this._journal));
         // TabletSwitcher owns the bottom edge to avoid competing recognizers.
         this._switcher = start('gestures and multitasking', () => new TabletSwitcher(
             () => this._goHome(),
@@ -409,8 +453,6 @@ export default class MutsuAdaptiveExtension extends Extension {
             () => this._settings.get_boolean('enable-experimental-gestures'),
             () => this._tabletMonitor(),
             {windowButtons: () => this._settings.get_boolean('tablet-window-buttons')}));
-        start('window sizing', () => this._installWindowSizing());
-        this._gamepad = start('on-screen gamepad', () => new TabletGamepad(this._settings));
         this._tabletSignals = [];
         // GNOME's overview has no role in tablet mode: Super / hot corner go Home.
         this._tabletSignals.push([Main.overview, Main.overview.connect('showing', () => {
@@ -423,11 +465,24 @@ export default class MutsuAdaptiveExtension extends Extension {
             });
         })]);
         Main.overview.hide();
-        this._slimStatusBar(true);
+        start('status bar', () => this._slimStatusBar(true));
         if (this._settings.get_boolean('collapse-dock-in-tablet'))
             this._dockHider = start('desktop dock hidden', () => new DashToDockHider());
+        // Before arranging: it remembers each app's desktop size to restore.
+        start('window sizing', () => this._installWindowSizing());
         start('open apps', () => this._arrangeForTablet());
-        log('Mutsu Adaptive: entered tablet mode');
+        this._logSwitch('entered tablet mode', t, begin);
+        // After the animation: bigger text, dock/gesture settings, the
+        // touch session and the gamepad.
+        this._settleLater('tablet settings', () => {
+            if (!this._inTablet)
+                return;
+            const s = {};
+            this._part(s, 'touch settings', () => this._applyTouchSettings());
+            this._session = this._part(s, 'touch session', () => new TabletSession(this._settings, this._journal));
+            this._gamepad = this._part(s, 'on-screen gamepad', () => new TabletGamepad(this._settings));
+            log(`Mutsu Adaptive: tablet settings (${Object.entries(s).map(([k, v]) => `${k} ${v}`).join(', ')})`);
+        });
     }
 
     _leaveTablet() {
@@ -435,27 +490,26 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (!this._inTablet)
             return;
         this._inTablet = false;
+        const begin = GLib.get_monotonic_time();
+        const t = {};
+        this._cancelSettle();
         for (const [object, id] of this._tabletSignals ?? [])
             object.disconnect(id);
         this._tabletSignals = [];
-        try {
-            this._arrangeForDesktop();
-        } catch (error) {
-            logError(error, 'Mutsu Adaptive: arranging windows for the desktop failed');
-        }
+        this._part(t, 'open apps', () => this._arrangeForDesktop());
         for (const part of ['_gamepad', '_switcher', '_home', '_session', '_dockHider']) {
-            try {
-                this[part]?.destroy();
-            } catch (error) {
-                logError(error, `Mutsu Adaptive: ${part} cleanup failed`);
-            }
+            this._part(t, part.slice(1), () => this[part]?.destroy());
             this[part] = null;
         }
-        this._removeWindowSizing();
-        this._journal.restore();
-        setTabletWindowChrome(false);
-        this._slimStatusBar(false);
-        log('Mutsu Adaptive: left tablet mode');
+        this._part(t, 'window sizing', () => this._removeWindowSizing());
+        this._part(t, 'window controls', () => setTabletWindowChrome(false));
+        this._part(t, 'status bar', () => this._slimStatusBar(false));
+        this._logSwitch('left tablet mode', t, begin);
+        // After the animation: text size, dock and gesture settings back.
+        this._settleLater('desktop settings', () => {
+            if (!this._inTablet)
+                this._journal.restore();
+        });
     }
 
     _applyTouchSettings() {

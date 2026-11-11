@@ -375,18 +375,26 @@ if [[ -s "$brand/cursors/japandi/left_ptr.svg" ]]; then
   # real hardware, so link each name explicitly instead of relying on it.
   adwaita=/usr/share/icons/Adwaita/cursors
   if [[ -d "$adwaita" ]]; then
+    # Each link points straight at the real file: several Adwaita names
+    # (n-resize, s-resize, w-resize, zoom-in, progress) are themselves links,
+    # and GNOME Shell still logged those as missing through a link to a link.
+    link_cursor() {  # link_cursor <name> <Adwaita file or link>
+      local real
+      real="$(readlink -f "$2")"
+      [[ -f "$real" ]] || return 1
+      ln -sfn "$(realpath --relative-to="$cursors" "$real")" "$cursors/$1"
+    }
     for source in "$adwaita"/*; do
       name=$(basename "$source")
       [[ -e "$cursors/$name" || -L "$cursors/$name" ]] && continue
-      ln -s "../../Adwaita/cursors/$name" "$cursors/$name"
+      link_cursor "$name" "$source" || true
     done
     # CSS cursor names GNOME asks for, with the older X11 names some Adwaita
     # builds use instead. Link each missing one to the first that exists.
     while read -r name alternatives; do
       [[ -z "$name" || -e "$cursors/$name" ]] && continue
       for alt in $alternatives; do
-        if [[ -e "$adwaita/$alt" ]]; then
-          ln -sfn "../../Adwaita/cursors/$alt" "$cursors/$name"
+        if [[ -e "$adwaita/$alt" ]] && link_cursor "$name" "$adwaita/$alt"; then
           break
         fi
       done
@@ -426,8 +434,9 @@ zoom-in zoom-in
 zoom-out zoom-out
 NAMES
     missing=()
-    for need in text wait pointer se-resize ew-resize ns-resize row-resize col-resize progress grab grabbing not-allowed; do
-      [[ -e "$cursors/$need" ]] || missing+=("$need")
+    for need in text wait pointer se-resize ew-resize ns-resize row-resize col-resize progress grab grabbing not-allowed \
+        n-resize s-resize e-resize w-resize zoom-in zoom-out; do
+      [[ -f "$cursors/$need" ]] || missing+=("$need")
     done
     printf 'Cursor theme: %s names (drawn arrow + Adwaita links)\n' "$(ls "$cursors" | wc -l)"
     [[ ${#missing[@]} -eq 0 ]] || echo >&2 "warning: cursors still missing: ${missing[*]}"
