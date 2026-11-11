@@ -556,7 +556,9 @@ def slide_flow(T):
             for (const ms of [40, 90, 140])
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {{
                     const a = w.get_compositor_private();
-                    globalThis.__mutsuTx.push(Math.round(a?.translation_x ?? 0));
+                    // The slide moves the window's picture (or the window).
+                    const c = a?._mutsuSlideClone;
+                    globalThis.__mutsuTx.push(Math.round((c ?? a)?.translation_x ?? 0));
                     // Is GNOME running its unminimize (zoom out of the dock)?
                     globalThis.__mutsuAnim.push(!!a && wm._unminimizing.has(a));
                     return GLib.SOURCE_REMOVE; }});
