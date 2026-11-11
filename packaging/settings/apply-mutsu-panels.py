@@ -8,6 +8,7 @@ Settings moves between point releases. Fails loudly if an anchor is gone.
 Panels added (each a folder next to this script):
 
     mutsu-updates   Software Updates (in the System section, above System)
+    mutsu-search    Mutsu Search (just above GNOME's own Search page)
 """
 
 import re
@@ -19,6 +20,7 @@ HERE = Path(__file__).resolve().parent
 PANELS = [
     # (id, C type prefix, place it before this panel id in the sidebar)
     ("mutsu-updates", "cc_mutsu_updates_panel", "system"),
+    ("mutsu-search", "cc_mutsu_search_panel", "search"),
 ]
 
 

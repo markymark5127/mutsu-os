@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Settings → Mutsu Search reads and writes Search's settings through this
+# (get | set <key> <value> | test-ai; JSON out). See aidesktop.search_settings.
+set -euo pipefail
+export PYTHONPATH="/usr/libexec/mutsu-os/src${PYTHONPATH:+:$PYTHONPATH}"
+exec /usr/bin/python3 -m aidesktop.search_settings "$@"

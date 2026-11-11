@@ -153,7 +153,8 @@ class SettingsPatchTests(unittest.TestCase):
             '    PANEL_TYPE ("applications", cc_applications_panel_get_type, NULL),\n'
             '    PANEL_TYPE ("background", cc_background_panel_get_type, NULL),\n};\n')
         (root / "shell" / "cc-panel-list.c").write_text(
-            'static const gchar * const panel_order[] = {\n    "privacy",\n    "system",\n'
+            'static const gchar * const panel_order[] = {\n    "notifications",\n    "search",\n'
+            '    "privacy",\n    "system",\n'
             '    "reset-settings",\n};\n')
 
     def test_adds_the_updates_page(self):
@@ -163,7 +164,7 @@ class SettingsPatchTests(unittest.TestCase):
             script = ROOT / "packaging" / "settings" / "apply-mutsu-panels.py"
             subprocess.run([sys.executable, str(script), tmp], check=True, capture_output=True)
             meson = (root / "panels" / "meson.build").read_text()
-            self.assertIn("panels = [\n  'mutsu-updates',\n  'applications'", meson)
+            self.assertIn("  'mutsu-updates',\n  'applications'", meson)
             self.assertNotIn("'mutsu-updates'", meson.split("dependent_panels")[1])
             loader = (root / "shell" / "cc-panel-loader.c").read_text()
             self.assertIn("extern GType cc_mutsu_updates_panel_get_type (void);", loader)
@@ -171,6 +172,11 @@ class SettingsPatchTests(unittest.TestCase):
             order = (root / "shell" / "cc-panel-list.c").read_text()
             self.assertIn('"privacy",\n    "mutsu-updates",\n    "system",', order)
             self.assertTrue((root / "panels" / "mutsu-updates" / "cc-mutsu-updates-panel.c").is_file())
+            # Mutsu Search sits just above GNOME's Search.
+            self.assertIn("'mutsu-search',", meson)
+            self.assertIn('PANEL_TYPE ("mutsu-search", cc_mutsu_search_panel_get_type, NULL),', loader)
+            self.assertIn('"notifications",\n    "mutsu-search",\n    "search",', order)
+            self.assertTrue((root / "panels" / "mutsu-search" / "cc-mutsu-search-panel.c").is_file())
             # Running it twice changes nothing more.
             subprocess.run([sys.executable, str(script), tmp], check=True, capture_output=True)
             self.assertEqual((root / "shell" / "cc-panel-list.c").read_text().count("mutsu-updates"), 1)
@@ -200,6 +206,15 @@ class ImageWiringTests(unittest.TestCase):
         import re
         for unit in set(re.findall(r'"(mutsu-update-[a-z-]+\.service)"', panel)):
             self.assertIn(unit, rule)
+
+    def test_search_settings_page_is_installed(self):
+        text = (ROOT / "Containerfile").read_text()
+        self.assertIn("mutsu-search-settings", text)
+        self.assertIn("gnome-mutsu-search-panel.desktop", text)
+        helper = (ROOT / "packaging" / "mutsu-search-settings").read_text()
+        self.assertIn("aidesktop.search_settings", helper)
+        panel = (ROOT / "packaging" / "settings" / "mutsu-search" / "cc-mutsu-search-panel.c").read_text()
+        self.assertIn('"/usr/libexec/mutsu-os/mutsu-search-settings"', panel)
 
     def test_updater_opens_settings(self):
         text = (ROOT / "packaging" / "mutsu-updater").read_text()

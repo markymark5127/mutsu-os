@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Mutsu Search
+Comment=Choose how Mutsu Search answers, which web search it uses and how it looks
+Exec=gnome-control-center mutsu-search
+Icon=system-search-symbolic
+Terminal=false
+Type=Application
+NoDisplay=true
+StartupNotify=true
+Categories=GNOME;GTK;Settings;X-GNOME-Settings-Panel;X-GNOME-PersonalizationSettings;
+OnlyShowIn=GNOME;Unity;
+Keywords=Search;Spotlight;AI;Assistant;Mechanic;Ollama;Privacy;Cloud;Web;Theme;Mutsu;

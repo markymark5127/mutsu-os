@@ -231,6 +231,7 @@ RUN bash /tmp/mutsu-install-terminal-branding.sh && \
 # unless turned off, installs in the background. It replaces Bazzite's uupd.
 COPY --from=settings /out/ /tmp/mutsu-settings-rpms/
 COPY packaging/mutsu-update-backend /usr/libexec/mutsu-os/mutsu-update-backend
+COPY packaging/mutsu-search-settings /usr/libexec/mutsu-os/mutsu-search-settings
 COPY packaging/updates/mutsu-update-notify /usr/libexec/mutsu-os/mutsu-update-notify
 COPY packaging/updates/*.service packaging/updates/*.timer /tmp/mutsu-update-units/
 COPY packaging/updates/mutsu-update-notify.path /tmp/mutsu-update-units/
@@ -240,7 +241,10 @@ RUN set -eux; \
         $(ls /tmp/mutsu-settings-rpms/gnome-control-center-filesystem-*.rpm 2>/dev/null); \
     rpm -q gnome-control-center | grep -q mutsu; \
     test -s /usr/share/applications/gnome-mutsu-updates-panel.desktop; \
-    chmod 0755 /usr/libexec/mutsu-os/mutsu-update-backend /usr/libexec/mutsu-os/mutsu-update-notify; \
+    test -s /usr/share/applications/gnome-mutsu-search-panel.desktop; \
+    chmod 0755 /usr/libexec/mutsu-os/mutsu-update-backend /usr/libexec/mutsu-os/mutsu-update-notify \
+        /usr/libexec/mutsu-os/mutsu-search-settings; \
+    /usr/libexec/mutsu-os/mutsu-search-settings get >/dev/null; \
     for unit in /tmp/mutsu-update-units/*; do \
         case "$unit" in \
             *notify.service|*notify.path) install -Dm0644 "$unit" "/usr/lib/systemd/user/$(basename "$unit")" ;; \
