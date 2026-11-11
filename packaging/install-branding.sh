@@ -359,13 +359,13 @@ fi
 
 # Cursor sources and font preference. Adwaita remains the fallback cursor.
 # GNOME only reads Xcursor files, so the SVG is converted at build time
-# (hotspot = arrow tip at 5,5 on the 32 px drawing). Cursors not drawn yet
+# (hotspot = arrow tip at 3,5 on the 32 px drawing). Cursors not drawn yet
 # fall back to Adwaita through the theme's Inherits line.
 if [[ -s "$brand/cursors/japandi/left_ptr.svg" ]]; then
   cursors=/usr/share/icons/MutsuJapandi/cursors
   install -d -m0755 "$cursors"
   python3 "$brand/cursors/build-xcursor.py" \
-    "$brand/cursors/japandi/left_ptr.svg" "$cursors/left_ptr" 5 5
+    "$brand/cursors/japandi/left_ptr.svg" "$cursors/left_ptr" 3 5
   for alias in default arrow top_left_arrow left_arrow; do
     ln -sfn left_ptr "$cursors/$alias"
   done
