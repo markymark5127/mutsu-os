@@ -216,6 +216,15 @@ class ImageWiringTests(unittest.TestCase):
         panel = (ROOT / "packaging" / "settings" / "mutsu-search" / "cc-mutsu-search-panel.c").read_text()
         self.assertIn('"/usr/libexec/mutsu-os/mutsu-search-settings"', panel)
 
+    def test_pages_are_top_level_in_the_sidebar(self):
+        """X-GNOME-SystemSettings marks a sub-page of System: Settings then
+        shows the System page instead (and the OS Updater lands there too)."""
+        for panel in ("mutsu-updates", "mutsu-search"):
+            desktop = (ROOT / "packaging" / "settings" / panel / f"gnome-{panel}-panel.desktop.in").read_text()
+            categories = next(l for l in desktop.splitlines() if l.startswith("Categories="))
+            self.assertNotIn("X-GNOME-SystemSettings", categories, panel)
+            self.assertNotIn("X-GNOME-PrivacySettings", categories, panel)
+
     def test_updater_opens_settings(self):
         text = (ROOT / "packaging" / "mutsu-updater").read_text()
         self.assertIn("gnome-control-center mutsu-updates", text)
