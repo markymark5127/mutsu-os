@@ -1,0 +1,8 @@
+[Unit]
+Description=Turn off automatic Mutsu OS updates
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/mutsu-os/mutsu-update-backend auto-off
+Nice=10
+IOSchedulingClass=idle

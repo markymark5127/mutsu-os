@@ -1,0 +1,266 @@
+#!/usr/bin/python3
+"""Mutsu OS updates: the privileged side of Settings → Software Updates.
+
+Runs as root from small systemd units (started by Settings through polkit,
+or by the daily timer) and reports through one world-readable file,
+/run/mutsu-update/state.json, which Settings and the notifier watch:
+
+    {"phase": "idle|checking|downloading|installing-apps|staged|rolling-back|
+               rollback-staged|error",
+     "progress": 0..1 or null, "message": "...",
+     "booted": {"version", "timestamp", "image"},
+     "staged": {...} | null, "rollback": {...} | null,
+     "available": true|false|null, "checked": unix-time,
+     "auto": true|false, "error": "..." | null}
+
+Commands: status | check | apply | timer | rollback | auto-on | auto-off
+"""
+
+from __future__ import annotations
+
+import fcntl
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+
+STATE_DIR = "/run/mutsu-update"
+STATE = os.path.join(STATE_DIR, "state.json")
+# Automatic installs are on unless switched off (Bazzite installs updates in
+# the background by default too; they apply at the next restart).
+AUTO_OFF = "/var/lib/mutsu-update/auto-install-off"
+
+
+def auto_enabled() -> bool:
+    return not os.path.exists(AUTO_OFF)
+
+
+# ---- state -------------------------------------------------------------------
+
+def read_state() -> dict:
+    try:
+        with open(STATE, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
+def write_state(**changes) -> dict:
+    state = read_state()
+    state.update(changes)
+    state["auto"] = auto_enabled()
+    os.makedirs(STATE_DIR, exist_ok=True)
+    os.chmod(STATE_DIR, 0o755)
+    fd, tmp = tempfile.mkstemp(dir=STATE_DIR, prefix=".state-")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump(state, fh)
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, STATE)
+    return state
+
+
+# ---- bootc ---------------------------------------------------------------------
+
+def run(argv, **kw):
+    return subprocess.run(argv, text=True, capture_output=True, check=False, **kw)
+
+
+def describe(entry) -> dict | None:
+    """One deployment from `bootc status --format=json`."""
+    if not entry:
+        return None
+    image = entry.get("image") or {}
+    ref = (image.get("image") or {}).get("image") or ""
+    return {
+        "version": image.get("version") or "",
+        "timestamp": image.get("timestamp") or "",
+        "digest": image.get("imageDigest") or "",
+        "image": ref,
+    }
+
+
+def bootc_status() -> dict:
+    result = run(["bootc", "status", "--format=json"])
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "bootc status failed")
+    data = json.loads(result.stdout or "{}")
+    status = data.get("status") or {}
+    return {
+        "booted": describe(status.get("booted")),
+        "staged": describe(status.get("staged")),
+        "rollback": describe(status.get("rollback")),
+        "image": ((data.get("spec") or {}).get("image") or {}).get("image") or "",
+    }
+
+
+def refresh_status(**extra) -> dict:
+    try:
+        status = bootc_status()
+    except (RuntimeError, ValueError, OSError) as error:
+        return write_state(error=str(error), **extra)
+    return write_state(booted=status["booted"], staged=status["staged"],
+                       rollback=status["rollback"], **extra)
+
+
+def remote_digest(image: str) -> str | None:
+    if not image:
+        return None
+    result = run(["skopeo", "inspect", "--format", "{{.Digest}}", f"docker://{image}"], timeout=120)
+    return result.stdout.strip() or None if result.returncode == 0 else None
+
+
+def update_available(status: dict) -> bool | None:
+    """Is the registry's image newer than what's booted (or staged)?"""
+    image = status.get("image") or (status.get("booted") or {}).get("image")
+    latest = remote_digest(image)
+    if latest is None:
+        return None
+    have = {(status.get(k) or {}).get("digest") for k in ("booted", "staged")}
+    return latest not in have
+
+
+# ---- commands --------------------------------------------------------------------
+
+def cmd_status() -> int:
+    refresh_status()
+    return 0
+
+
+def cmd_check() -> int:
+    write_state(phase="checking", progress=None, message="Checking for updates…", error=None)
+    try:
+        status = bootc_status()
+    except (RuntimeError, ValueError, OSError) as error:
+        write_state(phase="error", message="Couldn't read the installed version.", error=str(error))
+        return 1
+    available = update_available(status)
+    staged = status["staged"] is not None
+    if available is None:
+        phase, message = ("staged" if staged else "error",
+                          "Couldn't reach the update server. Check your connection.")
+    elif staged and not available:
+        phase, message = "staged", "Update installed. Restart to finish."
+    elif available:
+        phase, message = "idle", "An update is available."
+    else:
+        phase, message = "idle", "Mutsu OS is up to date."
+    write_state(phase=phase, progress=None, message=message, available=available,
+                checked=int(time.time()), booted=status["booted"], staged=status["staged"],
+                rollback=status["rollback"], error=None if available is not None else message)
+    return 0 if available is not None else 1
+
+
+def parse_progress(line: str) -> float | None:
+    """bootc --progress-fd JSON lines -> fraction done."""
+    try:
+        event = json.loads(line)
+    except ValueError:
+        return None
+    for done_key, total_key in (("bytes", "bytesTotal"), ("steps", "stepsTotal")):
+        done, total = event.get(done_key), event.get(total_key)
+        if isinstance(done, (int, float)) and isinstance(total, (int, float)) and total > 0:
+            return max(0.0, min(1.0, done / total))
+    return None
+
+
+def apply_system() -> tuple[bool, str]:
+    read_fd, write_fd = os.pipe()
+    log = tempfile.TemporaryFile(mode="w+", encoding="utf-8")
+    proc = subprocess.Popen(["bootc", "upgrade", "--progress-fd", str(write_fd)],
+                            pass_fds=(write_fd,), stdout=log, stderr=subprocess.STDOUT, text=True)
+    os.close(write_fd)
+    last = 0.0
+    with os.fdopen(read_fd, encoding="utf-8", errors="replace") as events:
+        for line in events:
+            fraction = parse_progress(line)
+            # Don't rewrite the state file for every tiny step.
+            if fraction is not None and fraction - last >= 0.01:
+                last = fraction
+                write_state(phase="downloading", progress=round(fraction * 0.9, 3))
+    proc.wait()
+    log.seek(0)
+    output = log.read()
+    log.close()
+    if proc.returncode != 0 and "--progress-fd" in output:
+        # Older bootc without progress reporting: plain upgrade.
+        write_state(phase="downloading", progress=None)
+        result = run(["bootc", "upgrade"])
+        return result.returncode == 0, (result.stderr or result.stdout).strip()
+    return proc.returncode == 0, output.strip()
+
+
+def cmd_apply() -> int:
+    write_state(phase="downloading", progress=0.0, message="Downloading the update…", error=None)
+    ok, output = apply_system()
+    if not ok:
+        write_state(phase="error", progress=None, message="The update couldn't be installed.",
+                    error=output[-2000:])
+        return 1
+    write_state(phase="installing-apps", progress=0.92, message="Updating apps…")
+    apps = run(["flatpak", "update", "--system", "-y", "--noninteractive"], timeout=3600)
+    refresh_status()
+    staged = read_state().get("staged") is not None
+    write_state(phase="staged" if staged else "idle", progress=None, available=False,
+                checked=int(time.time()),
+                message="Update installed. Restart to finish." if staged else "Mutsu OS is up to date.",
+                error=None if apps.returncode == 0 else "Some apps couldn't be updated.")
+    return 0
+
+
+def cmd_timer() -> int:
+    """Daily: check; with automatic installs on, also download and stage."""
+    code = cmd_check()
+    if code == 0 and read_state().get("available") and auto_enabled():
+        return cmd_apply()
+    return code
+
+
+def cmd_rollback() -> int:
+    write_state(phase="rolling-back", progress=None, message="Getting the previous version ready…",
+                error=None)
+    result = run(["bootc", "rollback"])
+    if result.returncode != 0:
+        write_state(phase="error", message="Couldn't go back to the previous version.",
+                    error=(result.stderr or result.stdout).strip()[-2000:])
+        return 1
+    refresh_status(phase="rollback-staged", message="Restart to go back to the previous version.")
+    return 0
+
+
+def cmd_auto(on: bool) -> int:
+    if on:
+        if os.path.exists(AUTO_OFF):
+            os.remove(AUTO_OFF)
+    else:
+        os.makedirs(os.path.dirname(AUTO_OFF), exist_ok=True)
+        open(AUTO_OFF, "w").close()
+    write_state()
+    return 0
+
+
+def main(argv) -> int:
+    command = argv[1] if len(argv) > 1 else "status"
+    commands = {
+        "status": cmd_status, "check": cmd_check, "apply": cmd_apply, "timer": cmd_timer,
+        "rollback": cmd_rollback, "auto-on": lambda: cmd_auto(True), "auto-off": lambda: cmd_auto(False),
+    }
+    if command not in commands:
+        print(__doc__, file=sys.stderr)
+        return 2
+    if command in ("check", "apply", "timer", "rollback"):
+        # One update operation at a time; a second request while one runs
+        # (e.g. Check pressed during a download) just leaves it running.
+        os.makedirs(STATE_DIR, exist_ok=True)
+        lock = open(os.path.join(STATE_DIR, "lock"), "w")
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("mutsu-update: another update operation is running", file=sys.stderr)
+            return 0
+    return commands[command]()
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

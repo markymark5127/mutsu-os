@@ -1,0 +1,15 @@
+// Settings → Software Updates: local administrators may check, install,
+// roll back and switch automatic updates without a password prompt. Only
+// these units, only start, only an active local session.
+polkit.addRule(function (action, subject) {
+    if (action.id != "org.freedesktop.systemd1.manage-units")
+        return polkit.Result.NOT_HANDLED;
+    var units = ["mutsu-update-check.service", "mutsu-update-apply.service",
+                 "mutsu-update-rollback.service", "mutsu-update-auto-on.service",
+                 "mutsu-update-auto-off.service", "mutsu-update-status.service"];
+    if (units.indexOf(action.lookup("unit")) < 0 || action.lookup("verb") != "start")
+        return polkit.Result.NOT_HANDLED;
+    if (subject.local && subject.active && subject.isInGroup("wheel"))
+        return polkit.Result.YES;
+    return polkit.Result.AUTH_ADMIN_KEEP;
+});

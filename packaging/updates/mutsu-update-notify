@@ -1,0 +1,50 @@
+#!/usr/bin/python3
+"""Tell the signed-in user about Mutsu OS updates (once per version).
+
+Triggered by mutsu-update-notify.path whenever the update state changes.
+Clicking the notification opens Settings → Software Updates.
+"""
+import json
+import os
+import shutil
+import subprocess
+
+STATE = "/run/mutsu-update/state.json"
+SEEN = os.path.expanduser("~/.cache/mutsu-update-notified")
+
+
+def main():
+    try:
+        with open(STATE, encoding="utf-8") as fh:
+            state = json.load(fh)
+    except (OSError, ValueError):
+        return
+    phase = state.get("phase")
+    staged = (state.get("staged") or {}).get("digest") or ""
+    if phase == "staged" and staged:
+        key, title, body = f"staged:{staged}", "Mutsu OS update ready", "Restart to finish installing it."
+    elif phase == "idle" and state.get("available") and not state.get("auto"):
+        key, title, body = f"available:{state.get('checked')}", "Mutsu OS update available", \
+            "Open Software Updates to install it."
+    else:
+        return
+    try:
+        if open(SEEN, encoding="utf-8").read().strip() == key:
+            return
+    except OSError:
+        pass
+    os.makedirs(os.path.dirname(SEEN), exist_ok=True)
+    with open(SEEN, "w", encoding="utf-8") as fh:
+        fh.write(key)
+    if not shutil.which("notify-send"):
+        return
+    result = subprocess.run(
+        ["notify-send", "--app-name=Mutsu OS", "--icon=mutsu-updater", "--wait",
+         "--action=open=Open Software Updates", title, body],
+        text=True, capture_output=True, timeout=6 * 3600, check=False)
+    if result.stdout.strip() == "open":
+        subprocess.Popen(["gnome-control-center", "mutsu-updates"])
+
+
+if __name__ == "__main__":
+    main()

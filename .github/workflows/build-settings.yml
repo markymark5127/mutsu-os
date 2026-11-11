@@ -1,0 +1,39 @@
+name: Mutsu GNOME Settings (test build)
+
+# Builds Mutsu's GNOME Settings on its own, in the same base image the OS
+# uses, so a broken patch shows up in minutes instead of an hour into the
+# image build. The image build runs the same script.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/settings/**'
+      - '.github/workflows/build-settings.yml'
+
+concurrency:
+  group: build-settings
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/ublue-os/bazzite-gnome:stable
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build gnome-control-center with Mutsu's pages
+        run: bash packaging/settings/build-gnome-settings.sh /tmp/mutsu-settings-rpms
+      - name: Mutsu panel is in the build
+        run: |
+          set -eux
+          rpm2cpio /tmp/mutsu-settings-rpms/gnome-control-center-[0-9]*.rpm | cpio -t 2>/dev/null | grep -E 'gnome-mutsu-updates-panel.desktop'
+          dnf5 -y install /tmp/mutsu-settings-rpms/*.rpm
+          rpm -q gnome-control-center | grep mutsu
+          strings "$(command -v gnome-control-center)" | grep -q mutsu-updates
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mutsu-gnome-settings-rpms
+          path: /tmp/mutsu-settings-rpms/*.rpm
+          retention-days: 7

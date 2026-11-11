@@ -1,0 +1,11 @@
+[Unit]
+Description=Report the installed Mutsu OS version
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/mutsu-os/mutsu-update-backend status
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

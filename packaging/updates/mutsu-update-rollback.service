@@ -1,0 +1,10 @@
+[Unit]
+Description=Go back to the previous Mutsu OS version
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/mutsu-os/mutsu-update-backend rollback
+Nice=10
+IOSchedulingClass=idle

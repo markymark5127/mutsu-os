@@ -1,0 +1,7 @@
+[Unit]
+Description=Notify about Mutsu OS updates
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/mutsu-os/mutsu-update-notify
+TimeoutStartSec=infinity

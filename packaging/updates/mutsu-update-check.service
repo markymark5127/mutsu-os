@@ -1,0 +1,10 @@
+[Unit]
+Description=Check for Mutsu OS updates
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/mutsu-os/mutsu-update-backend check
+Nice=10
+IOSchedulingClass=idle

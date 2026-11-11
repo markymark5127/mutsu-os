@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Mutsu OS update check (installs in the background when automatic updates are on)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/mutsu-os/mutsu-update-backend timer
+Nice=10
+IOSchedulingClass=idle
