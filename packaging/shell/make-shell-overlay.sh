@@ -15,14 +15,24 @@ set -euo pipefail
 out="${1:?output dir}"
 here="$(cd "$(dirname "$0")" && pwd)"
 
+# Whichever file of the gnome-shell package carries the JavaScript resource
+# (an ELF .gresource section, or a .gresource file).
 lib=""
-for candidate in /usr/lib64/gnome-shell/*.so /usr/bin/gnome-shell; do
+while read -r candidate; do
+  [[ -f "$candidate" && ! -L "$candidate" ]] || continue
+  case "$candidate" in *.so*|*.gresource|*/bin/*|*/libexec/*) ;; *) continue ;; esac
   if gresource list "$candidate" 2>/dev/null | grep -qx /org/gnome/shell/ui/layout.js; then
     lib="$candidate"
     break
   fi
-done
-[[ -n "$lib" ]] || { echo "make-shell-overlay: GNOME Shell's JavaScript wasn't found" >&2; exit 1; }
+done < <(rpm -ql gnome-shell 2>/dev/null; ls /usr/lib64/gnome-shell/* /usr/bin/gnome-shell 2>/dev/null)
+if [[ -z "$lib" ]]; then
+  echo "make-shell-overlay: GNOME Shell's JavaScript wasn't found. Resources seen:" >&2
+  for f in $(rpm -ql gnome-shell | grep -E '\.so|\.gresource|/bin/|/libexec/'); do
+    [[ -f "$f" ]] && gresource list "$f" 2>/dev/null | head -3 | sed "s|^|  $f: |" >&2
+  done
+  exit 1
+fi
 
 work="$(mktemp -d)"
 mkdir -p "$work/js/ui" "$out/ui"
