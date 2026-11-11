@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Mutsu: Settings > Software Updates. A symbolic (one-colour) icon so it
+       is tinted like the rest of the sidebar. An arrow coming down into a tray. -->
+  <path fill="#222222" d="M7 1h2v6.59l2.3-2.3 1.4 1.42L8 11.4 3.3 6.71l1.4-1.42L7 7.59z"/>
+  <path fill="#222222" d="M1 10h2v3h10v-3h2v4a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1z"/>
+</svg>

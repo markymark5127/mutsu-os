@@ -225,6 +225,16 @@ class ImageWiringTests(unittest.TestCase):
             self.assertNotIn("X-GNOME-SystemSettings", categories, panel)
             self.assertNotIn("X-GNOME-PrivacySettings", categories, panel)
 
+    def test_sidebar_icons_are_symbolic(self):
+        """Only -symbolic icons are tinted like the rest of the sidebar, and
+        only if the theme has them: ship Mutsu's own for Software Updates."""
+        desktop = (ROOT / "packaging/settings/mutsu-updates/gnome-mutsu-updates-panel.desktop.in").read_text()
+        self.assertIn("Icon=mutsu-software-update-symbolic", desktop)
+        svg = ROOT / "packaging/settings/mutsu-updates/mutsu-software-update-symbolic.svg"
+        self.assertTrue(svg.is_file())
+        self.assertIn("hicolor/scalable/apps/mutsu-software-update-symbolic.svg",
+                      (ROOT / "Containerfile").read_text())
+
     def test_updater_opens_settings(self):
         text = (ROOT / "packaging" / "mutsu-updater").read_text()
         self.assertIn("gnome-control-center mutsu-updates", text)

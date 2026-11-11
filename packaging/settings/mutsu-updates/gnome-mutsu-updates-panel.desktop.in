@@ -2,7 +2,7 @@
 Name=Software Updates
 Comment=Update Mutsu OS and your apps, or go back to the previous version
 Exec=gnome-control-center mutsu-updates
-Icon=system-software-update-symbolic
+Icon=mutsu-software-update-symbolic
 Terminal=false
 Type=Application
 NoDisplay=true

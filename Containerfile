@@ -267,12 +267,16 @@ COPY packaging/updates/mutsu-update-notify /usr/libexec/mutsu-os/mutsu-update-no
 COPY packaging/updates/*.service packaging/updates/*.timer /tmp/mutsu-update-units/
 COPY packaging/updates/mutsu-update-notify.path /tmp/mutsu-update-units/
 COPY packaging/updates/50-mutsu-updates.rules /usr/share/polkit-1/rules.d/50-mutsu-updates.rules
+# Its sidebar icon: one colour, tinted like the others (the stock name it used
+# isn't in Adwaita, so GNOME fell back to a full-colour icon).
+COPY packaging/settings/mutsu-updates/mutsu-software-update-symbolic.svg /usr/share/icons/hicolor/scalable/apps/mutsu-software-update-symbolic.svg
 RUN set -eux; \
     dnf5 -y install /tmp/mutsu-settings-rpms/gnome-control-center-[0-9]*.rpm \
         $(ls /tmp/mutsu-settings-rpms/gnome-control-center-filesystem-*.rpm 2>/dev/null); \
     rpm -q gnome-control-center | grep -q mutsu; \
     test -s /usr/share/applications/gnome-mutsu-updates-panel.desktop; \
     test -s /usr/share/applications/gnome-mutsu-search-panel.desktop; \
+    gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true; \
     chmod 0755 /usr/libexec/mutsu-os/mutsu-update-backend /usr/libexec/mutsu-os/mutsu-update-notify \
         /usr/libexec/mutsu-os/mutsu-search-settings; \
     /usr/libexec/mutsu-os/mutsu-search-settings get >/dev/null; \
