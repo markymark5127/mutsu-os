@@ -168,6 +168,15 @@ def look_flow():
     of the desktop and quick settings (uploaded with the Shell log)."""
     S = "Look"
     js("""Main.extensionManager.lookup('mutsu-branding@mutsu-os')?.stateObj?._settings?.set_string('appearance', 'japandi')""")
+    # Japandi is baked into the image's Shell theme; layer this commit's
+    # stylesheet on top so the look is checked before an image rebuild.
+    css = "/src/branding/shell/japandi.css"
+    if os.path.exists(css):
+        print("look: loading", css, js(f"""(() => {{
+            const St = imports.gi.St, Gio = imports.gi.Gio;
+            St.ThemeContext.get_for_stage(global.stage).get_theme()
+                .load_stylesheet(Gio.File.new_for_path({json.dumps(css)}));
+            return true; }})()"""), flush=True)
     wait(4)
     facts = js("""(() => {
         const find = (actor, cls) => {
