@@ -39,7 +39,7 @@
   background-gradient-end: rgba(236, 224, 202, 0.66);
   border: 1px solid rgba(255, 255, 255, 0.90);
   border-radius: 13px;
-  box-shadow: 0 12px 32px rgba(30, 26, 22, 0.22);
+  /* no shadow here: St draws it as a square block around the menu */
 }
 /* Quick settings, calendar and notification cards sit on the paper. */
 .quick-toggle, .quick-menu-toggle .quick-toggle, .quick-slider,

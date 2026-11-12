@@ -9,7 +9,6 @@
  */
 import Gio from 'gi://Gio';
 import Shell from 'gi://Shell';
-import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const EFFECT_NAME = 'mutsu-rice-paper-blur';
@@ -62,21 +61,7 @@ export class RiceGlass {
             if (box)
                 out.push([box, 13]);
         }
-        // Dash-to-Dock's pill, at its own rounding.
-        const find = (actor, found) => {
-            if (actor.has_style_class_name?.('dash-background'))
-                found.push(actor);
-            for (const child of actor.get_children?.() ?? [])
-                find(child, found);
-            return found;
-        };
-        for (const pill of find(Main.layoutManager.uiGroup, [])) {
-            let radius = 21;
-            try {
-                radius = pill.get_theme_node().get_border_radius(St.Corner.TOPLEFT) || radius;
-            } catch (e) {}
-            out.push([pill, radius]);
-        }
+        // The desktop dock's blur comes from Kiwi (dockBlur.js).
         return out;
     }
 
