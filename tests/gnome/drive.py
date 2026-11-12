@@ -162,6 +162,71 @@ def desktop_checks():
                and started.get("uiOpacity") == 255 and started.get("uiScale") == 1, started)
 
 
+def look_flow():
+    """What the Japandi chrome actually looks like: colours as the Shell
+    resolved them, whether the rice-paper blur is attached, and screenshots
+    of the desktop and quick settings (uploaded with the Shell log)."""
+    S = "Look"
+    js("""Main.extensionManager.lookup('mutsu-branding@mutsu-os')?.stateObj?._settings?.set_string('appearance', 'japandi')""")
+    wait(2)
+    facts = js("""(() => {
+        const find = (actor, cls) => {
+            if (actor.has_style_class_name?.(cls)) return actor;
+            for (const c of actor.get_children?.() ?? []) { const f = find(c, cls); if (f) return f; }
+            return null;
+        };
+        const colour = a => { try { return a.get_theme_node().get_background_color().to_string(); } catch (e) { return `${e}`; } };
+        const dockBg = find(Main.layoutManager.uiGroup, 'dash-background');
+        return {
+            appearance: Main.extensionManager.lookup('mutsu-branding@mutsu-os')?.stateObj?._settings?.get_string('appearance'),
+            panel: colour(Main.panel),
+            panelInline: Main.panel.get_style(),
+            panelBlur: !!Main.panel.get_effect('mutsu-rice-paper-blur'),
+            panelEffects: Main.panel.get_effects().map(e => `${e.constructor.name}:${e.get_name?.()}`),
+            dock: dockBg ? colour(dockBg) : null,
+            dockInline: dockBg?.get_style() ?? null,
+            dockEffects: dockBg ? dockBg.get_effects().map(e => `${e.constructor.name}:${e.get_name?.()}`) : null,
+            qsBox: colour(Main.panel.statusArea.quickSettings.menu.box),
+        };
+    })()""")
+    print("look facts:", json.dumps(facts), flush=True)
+    alpha = lambda c: int(c[-2:], 16) if isinstance(c, str) and re.fullmatch(r"#[0-9a-f]{8}", c) else 255
+    record(S, "top bar is see-through rice paper", isinstance(facts, dict) and alpha(facts.get("panel")) < 230, facts)
+    record(S, "top bar has the rice-paper blur", isinstance(facts, dict) and facts.get("panelBlur") is True, facts)
+    record(S, "dock is see-through rice paper",
+           isinstance(facts, dict) and facts.get("dock") is not None and alpha(facts.get("dock")) < 230, facts)
+
+    def shot(name):
+        path = os.path.join(OUT, f"{name}.png")
+        js(f"""(() => {{
+            globalThis._mutsuShot = 'pending';
+            const Shell = imports.gi.Shell, Gio = imports.gi.Gio;
+            const file = Gio.File.new_for_path({json.dumps(path)});
+            const stream = file.replace(null, false, Gio.FileCreateFlags.NONE, null);
+            new Shell.Screenshot().screenshot(false, stream)
+                .then(() => {{ stream.close(null); globalThis._mutsuShot = 'done'; }})
+                .catch(e => {{ globalThis._mutsuShot = `${{e}}`; }});
+            return true;
+        }})()""")
+        for _ in range(20):
+            wait(0.5)
+            state = js("globalThis._mutsuShot")
+            if state != "pending":
+                break
+        print(f"screenshot {name}: {state}", flush=True)
+
+    shot("look-desktop")
+    js("Main.panel.statusArea.quickSettings.menu.open(false)")
+    wait(1.5)
+    shot("look-quick-settings")
+    js("Main.panel.statusArea.quickSettings.menu.close(false)")
+    js("Main.panel.statusArea.dateMenu.menu.open(false)")
+    wait(1.5)
+    shot("look-calendar")
+    js("Main.panel.statusArea.dateMenu.menu.close(false)")
+    wait(1)
+
+
 def tablet_flow():
     S = "Tablet mode"
     if js(f"Main.extensionManager.lookup('{ADAPTIVE}')?.state") != 1:
@@ -782,6 +847,10 @@ def main():
             desktop_checks()
         except Exception as error:
             record("Desktop", "driver", False, repr(error))
+        try:
+            look_flow()
+        except Exception as error:
+            record("Look", "driver", False, repr(error))
         try:
             tablet_flow()
         except Exception as error:  # keep going so the log is still analyzed
