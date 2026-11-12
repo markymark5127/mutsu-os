@@ -392,6 +392,11 @@ for theme in japandi cyberpunk; do
   fi
 done
 
+# Japandi app and folder icons as liquid-glass objects, rendered to PNG at
+# every size (simplified drawings at 32 px and below). They replace the flat
+# Japandi drawings above; other apps keep their own icons.
+python3 "$brand/icons/glass/draw-glass-icons.py" --render /usr/share/icons/MutsuJapandi
+
 # Sound theme. Quiet tones; inherits freedesktop for anything we do not ship.
 if [[ -d "$brand/sounds/MutsuJapandi" ]]; then
   install -d -m0755 /usr/share/sounds/MutsuJapandi
