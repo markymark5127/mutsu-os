@@ -88,3 +88,21 @@
   border-radius: 12px;
 }
 
+/* Dock "Show Apps": a sage tile with a cream grid (two-tone symbolic icon,
+ * mutsu-show-apps-symbolic.svg), so it reads as a button on the paper dock
+ * rather than faint grey dots. Darker when hovered and while the grid is open. */
+#dashtodockContainer .show-apps .show-apps-icon,
+#dash .show-apps .show-apps-icon {
+  color: #FBF7EE;
+  success-color: #788773;
+}
+#dashtodockContainer .show-apps .show-apps-icon:hover,
+#dash .show-apps .show-apps-icon:hover {
+  success-color: #66775F;
+}
+#dashtodockContainer .show-apps:checked .show-apps-icon,
+#dash .show-apps:checked .show-apps-icon {
+  success-color: #384B3C;
+}
+
+

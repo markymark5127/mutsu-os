@@ -65,6 +65,22 @@
   border-radius: 12px;
 }
 
+/* Dock "Show Apps": cyan tile, navy grid (Japandi uses sage and cream). */
+#dashtodockContainer .show-apps .show-apps-icon,
+#dash .show-apps .show-apps-icon {
+  color: #0A1428;
+  success-color: #00E5FF;
+}
+#dashtodockContainer .show-apps .show-apps-icon:hover,
+#dash .show-apps .show-apps-icon:hover {
+  success-color: #5CF0FF;
+}
+#dashtodockContainer .show-apps:checked .show-apps-icon,
+#dash .show-apps:checked .show-apps-icon {
+  success-color: #FF2D9B;
+}
+
+
 /* Japandi (built in) puts these on rice paper; give them back the neon dark. */
 .quick-toggle, .quick-menu-toggle .quick-toggle, .quick-slider,
 .message-list .message, .events-button, .world-clocks-button, .weather-button {

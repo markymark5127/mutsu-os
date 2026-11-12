@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Two-tone symbolic: the tile takes the Shell's success-color (sage in
+       Japandi, cyan in Cyberpunk), the grid takes the icon colour (cream /
+       navy). Same construction as Mutsu app icons: filled tile, light glyph. -->
+  <rect class="success" x="0" y="0" width="16" height="16" rx="3.6" fill="#788773"/>
+  <g fill="#2e3436">
+    <rect x="3.4" y="3.4" width="2.4" height="2.4" rx=".7"/><rect x="6.8" y="3.4" width="2.4" height="2.4" rx=".7"/><rect x="10.2" y="3.4" width="2.4" height="2.4" rx=".7"/>
+    <rect x="3.4" y="6.8" width="2.4" height="2.4" rx=".7"/><rect x="6.8" y="6.8" width="2.4" height="2.4" rx=".7"/><rect x="10.2" y="6.8" width="2.4" height="2.4" rx=".7"/>
+    <rect x="3.4" y="10.2" width="2.4" height="2.4" rx=".7"/><rect x="6.8" y="10.2" width="2.4" height="2.4" rx=".7"/><rect x="10.2" y="10.2" width="2.4" height="2.4" rx=".7"/>
+  </g>
+</svg>

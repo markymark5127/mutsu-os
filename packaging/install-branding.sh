@@ -62,6 +62,16 @@ install -Dm0644 "$brand/icons/mutsu-ai.svg" \
   /usr/share/icons/MutsuJapandi/scalable/apps/mutsu-ai.svg
 install -Dm0644 "$brand/icons/mutsu-app-grid.svg" \
   /usr/share/icons/MutsuJapandi/scalable/actions/mutsu-app-grid.svg
+# Dock "Show Apps" button: a sage tile with a cream grid instead of GNOME's
+# faint grey dots. Dash to Dock asks for view-app-grid-<mode>-symbolic and
+# falls back to view-app-grid-symbolic; both themes get both names. Colours
+# come from the Shell CSS (color + success-color on .show-apps-icon).
+for theme_dir in MutsuJapandi MutsuCyberpunk; do
+  for name in view-app-grid-symbolic view-app-grid-user-symbolic; do
+    install -Dm0644 "$brand/icons/mutsu-show-apps-symbolic.svg" \
+      "/usr/share/icons/$theme_dir/scalable/actions/$name.svg"
+  done
+done
 
 # The new approved Japandi assets use standard theme lookup paths so
 # Nautilus can show sage folders without replacing third-party app branding.
@@ -125,13 +135,36 @@ rsvg-convert --width=280 --keep-aspect-ratio \
   --output="$login_logo" "$wordmark"
 test -s "$login_logo"
 
-for name in mutsu-japandi-4k.png mutsu-cyberpunk-4k.png; do
+for name in mutsu-japandi-4k.png mutsu-japandi-mist-4k.png mutsu-cyberpunk-4k.png; do
   if [[ ! -s "$brand/wallpapers/$name" ]]; then
     echo >&2 "Missing Mutsu wallpaper: $name"
     exit 1
   fi
   install -Dm0644 "$brand/wallpapers/$name" "/usr/share/backgrounds/mutsu/$name"
 done
+# List them in Settings > Appearance so the earlier mist art stays pickable.
+install -d -m 0755 /usr/share/gnome-background-properties
+cat > /usr/share/gnome-background-properties/mutsu-os.xml <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">
+<wallpapers>
+  <wallpaper deleted="false">
+    <name>Mutsu Liquid Shoji</name>
+    <filename>/usr/share/backgrounds/mutsu/mutsu-japandi-4k.png</filename>
+    <options>zoom</options>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Mutsu Mist</name>
+    <filename>/usr/share/backgrounds/mutsu/mutsu-japandi-mist-4k.png</filename>
+    <options>zoom</options>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Mutsu Cyberpunk</name>
+    <filename>/usr/share/backgrounds/mutsu/mutsu-cyberpunk-4k.png</filename>
+    <options>zoom</options>
+  </wallpaper>
+</wallpapers>
+XML
 
 # Stage additional approved Mutsu artwork and palette sources.
 if [[ -s "$brand/icons/mutsu-login-cyberpunk.svg" ]]; then

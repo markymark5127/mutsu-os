@@ -1,0 +1,18 @@
+# Blur My Shell comes enabled from the Bazzite base. Its defaults restyle the
+# same surfaces Mutsu's rice paper owns, and they win: on the dock it forces
+# `.dash-background { background: transparent !important }` and puts a dark
+# (brightness 0.6) blur underneath, so the desktop dock lost its tan paper.
+# Mutsu already blurs these itself (glass.js for the top bar and menus, Kiwi
+# for the dock), so Blur My Shell steps back from them. It keeps the overview,
+# lock screen and screenshot blur, which don't clash.
+[org/gnome/shell/extensions/blur-my-shell/panel]
+blur=false
+
+[org/gnome/shell/extensions/blur-my-shell/dash-to-dock]
+blur=false
+
+[org/gnome/shell/extensions/blur-my-shell/popup]
+blur=false
+
+[org/gnome/shell/extensions/blur-my-shell/appfolder]
+blur=false

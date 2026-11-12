@@ -95,6 +95,7 @@ COPY packaging/30-mutsu-mac-defaults.dconf /etc/dconf/db/mutsu.d/30-mutsu-mac-de
 COPY packaging/40-mutsu-japandi-defaults.dconf /etc/dconf/db/mutsu.d/40-mutsu-japandi-defaults
 COPY packaging/50-mutsu-global-menu.dconf /etc/dconf/db/mutsu.d/50-mutsu-global-menu
 COPY packaging/60-mutsu-kiwi.dconf /etc/dconf/db/mutsu.d/60-mutsu-kiwi
+COPY packaging/65-mutsu-blur-my-shell.dconf /etc/dconf/db/mutsu.d/65-mutsu-blur-my-shell
 COPY packaging/configure-shortcut-defaults.sh /tmp/mutsu-configure-shortcut-defaults.sh
 COPY vendor/ai-desktop/scripts/configure-newelle-key.sh /usr/share/mutsu-os/scripts/configure-newelle-key.sh
 COPY vendor/ai-desktop/scripts/install-newelle-service.sh /usr/share/mutsu-os/scripts/install-newelle-service.sh
