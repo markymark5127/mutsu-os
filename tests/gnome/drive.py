@@ -214,6 +214,21 @@ def look_flow():
             if state != "pending":
                 break
         print(f"screenshot {name}: {state}", flush=True)
+        # A small JPEG copy in the log too, readable where artifacts aren't.
+        try:
+            import base64
+            import gi
+            gi.require_version("GdkPixbuf", "2.0")
+            from gi.repository import GdkPixbuf
+            pix = GdkPixbuf.Pixbuf.new_from_file(path)
+            small = pix.scale_simple(pix.get_width() * 3 // 4, pix.get_height() * 3 // 4,
+                                     GdkPixbuf.InterpType.BILINEAR)
+            ok, data = small.save_to_bufferv("jpeg", ["quality"], ["80"])
+            text = base64.b64encode(data).decode()
+            for i in range(0, len(text), 8000):
+                print(f"SHOT {name} {i // 8000:03d} {text[i:i + 8000]}", flush=True)
+        except Exception as error:
+            print(f"screenshot {name}: no log copy ({error})", flush=True)
 
     shot("look-desktop")
     js("Main.panel.statusArea.quickSettings.menu.open(false)")
