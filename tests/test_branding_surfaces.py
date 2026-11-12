@@ -79,6 +79,7 @@ class BrandingSurfacesTest(unittest.TestCase):
             self.assertEqual((folder / "default.svg").read_bytes(),
                              (BRAND / "cursors/japandi/left_ptr.svg").read_bytes())
 
+    @unittest.skipUnless(shutil.which("rsvg-convert"), "needs rsvg-convert")
     def test_whole_cursor_set_is_drawn_in_one_style(self):
         # The arrow alone was Mutsu's; hand, text, resize and busy cursors were
         # Adwaita's and looked out of place. Every common shape is now drawn.
