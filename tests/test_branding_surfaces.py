@@ -108,12 +108,12 @@ class BrandingSurfacesTest(unittest.TestCase):
 
     def test_rice_paper_glass(self):
         css = (BRAND / "shell/japandi.css").read_text()
-        self.assertIn("background-gradient-start: rgba(255, 252, 246", css)  # sheen
-        self.assertIn("border: 1px solid rgba(255, 255, 255, 0.90)", css)    # bright rim
+        self.assertIn("background-gradient-start: rgba(255, 253, 248", css)  # shoji sheen
+        self.assertIn("border: 1px solid rgba(255, 255, 255, 0.80)", css)    # bright rim
         # St draws one box-shadow per element: never a layered list
         for decl in re.findall(r"box-shadow:([^;]*);", css):
             self.assertNotRegex(decl, r",(?![^()]*\))", decl)
-        self.assertIn("background-gradient-end: rgba(246, 238, 222, 0.28)", css)  # top bar: clear washi glass
+        self.assertIn("background-gradient-end: rgba(246, 238, 222, 0.20)", css)  # top bar: thin washi veil
         self.assertIn("#panel.mutsu-glass-dark", css)          # cream ink over dark wallpapers
         slim = (ROOT / "extensions/mutsu-adaptive@mutsu-os/stylesheet.css").read_text()
         slim = slim[slim.index(".mutsu-status-slim {"):]
@@ -126,6 +126,22 @@ class BrandingSurfacesTest(unittest.TestCase):
         self.assertIn("'mutsu-glass-dark'", glass)                # adaptive ink class
         self.assertIn("new_from_stream_at_scale_async", glass)   # sampled small, off the main thread
         self.assertIn("remove_style_class_name(DARK_CLASS)", glass[glass.index("    destroy() {"):])
+
+
+    def test_shoji_glass_dock(self):
+        """Dock is the hero: the focused app gets a liquid capsule in its icon's colour."""
+        ext = ROOT / "extensions/mutsu-branding@mutsu-os"
+        liquid = (ext / "dockLiquid.js").read_text()
+        self.assertIn("'dashtodockContainer'", liquid)
+        self.assertIn("set_style(null)", liquid[liquid.index("    destroy() {"):])  # capsule removed
+        self.assertIn("high-contrast", liquid)
+        main = (ext / "extension.js").read_text()
+        self.assertIn("new DockLiquid()", main)
+        self.assertIn("this._dockLiquid?.destroy()", main[main.index("    disable() {"):])
+        # Kiwi's dock styling strips every highlight behind dock icons.
+        self.assertIn("dock-styling=false", (ROOT / "packaging/60-mutsu-kiwi.dconf").read_text())
+        accent = (ROOT / "extensions/mutsu-adaptive@mutsu-os/stylesheet.css").read_text()
+        self.assertIn("background-gradient-end: #7466C2", accent)  # liquid "on" moments
         main = (ext / "extension.js").read_text()
         self.assertIn("new RiceGlass()", main)
         self.assertIn("this._glass?.destroy()", main[main.index("    disable() {"):])

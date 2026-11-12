@@ -6,3 +6,9 @@ enable-app-window-buttons=true
 
 # Log in to the desktop, not the app grid.
 skip-overview-on-login=true
+
+# Shoji Glass dock: let the icons breathe and let the focused app show its
+# liquid capsule (mutsu-branding dockLiquid.js). Kiwi's dock styling packs
+# the icons tight and strips every highlight behind them, macOS style.
+# Kiwi's dock blur, minimize-to-dock and downloads stack stay on.
+dock-styling=false

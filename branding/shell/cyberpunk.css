@@ -93,9 +93,17 @@
 .popup-menu-content {
   color: #E9F7FF;
   background-color: #0A1428;
+  background-gradient-direction: none;
   border: 1px solid #34506B;
   border-radius: 4px;
   box-shadow: 0 8px 24px rgba(0, 229, 255, 0.13);
+}
+.popup-menu-item {
+  border-radius: 2px;
+  transition-duration: 120ms;
+}
+.popup-separator-menu-item .popup-separator-menu-item-separator {
+  background-color: #34506B;
 }
 .popup-menu-item:focus,
 .popup-menu-item:hover {
@@ -108,6 +116,7 @@
 #dashtodockContainer .dash-background,
 #dash .dash-background {
   background-color: rgba(10, 20, 40, 0.94);
+  background-gradient-direction: none;
   border: 1px solid rgba(0, 229, 255, 0.4);
   border-radius: 7px;
   box-shadow: 0 6px 22px rgba(0, 229, 255, 0.14);
@@ -123,6 +132,8 @@
 }
 .app-folder-dialog {
   background-color: #0A1428;
+  background-gradient-direction: none;
+  box-shadow: none;
   border: 1px solid #1D3553;
   border-radius: 18px;
 }
@@ -132,19 +143,38 @@
   border-radius: 12px;
 }
 
-/* Dock "Show Apps": cyan tile, navy grid (Japandi uses sage and cream). */
+#dashtodockContainer .dash-separator,
+#dash .dash-separator {
+  width: 1px;
+  background-color: rgba(0, 229, 255, 0.30);
+}
+.dash-label {
+  background-color: #0A1428;
+  border: 1px solid #34506B;
+  border-radius: 3px;
+  color: #E9F7FF;
+  box-shadow: 0 4px 12px rgba(0, 229, 255, 0.12);
+}
+
+/* Dock "Show Apps": a cyan dot grid (Japandi's is quiet charcoal). */
 #dashtodockContainer .show-apps .show-apps-icon,
 #dash .show-apps .show-apps-icon {
-  color: #0A1428;
-  success-color: #00E5FF;
+  color: #7FEFFF;
+  success-color: rgba(0, 0, 0, 0);
 }
 #dashtodockContainer .show-apps .show-apps-icon:hover,
 #dash .show-apps .show-apps-icon:hover {
-  success-color: #5CF0FF;
+  color: #00E5FF;
 }
 #dashtodockContainer .show-apps:checked .show-apps-icon,
 #dash .show-apps:checked .show-apps-icon {
-  success-color: #FF2D9B;
+  color: #FF2D9B;
+}
+.search-entry {
+  background-color: #0A1428;
+  border: 1px solid #34506B;
+  border-radius: 4px;
+  color: #E9F7FF;
 }
 
 
@@ -152,15 +182,68 @@
 .quick-toggle, .quick-menu-toggle .quick-toggle, .quick-slider,
 .message-list .message, .events-button, .world-clocks-button, .weather-button {
   background-color: rgba(52, 80, 107, 0.35);
+  border: 1px solid transparent;
+  border-radius: 4px;
   color: #E9F7FF;
+}
+.quick-toggle:hover, .quick-menu-toggle .quick-toggle:hover {
+  background-color: rgba(52, 80, 107, 0.55);
 }
 .quick-toggle:checked, .quick-menu-toggle .quick-toggle:checked {
   background-color: #00B8D4;
+  background-gradient-direction: none;
   color: #0A1428;
+}
+.quick-settings {
+  border-radius: 4px;
+  padding: 14px;
+}
+.quick-toggle-menu {
+  background-color: rgba(10, 20, 40, 0.94);
+  border: 1px solid #34506B;
+  border-radius: 4px;
+}
+.slider {
+  -barlevel-height: 4px;
+  -barlevel-background-color: rgba(0, 229, 255, 0.18);
+  -slider-handle-radius: 8px;
+  color: #00E5FF;
+}
+.quick-settings-system-item .icon-button,
+.quick-settings-system-item .power-item {
+  background-color: rgba(52, 80, 107, 0.35);
+  border: 1px solid #34506B;
+  border-radius: 4px;
+  color: #E9F7FF;
+}
+.quick-settings-system-item .icon-button:hover,
+.quick-settings-system-item .power-item:hover {
+  background-color: rgba(0, 229, 255, 0.18);
+}
+.calendar .calendar-day {
+  background-color: transparent;
+  transition-duration: 120ms;
+}
+.calendar .calendar-day:hover,
+.calendar .calendar-day:focus {
+  background-color: rgba(0, 229, 255, 0.18);
 }
 .notification-banner, .notification-banner .message {
   background-color: #0A1428;
+  background-gradient-direction: none;
   color: #E9F7FF;
   border: 1px solid #34506B;
+  border-radius: 4px;
   box-shadow: 0 8px 24px rgba(0, 229, 255, 0.13);
+}
+.notification-button {
+  background-color: rgba(52, 80, 107, 0.35);
+  border: 1px solid #34506B;
+  border-radius: 3px;
+  color: #E9F7FF;
+}
+.notification-button:hover,
+.notification-button:focus {
+  background-color: rgba(0, 229, 255, 0.18);
+  color: #00E5FF;
 }

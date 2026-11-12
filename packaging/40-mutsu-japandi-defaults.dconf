@@ -32,7 +32,7 @@ dock-position='BOTTOM'
 dock-fixed=true
 extend-height=false
 height-fraction=0.78
-dash-max-icon-size=44
+dash-max-icon-size=48
 show-show-apps-button=true
 show-apps-at-top=false
 # One dock with GNOME's own look (light, translucent), not a dark custom

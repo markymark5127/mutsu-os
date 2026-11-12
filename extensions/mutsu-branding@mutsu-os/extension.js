@@ -10,6 +10,7 @@ import GLib from 'gi://GLib';
 import St from 'gi://St';
 import {SearchIntegration} from './searchIntegration.js';
 import {RiceGlass} from './glass.js';
+import {DockLiquid} from './dockLiquid.js';
 
 const BASE = '/usr/share/mutsu-os/branding/shell';
 // Names the look built into GNOME Shell's own theme at image build time
@@ -102,14 +103,21 @@ export default class MutsuBrandingExtension extends Extension {
         const isJapandi = name === 'japandi';
         const isSystem = name === 'system';
 
-        // Rice-paper blur belongs to the Japandi look only.
+        // Rice-paper blur and the dock's liquid capsule are Japandi only.
         this._glass?.destroy();
         this._glass = null;
+        this._dockLiquid?.destroy();
+        this._dockLiquid = null;
         if (isJapandi) {
             try {
                 this._glass = new RiceGlass();
             } catch (e) {
                 log(`Mutsu glass: ${e}`);
+            }
+            try {
+                this._dockLiquid = new DockLiquid();
+            } catch (e) {
+                log(`Mutsu dock capsule: ${e}`);
             }
         }
 
@@ -356,6 +364,8 @@ export default class MutsuBrandingExtension extends Extension {
     disable() {
         this._glass?.destroy();
         this._glass = null;
+        this._dockLiquid?.destroy();
+        this._dockLiquid = null;
         this._searchIntegration?.destroy();
         this._searchIntegration = null;
         this._unloadStyle();
