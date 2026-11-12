@@ -372,11 +372,10 @@ fi
 if [[ -s "$brand/cursors/japandi/left_ptr.svg" ]]; then
   cursors=/usr/share/icons/MutsuJapandi/cursors
   install -d -m0755 "$cursors"
-  python3 "$brand/cursors/build-xcursor.py" \
-    "$brand/cursors/japandi/left_ptr.svg" "$cursors/left_ptr" 3 5
-  for alias in default arrow top_left_arrow left_arrow; do
-    ln -sfn left_ptr "$cursors/$alias"
-  done
+  # Mutsu's drawn set (arrow, hand, text, resize, busy...), Xcursor and
+  # scalable, with every alias name; see branding/cursors/draw-japandi-cursors.py.
+  python3 "$brand/cursors/build-cursor-theme.py" \
+    "$brand/cursors/japandi" /usr/share/icons/MutsuJapandi
   # GNOME Shell 51 draws the pointer itself from SVG cursors
   # (cursors_scalable); the Xcursor files above are only for Xwayland apps.
   # Without these the login screen and Shell used GNOME's own arrow.
@@ -384,8 +383,7 @@ if [[ -s "$brand/cursors/japandi/left_ptr.svg" ]]; then
     /usr/share/icons/MutsuJapandi "$brand/cursors/japandi/left_ptr.svg" 3 5 32
   [[ -s /usr/share/icons/MutsuJapandi/cursors_scalable/default/metadata.json ]] || {
     echo >&2 "ERROR: Mutsu's scalable arrow was not installed"; exit 1; }
-  # Every other cursor (wait, pointer, text, the resize arrows...) comes
-  # straight from Adwaita. The theme's Inherits line should cover this, but
+  # Any cursor Mutsu doesn't draw comes straight from Adwaita. The theme's Inherits line should cover this, but
   # GNOME Shell logged "can't load 'wait' / 'pointer' / 'ew-resize'..." on
   # real hardware, so link each name explicitly instead of relying on it.
   adwaita=/usr/share/icons/Adwaita/cursors
@@ -453,7 +451,7 @@ NAMES
         n-resize s-resize e-resize w-resize zoom-in zoom-out; do
       [[ -f "$cursors/$need" ]] || missing+=("$need")
     done
-    printf 'Cursor theme: %s names (drawn arrow + Adwaita links)\n' "$(ls "$cursors" | wc -l)"
+    printf 'Cursor theme: %s names (Mutsu-drawn set + Adwaita links)\n' "$(ls "$cursors" | wc -l)"
     [[ ${#missing[@]} -eq 0 ]] || echo >&2 "warning: cursors still missing: ${missing[*]}"
     ls "$adwaita" | tr '\n' ' ' | head -c 2000; echo
   else

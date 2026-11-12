@@ -25,7 +25,7 @@ class BrandingSurfacesTest(unittest.TestCase):
         # OSTree flattens file times, so a cache built before later icon
         # copies is never seen as stale and GTK misses the new icons.
         cache = SCRIPT.index("gtk-update-icon-cache -f /usr/share/icons/MutsuJapandi")
-        for marker in ("$brand/icons/apps/$theme", "build-xcursor.py",
+        for marker in ("$brand/icons/apps/$theme", "build-cursor-theme.py",
                        "user-desktop.svg", "folder-desktop-cyberpunk.svg"):
             self.assertLess(SCRIPT.index(marker), cache, marker)
         self.assertEqual(SCRIPT.count("gtk-update-icon-cache -f /usr/share/icons/MutsuJapandi"), 1)
@@ -78,6 +78,44 @@ class BrandingSurfacesTest(unittest.TestCase):
                                      "nominal_size": 32}])
             self.assertEqual((folder / "default.svg").read_bytes(),
                              (BRAND / "cursors/japandi/left_ptr.svg").read_bytes())
+
+    def test_whole_cursor_set_is_drawn_in_one_style(self):
+        # The arrow alone was Mutsu's; hand, text, resize and busy cursors were
+        # Adwaita's and looked out of place. Every common shape is now drawn.
+        self.assertLess(SCRIPT.index("build-cursor-theme.py"), SCRIPT.index("build-scalable-cursors.py"))
+        with tempfile.TemporaryDirectory() as tmp:
+            theme = Path(tmp) / "MJ"
+            subprocess.run([sys.executable, str(BRAND / "cursors/build-cursor-theme.py"),
+                            str(BRAND / "cursors/japandi"), str(theme)], check=True, capture_output=True)
+            for name in ("default", "pointer", "hand2", "text", "xterm", "grab", "grabbing", "move",
+                         "ew-resize", "col-resize", "ns-resize", "nwse-resize", "nesw-resize",
+                         "crosshair", "not-allowed", "help", "copy", "alias", "wait", "watch", "progress"):
+                self.assertTrue((theme / "cursors" / name).exists(), name)
+                self.assertTrue((theme / "cursors_scalable" / name / "metadata.json").exists(), name)
+            wait = json.loads((theme / "cursors_scalable/wait/metadata.json").read_text())
+            self.assertGreater(len(wait), 1, "wait spins")
+            self.assertTrue(all(frame["delay"] > 0 for frame in wait))
+            data = (theme / "cursors/wait").read_bytes()
+            self.assertEqual(data[:4], b"Xcur")
+            # drawing the set again must not touch the drawn pointer
+            subprocess.run([sys.executable, str(BRAND / "cursors/build-scalable-cursors.py"), str(theme),
+                            str(BRAND / "cursors/japandi/left_ptr.svg"), "3", "5", "32"],
+                           check=True, capture_output=True)
+            self.assertEqual(json.loads((theme / "cursors_scalable/pointer/metadata.json").read_text())[0]
+                             ["filename"], "pointer.svg")
+
+    def test_rice_paper_glass(self):
+        css = (BRAND / "shell/japandi.css").read_text()
+        self.assertIn("rgba(244, 236, 221, 0.72)", css)        # top bar: tan, see-through
+        self.assertIn("inset 0 1px 0 rgba(255, 255, 255", css)  # lit top edge
+        self.assertNotIn("background-color: #FFFCF6;\n  border: 1px solid #D6DCCF", css)
+        ext = ROOT / "extensions/mutsu-branding@mutsu-os"
+        glass = (ext / "glass.js").read_text()
+        self.assertIn("Shell.BlurMode.BACKGROUND", glass)
+        self.assertIn("high-contrast", glass)
+        main = (ext / "extension.js").read_text()
+        self.assertIn("new RiceGlass()", main)
+        self.assertIn("this._glass?.destroy()", main[main.index("    disable() {"):])
 
     def test_login_screen_uses_mutsu_look(self):
         # The greeter is the gdm account with its own settings.

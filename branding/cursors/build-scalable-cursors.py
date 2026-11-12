@@ -50,7 +50,8 @@ def copy_shell_cursors(resource, out: Path, skip: set) -> int:
     copied = 0
     for name in resource.enumerate_children(RESOURCE_ROOT, 0):
         name = name.rstrip('/')
-        if name in skip:
+        # Mutsu draws its own (build-cursor-theme.py): never replace those.
+        if name in skip or (out / name).exists() or (out / name).is_symlink():
             continue
         folder = out / name
         folder.mkdir(parents=True, exist_ok=True)

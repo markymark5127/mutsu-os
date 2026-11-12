@@ -9,6 +9,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import {SearchIntegration} from './searchIntegration.js';
+import {RiceGlass} from './glass.js';
 
 const BASE = '/usr/share/mutsu-os/branding/shell';
 // Names the look built into GNOME Shell's own theme at image build time
@@ -100,6 +101,17 @@ export default class MutsuBrandingExtension extends Extension {
         const isCyber = name === 'cyberpunk';
         const isJapandi = name === 'japandi';
         const isSystem = name === 'system';
+
+        // Rice-paper blur belongs to the Japandi look only.
+        this._glass?.destroy();
+        this._glass = null;
+        if (isJapandi) {
+            try {
+                this._glass = new RiceGlass();
+            } catch (e) {
+                log(`Mutsu glass: ${e}`);
+            }
+        }
 
         // Logo always follows current mode
         const iconPath = isJapandi ? JAPANDI_SYMBOL : DARK_SYMBOL;
@@ -342,6 +354,8 @@ export default class MutsuBrandingExtension extends Extension {
     }
 
     disable() {
+        this._glass?.destroy();
+        this._glass = null;
         this._searchIntegration?.destroy();
         this._searchIntegration = null;
         this._unloadStyle();

@@ -64,3 +64,20 @@
   background-color: rgba(0, 229, 255, 0.18);
   border-radius: 12px;
 }
+
+/* Japandi (built in) puts these on rice paper; give them back the neon dark. */
+.quick-toggle, .quick-menu-toggle .quick-toggle, .quick-slider,
+.message-list .message, .events-button, .world-clocks-button, .weather-button {
+  background-color: rgba(52, 80, 107, 0.35);
+  color: #E9F7FF;
+}
+.quick-toggle:checked, .quick-menu-toggle .quick-toggle:checked {
+  background-color: #00B8D4;
+  color: #0A1428;
+}
+.notification-banner, .notification-banner .message {
+  background-color: #0A1428;
+  color: #E9F7FF;
+  border: 1px solid #34506B;
+  box-shadow: 0 8px 24px rgba(0, 229, 255, 0.13);
+}

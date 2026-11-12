@@ -1,0 +1,296 @@
+[
+  {
+    "name": "default",
+    "frames": [
+      "left_ptr.svg"
+    ],
+    "hotspot": [
+      3,
+      5
+    ],
+    "aliases": [
+      "left_ptr",
+      "arrow",
+      "top_left_arrow",
+      "left_arrow",
+      "context-menu"
+    ]
+  },
+  {
+    "name": "pointer",
+    "frames": [
+      "pointer.svg"
+    ],
+    "hotspot": [
+      13,
+      5
+    ],
+    "aliases": [
+      "hand2",
+      "hand1",
+      "pointing_hand"
+    ]
+  },
+  {
+    "name": "text",
+    "frames": [
+      "text.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "xterm",
+      "ibeam",
+      "vertical-text"
+    ]
+  },
+  {
+    "name": "grab",
+    "frames": [
+      "grab.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "openhand"
+    ]
+  },
+  {
+    "name": "grabbing",
+    "frames": [
+      "grabbing.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "closedhand",
+      "dnd-none"
+    ]
+  },
+  {
+    "name": "move",
+    "frames": [
+      "move.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "fleur",
+      "all-scroll",
+      "size_all",
+      "dnd-move"
+    ]
+  },
+  {
+    "name": "ew-resize",
+    "frames": [
+      "ew-resize.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "col-resize",
+      "e-resize",
+      "w-resize",
+      "sb_h_double_arrow",
+      "h_double_arrow",
+      "left_side",
+      "right_side",
+      "split_h",
+      "size_hor"
+    ]
+  },
+  {
+    "name": "ns-resize",
+    "frames": [
+      "ns-resize.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "row-resize",
+      "n-resize",
+      "s-resize",
+      "sb_v_double_arrow",
+      "v_double_arrow",
+      "top_side",
+      "bottom_side",
+      "split_v",
+      "size_ver"
+    ]
+  },
+  {
+    "name": "nwse-resize",
+    "frames": [
+      "nwse-resize.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "nw-resize",
+      "se-resize",
+      "top_left_corner",
+      "bottom_right_corner",
+      "size_fdiag",
+      "bd_double_arrow"
+    ]
+  },
+  {
+    "name": "nesw-resize",
+    "frames": [
+      "nesw-resize.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "ne-resize",
+      "sw-resize",
+      "top_right_corner",
+      "bottom_left_corner",
+      "size_bdiag",
+      "fd_double_arrow"
+    ]
+  },
+  {
+    "name": "crosshair",
+    "frames": [
+      "crosshair.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "cross",
+      "tcross",
+      "cell"
+    ]
+  },
+  {
+    "name": "not-allowed",
+    "frames": [
+      "not-allowed.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "no-drop",
+      "dnd-no-drop",
+      "crossed_circle",
+      "forbidden",
+      "circle"
+    ]
+  },
+  {
+    "name": "help",
+    "frames": [
+      "help.svg"
+    ],
+    "hotspot": [
+      2,
+      4
+    ],
+    "aliases": [
+      "question_arrow",
+      "whats_this",
+      "left_ptr_help",
+      "dnd-ask"
+    ]
+  },
+  {
+    "name": "copy",
+    "frames": [
+      "copy.svg"
+    ],
+    "hotspot": [
+      2,
+      4
+    ],
+    "aliases": [
+      "dnd-copy"
+    ]
+  },
+  {
+    "name": "alias",
+    "frames": [
+      "alias.svg"
+    ],
+    "hotspot": [
+      2,
+      4
+    ],
+    "aliases": [
+      "dnd-link",
+      "link"
+    ]
+  },
+  {
+    "name": "wait",
+    "frames": [
+      "wait-01.svg",
+      "wait-02.svg",
+      "wait-03.svg",
+      "wait-04.svg",
+      "wait-05.svg",
+      "wait-06.svg",
+      "wait-07.svg",
+      "wait-08.svg",
+      "wait-09.svg",
+      "wait-10.svg",
+      "wait-11.svg",
+      "wait-12.svg"
+    ],
+    "hotspot": [
+      16,
+      16
+    ],
+    "aliases": [
+      "watch"
+    ],
+    "delay_ms": 70
+  },
+  {
+    "name": "progress",
+    "frames": [
+      "progress-01.svg",
+      "progress-02.svg",
+      "progress-03.svg",
+      "progress-04.svg",
+      "progress-05.svg",
+      "progress-06.svg",
+      "progress-07.svg",
+      "progress-08.svg",
+      "progress-09.svg",
+      "progress-10.svg",
+      "progress-11.svg",
+      "progress-12.svg"
+    ],
+    "hotspot": [
+      2,
+      4
+    ],
+    "aliases": [
+      "left_ptr_watch",
+      "half-busy"
+    ],
+    "delay_ms": 70
+  }
+]
