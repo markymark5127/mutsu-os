@@ -168,7 +168,7 @@ def look_flow():
     of the desktop and quick settings (uploaded with the Shell log)."""
     S = "Look"
     js("""Main.extensionManager.lookup('mutsu-branding@mutsu-os')?.stateObj?._settings?.set_string('appearance', 'japandi')""")
-    wait(2)
+    wait(4)
     facts = js("""(() => {
         const find = (actor, cls) => {
             if (actor.has_style_class_name?.(cls)) return actor;
@@ -187,6 +187,8 @@ def look_flow():
             dockInline: dockBg?.get_style() ?? null,
             dockEffects: dockBg ? dockBg.get_effects().map(e => `${e.constructor.name}:${e.get_name?.()}`) : null,
             qsBox: colour(Main.panel.statusArea.quickSettings.menu.box),
+            qsEffects: Main.panel.statusArea.quickSettings.menu.box.get_effects().map(e => `${e.constructor.name}:${e.get_name?.()}`),
+            roundedBlur: (() => { try { return 'corner_radius' in new imports.gi.Shell.BlurEffect(); } catch (e) { return `${e}`; } })(),
         };
     })()""")
     print("look facts:", json.dumps(facts), flush=True)

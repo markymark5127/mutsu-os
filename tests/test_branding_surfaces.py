@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import struct
 import subprocess
@@ -107,8 +108,11 @@ class BrandingSurfacesTest(unittest.TestCase):
 
     def test_rice_paper_glass(self):
         css = (BRAND / "shell/japandi.css").read_text()
-        self.assertIn("rgba(244, 236, 221, 0.72)", css)        # top bar: tan, see-through
-        self.assertIn("inset 0 1px 0 rgba(255, 255, 255", css)  # lit top edge
+        self.assertIn("background-gradient-start: rgba(255, 252, 246", css)  # sheen
+        self.assertIn("border: 1px solid rgba(255, 255, 255, 0.90)", css)    # bright rim
+        # St draws one box-shadow per element: never a layered list
+        for decl in re.findall(r"box-shadow:([^;]*);", css):
+            self.assertNotRegex(decl, r",(?![^()]*\))", decl)
         self.assertNotIn("background-color: #FFFCF6;\n  border: 1px solid #D6DCCF", css)
         ext = ROOT / "extensions/mutsu-branding@mutsu-os"
         glass = (ext / "glass.js").read_text()

@@ -9,6 +9,7 @@
  */
 import Gio from 'gi://Gio';
 import Shell from 'gi://Shell';
+import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const EFFECT_NAME = 'mutsu-rice-paper-blur';
@@ -48,6 +49,9 @@ export class RiceGlass {
             this._a11y = null;
         }
         this._refresh();
+        // Dash-to-Dock may build its dock after us or rebuild it later.
+        this._retry = setTimeout(() => this._refresh(), 3000);
+        this._monitorsId = Main.layoutManager.connect('monitors-changed', () => this._refresh());
     }
 
     _targets() {
@@ -57,6 +61,21 @@ export class RiceGlass {
             const box = status[key]?.menu?.box;
             if (box)
                 out.push([box, 13]);
+        }
+        // Dash-to-Dock's pill, at its own rounding.
+        const find = (actor, found) => {
+            if (actor.has_style_class_name?.('dash-background'))
+                found.push(actor);
+            for (const child of actor.get_children?.() ?? [])
+                find(child, found);
+            return found;
+        };
+        for (const pill of find(Main.layoutManager.uiGroup, [])) {
+            let radius = 21;
+            try {
+                radius = pill.get_theme_node().get_border_radius(St.Corner.TOPLEFT) || radius;
+            } catch (e) {}
+            out.push([pill, radius]);
         }
         return out;
     }
@@ -91,6 +110,10 @@ export class RiceGlass {
 
     destroy() {
         this._clear();
+        clearTimeout(this._retry);
+        if (this._monitorsId)
+            Main.layoutManager.disconnect(this._monitorsId);
+        this._monitorsId = 0;
         if (this._a11y && this._a11yId)
             this._a11y.disconnect(this._a11yId);
         this._a11y = null;
