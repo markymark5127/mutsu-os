@@ -144,13 +144,6 @@
 }
 .mutsu-blade-header { spacing: 10px; padding: 2px 4px; }
 .mutsu-blade-title { font-weight: bold; font-size: 15px; }
-.mutsu-blade-count { font-size: 12px; color: rgba(255, 255, 255, 0.7); }
-.mutsu-blade-more {
-  padding: 8px;
-  border-radius: 12px;
-  text-align: center;
-  background-color: rgba(255, 255, 255, 0.1);
-}
 .mutsu-blade-content {
   spacing: 10px;
   padding: 12px;
@@ -275,9 +268,11 @@
 }
 
 /* ---- Status bar and Controls ---- */
+/* Slimmer only. No background here: an extension stylesheet outranks the
+ * Shell theme, and a black wash under the theme's dark ink made the tablet
+ * bar unreadable. The theme's glass (and its adaptive ink) shows through. */
 .mutsu-status-slim {
   height: 28px;
-  background-color: rgba(0, 0, 0, 0.28);
   font-size: 13px;
 }
 .mutsu-tablet-controls .quick-toggle,

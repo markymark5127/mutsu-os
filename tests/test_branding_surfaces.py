@@ -113,11 +113,19 @@ class BrandingSurfacesTest(unittest.TestCase):
         # St draws one box-shadow per element: never a layered list
         for decl in re.findall(r"box-shadow:([^;]*);", css):
             self.assertNotRegex(decl, r",(?![^()]*\))", decl)
+        self.assertIn("background-gradient-end: rgba(246, 238, 222, 0.28)", css)  # top bar: clear washi glass
+        self.assertIn("#panel.mutsu-glass-dark", css)          # cream ink over dark wallpapers
+        slim = (ROOT / "extensions/mutsu-adaptive@mutsu-os/stylesheet.css").read_text()
+        slim = slim[slim.index(".mutsu-status-slim {"):]
+        self.assertNotIn("background", slim[:slim.index("}")])  # tablet bar keeps the glass
         self.assertNotIn("background-color: #FFFCF6;\n  border: 1px solid #D6DCCF", css)
         ext = ROOT / "extensions/mutsu-branding@mutsu-os"
         glass = (ext / "glass.js").read_text()
         self.assertIn("Shell.BlurMode.BACKGROUND", glass)
         self.assertIn("high-contrast", glass)
+        self.assertIn("'mutsu-glass-dark'", glass)                # adaptive ink class
+        self.assertIn("new_from_stream_at_scale_async", glass)   # sampled small, off the main thread
+        self.assertIn("remove_style_class_name(DARK_CLASS)", glass[glass.index("    destroy() {"):])
         main = (ext / "extension.js").read_text()
         self.assertIn("new RiceGlass()", main)
         self.assertIn("this._glass?.destroy()", main[main.index("    disable() {"):])

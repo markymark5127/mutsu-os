@@ -361,10 +361,10 @@ const broot = uiGroup.children.at(-1);
 assert(blades.visible && modal === 1, 'blades open modally');
 const ball = () => all(broot);
 const bladeActors = () => ball().filter(a => a._mutsuBlade);
-assert.equal(bladeActors().length, 2, 'one blade per app');
-assert.equal(bladeActors()[1]._mutsuBlade.windows.length, 2, 'app windows grouped into one blade');
+assert.equal(bladeActors().length, 3, 'one blade per window, even for the same app');
+assert(bladeActors().every(b => b._mutsuBlade.windows.length === 1), 'each blade holds one window');
 const panes = ball().filter(a => a._mutsuWindow);
-assert.equal(panes.length, 3, 'every window is a pane');
+assert.equal(panes.length, 3, 'every window has its preview');
 assert.equal(ball().filter(a => a.classes.has('mutsu-light')).length, 9, 'traffic lights on every window');
 const bsend = (type, x, y, time, source) => broot.emit('captured-event', {type: () => type,
     get_coords: () => [x, y], get_time: () => time, get_event_sequence: () => 1,
@@ -380,13 +380,17 @@ assert.equal(docB.maximized, false, 'green floats a full-screen window');
 runTimers();
 btap(light(docB, 'close'), 200);
 assert.equal(docB.deleted, 1, 'red closes (with the app\'s own unsaved-work prompt)');
-// Swipe a pane up inside a multi-window blade: closes only that window.
-const paneA = ball().find(a => a._mutsuWindow === docA);
-bsend('TOUCH_BEGIN', 300, 400, 300, paneA);
-bsend('TOUCH_UPDATE', 302, 300, 320, paneA);
-bsend('TOUCH_UPDATE', 302, 200, 340, paneA);
-bsend('TOUCH_END', 302, 200, 360, paneA);
-assert.equal(docA.deleted, 1, 'swipe up on a pane closes that window');
+// Swipe one of the app's two cards up: closes only that window, not the app.
+runTimers();
+const deletedB = docB.deleted;
+const bladeA = bladeActors().find(b => b._mutsuBlade.windows.includes(docA));
+bsend('TOUCH_BEGIN', 300, 400, 300, bladeA);
+bsend('TOUCH_UPDATE', 302, 300, 320, bladeA);
+bsend('TOUCH_UPDATE', 302, 200, 340, bladeA);
+bsend('TOUCH_END', 302, 200, 360, bladeA);
+runTimers();
+assert.equal(docA.deleted, 1, 'swipe up closes that window');
+assert.equal(docB.deleted, deletedB, 'the same app\'s other window stays open');
 assert.equal(web.deleted, 0);
 // Swipe a single-window blade down: minimize.
 const webBlade = bladeActors().find(b => b._mutsuBlade.windows.includes(web));
@@ -431,7 +435,7 @@ display.list = [];
 blades.show();
 assert.equal(homes, 1, 'no windows left: go Home');
 assert.equal(display.handlerCount, 0, 'blades disconnect display signals');
-console.log('Multitasking blades checks passed (per-app blades, panes, traffic lights, swipe close/minimize, Spaces drop, Split View, keyboard, cleanup).');
+console.log('Multitasking blades checks passed (per-window blades, traffic lights, swipe close/minimize, Spaces drop, Split View, keyboard, cleanup).');
 
 // ---- Pull-up dock: drag an app to a screen edge / Slide Over -------------
 const geo2 = load('tabletGeometry.js', ['dockDropZone', 'cloneable', 'gripResize', 'isWindowMaximized'], {});

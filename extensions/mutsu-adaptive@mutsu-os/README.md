@@ -64,17 +64,18 @@ tablet mode ends; apps you sent Home come back too.
 
 ## Multitasking blades
 
-One tall blade per app, newest first, fanned in perspective. Every window of
-an app is a pane in its blade with its own traffic lights, so apps with
-several windows are easy to manage.
+One tall blade per window, newest first, fanned in perspective, like iPadOS:
+two Firefox windows (each with its own tabs) are two blades. Each blade is
+titled with its app, shows that window and its title, and has its own
+traffic lights.
 
-- Tap a pane to open that window. Swipe sideways to browse.
-- Swipe a blade **up** to close the app, **down** to minimize it. In a blade
-  with several windows, swiping one pane affects only that window. Closing
-  uses the app's normal close, so unsaved-work prompts still appear.
+- Tap a blade to open that window. Swipe sideways to browse.
+- Swipe a blade **up** to close that window, **down** to minimize it. The
+  app's other windows stay open. Closing uses the app's normal close, so
+  unsaved-work prompts still appear.
 - **Spaces** along the top filter by desktop; **+** adds one.
 - Hold a blade and drag it onto another blade for **Split View**, onto a
-  Space to move the app there, or to the right edge for **Slide Over**.
+  Space to move that window there, or to the right edge for **Slide Over**.
   The blade's Split View / Slide Over buttons do the same.
 - Tap empty space, press Escape or Done to go back; Home goes Home.
 - Keyboard: ←/→ browse, Enter opens, Delete closes, M minimizes.

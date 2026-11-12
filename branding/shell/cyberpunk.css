@@ -5,6 +5,7 @@
  */
 #panel {
   background-color: rgba(8, 12, 22, 0.94);
+  background-gradient-direction: none;
   color: #E9F7FF;
   border-bottom: 1px solid rgba(0, 229, 255, 0.35);
   box-shadow: 0 2px 15px rgba(0, 229, 255, 0.1);
@@ -16,12 +17,78 @@
 #panel .panel-button:hover,
 #panel .panel-button:focus {
   background-color: rgba(0, 229, 255, 0.14);
+  box-shadow: none;
   color: #00E5FF;
 }
 #panel .panel-button:active,
 #panel .panel-button:checked {
   background-color: rgba(255, 45, 155, 0.20);
+  box-shadow: none;
   color: #FF86CB;
+}
+/* Japandi's clock capsule and adaptive glass class: Cyberpunk keeps its solid
+ * neon bar and plain neon highlights. */
+#panel .panel-button.clock-display:hover,
+#panel .panel-button.clock-display:focus,
+#panel .panel-button.clock-display:active,
+#panel .panel-button.clock-display:checked {
+  background-color: transparent;
+  box-shadow: none;
+}
+#panel .panel-button.clock-display .clock {
+  border-radius: 3px;
+}
+#panel .panel-button.clock-display:hover .clock,
+#panel .panel-button.clock-display:focus .clock {
+  background-color: rgba(0, 229, 255, 0.14);
+  box-shadow: none;
+}
+#panel .panel-button.clock-display:active .clock,
+#panel .panel-button.clock-display:checked .clock {
+  background-color: rgba(255, 45, 155, 0.20);
+  box-shadow: none;
+}
+#panel.mutsu-glass-dark {
+  background-color: rgba(8, 12, 22, 0.94);
+  background-gradient-direction: none;
+  color: #E9F7FF;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.35);
+  box-shadow: 0 2px 15px rgba(0, 229, 255, 0.1);
+}
+#panel.mutsu-glass-dark .panel-button {
+  color: #D7F8FF;
+  text-shadow: none;
+  icon-shadow: none;
+}
+#panel.mutsu-glass-dark .panel-button:hover,
+#panel.mutsu-glass-dark .panel-button:focus,
+#panel.mutsu-glass-dark .panel-button.clock-display:hover .clock,
+#panel.mutsu-glass-dark .panel-button.clock-display:focus .clock {
+  background-color: rgba(0, 229, 255, 0.14);
+  box-shadow: none;
+  color: #00E5FF;
+}
+#panel.mutsu-glass-dark .panel-button:active,
+#panel.mutsu-glass-dark .panel-button:checked,
+#panel.mutsu-glass-dark .panel-button.clock-display:active .clock,
+#panel.mutsu-glass-dark .panel-button.clock-display:checked .clock {
+  background-color: rgba(255, 45, 155, 0.20);
+  box-shadow: none;
+}
+#panel.mutsu-glass-dark .panel-button.clock-display:hover,
+#panel.mutsu-glass-dark .panel-button.clock-display:focus,
+#panel.mutsu-glass-dark .panel-button.clock-display:active,
+#panel.mutsu-glass-dark .panel-button.clock-display:checked {
+  background-color: transparent;
+  box-shadow: none;
+}
+#panel:overview,
+#panel.unlock-screen,
+#panel.login-screen {
+  background-color: transparent;
+  background-gradient-direction: none;
+  border-bottom: none;
+  box-shadow: none;
 }
 .popup-menu-content {
   color: #E9F7FF;

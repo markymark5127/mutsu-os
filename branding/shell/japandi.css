@@ -4,32 +4,100 @@
  * This targets only Shell chrome. It does not theme ordinary GTK4/libadwaita apps.
  * Appearance is intentionally readable with no dependencies on custom fonts.
  */
-/* Rice paper: warm tan, slightly see-through, lit along the top edge like
- * light through shoji. The Mutsu appearance extension adds a soft blur
- * behind the bar and menus (glass.js); without it this is still paper. */
-/* St draws one box-shadow per element, so the glass is built from a vertical
- * sheen (light at the top, warmer tan below), a bright rim and one shadow. */
+/* Top bar: Japandi liquid glass. A clear sheet of warm washi over a live
+ * blur of the wallpaper (glass.js): brighter at the top and clearer at the
+ * bottom, a lit lower edge and a soft lift. Hover is a small glass capsule;
+ * an open menu is the same capsule tinted sage. Ink adapts to the wallpaper
+ * like Apple's bar: glass.js samples the strip behind the bar and adds
+ * .mutsu-glass-dark when it is dark, turning the sheet smoky, ink cream. */
 #panel {
-  background-color: rgba(244, 236, 221, 0.62);
+  background-color: rgba(255, 250, 240, 0.52);
   background-gradient-direction: vertical;
-  background-gradient-start: rgba(255, 252, 246, 0.70);
-  background-gradient-end: rgba(236, 224, 202, 0.55);
+  background-gradient-start: rgba(255, 250, 240, 0.52);
+  background-gradient-end: rgba(246, 238, 222, 0.28);
   color: #232823;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.80);
-  box-shadow: 0 2px 12px rgba(30, 26, 22, 0.14);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 1px 14px rgba(46, 38, 28, 0.12);
 }
 #panel .panel-button {
-  color: #3B3632;
-  border-radius: 10px;
+  color: #232823;
+  border-radius: 99px;
 }
 #panel .panel-button:hover,
 #panel .panel-button:focus {
-  background-color: rgba(120, 135, 115, 0.16);
+  background-color: rgba(255, 252, 245, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80);
   color: #232823;
 }
 #panel .panel-button:active,
 #panel .panel-button:checked {
-  background-color: rgba(120, 135, 115, 0.25);
+  background-color: rgba(120, 135, 115, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.70);
+}
+/* The clock draws its pill on the inner .clock; the button itself stays clear. */
+#panel .panel-button.clock-display:hover,
+#panel .panel-button.clock-display:focus,
+#panel .panel-button.clock-display:active,
+#panel .panel-button.clock-display:checked {
+  background-color: transparent;
+  box-shadow: none;
+}
+#panel .panel-button.clock-display .clock {
+  border-radius: 99px;
+}
+#panel .panel-button.clock-display:hover .clock,
+#panel .panel-button.clock-display:focus .clock {
+  background-color: rgba(255, 252, 245, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80);
+}
+#panel .panel-button.clock-display:active .clock,
+#panel .panel-button.clock-display:checked .clock {
+  background-color: rgba(120, 135, 115, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.70);
+}
+#panel.mutsu-glass-dark {
+  background-color: rgba(255, 246, 230, 0.16);
+  background-gradient-start: rgba(255, 246, 230, 0.16);
+  background-gradient-end: rgba(255, 246, 230, 0.04);
+  color: #FBF7EE;
+  border-bottom: 1px solid rgba(255, 250, 240, 0.30);
+  box-shadow: 0 1px 14px rgba(0, 0, 0, 0.20);
+}
+#panel.mutsu-glass-dark .panel-button {
+  color: #FBF7EE;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  icon-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+#panel.mutsu-glass-dark .panel-button:hover,
+#panel.mutsu-glass-dark .panel-button:focus,
+#panel.mutsu-glass-dark .panel-button.clock-display:hover .clock,
+#panel.mutsu-glass-dark .panel-button.clock-display:focus .clock {
+  background-color: rgba(255, 248, 236, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  color: #FFFFFF;
+}
+#panel.mutsu-glass-dark .panel-button:active,
+#panel.mutsu-glass-dark .panel-button:checked,
+#panel.mutsu-glass-dark .panel-button.clock-display:active .clock,
+#panel.mutsu-glass-dark .panel-button.clock-display:checked .clock {
+  background-color: rgba(164, 190, 160, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+#panel.mutsu-glass-dark .panel-button.clock-display:hover,
+#panel.mutsu-glass-dark .panel-button.clock-display:focus,
+#panel.mutsu-glass-dark .panel-button.clock-display:active,
+#panel.mutsu-glass-dark .panel-button.clock-display:checked {
+  background-color: transparent;
+  box-shadow: none;
+}
+/* Overview, lock and login screens keep the Shell's clear bar. */
+#panel:overview,
+#panel.unlock-screen,
+#panel.login-screen {
+  background-color: transparent;
+  background-gradient-direction: none;
+  border-bottom: none;
+  box-shadow: none;
 }
 .popup-menu-content {
   color: #232823;

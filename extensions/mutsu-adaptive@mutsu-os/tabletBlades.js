@@ -4,21 +4,21 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {bladeTransform, cloneable, groupWindows, isWindowMaximized, maximizeWindow, unmaximizeWindow}
+import {bladeTransform, cloneable, isWindowMaximized, maximizeWindow, unmaximizeWindow}
     from './tabletGeometry.js';
 import {TouchRouter, makeTappable, findHandler} from './touchRouter.js';
 import {vbox} from './stCompat.js';
 
 const SWIPE_ACTION_PX = 110;
-const MAX_PANES = 3;
 
-// Multitasking "blades": one tall blade per app, newest first, fanned in
-// perspective. Every window of an app is a pane inside its blade with its
-// own Mac traffic lights (close, minimize, zoom/float). Spaces along the top
-// filter by workspace and accept dropped blades.
+// Multitasking "blades": one tall blade per window, newest first, fanned in
+// perspective, like iPadOS: two Firefox windows are two cards, each titled
+// with its app and showing that window, with its own Mac traffic lights
+// (close, minimize, zoom/float). Spaces along the top filter by workspace
+// and accept dropped blades. Gestures act on that one window only.
 //
-//   tap pane            open that window        swipe blade/pane up    close
-//   swipe sideways      browse blades           swipe blade/pane down  minimize
+//   tap blade           open that window        swipe blade up         close
+//   swipe sideways      browse blades           swipe blade down       minimize
 //   hold + drag blade   onto a blade: Split View, onto a Space: move,
 //                       onto the right edge: Slide Over
 export class TabletBlades {
@@ -31,7 +31,6 @@ export class TabletBlades {
         this._grab = null;
         this._signals = [];
         this._filter = null; // null = all Spaces, otherwise workspace index
-        this._expanded = new Set();
     }
 
     get visible() { return this._root !== null; }
@@ -83,10 +82,9 @@ export class TabletBlades {
             .filter(w => !w.is_skip_taskbar() && w.get_window_type() === Meta.WindowType.NORMAL);
         const filtered = this._filter === null ? all : all.filter(w =>
             w.is_on_all_workspaces() || w.get_workspace()?.index() === this._filter);
-        return {all, groups: groupWindows(filtered, w => {
-            const app = tracker.get_window_app(w);
-            return app ? app.get_id() : `window:${w.get_id()}`;
-        }).map(group => ({...group, app: tracker.get_window_app(group.windows[0])}))};
+        // One card per window: swiping a card away closes just that window.
+        return {all, groups: filtered.map(w => ({key: `window:${w.get_id()}`, windows: [w],
+            app: tracker.get_window_app(w)}))};
     }
 
     _rebuildSoon() {
@@ -221,27 +219,11 @@ export class TabletBlades {
             header.add_child(group.app.create_icon_texture(28));
         header.add_child(new St.Label({text: group.app?.get_name() ?? group.windows[0].get_title(),
             x_expand: true, y_align: Clutter.ActorAlign.CENTER, style_class: 'mutsu-blade-title'}));
-        if (group.windows.length > 1)
-            header.add_child(new St.Label({text: `${group.windows.length} windows`,
-                style_class: 'mutsu-blade-count', y_align: Clutter.ActorAlign.CENTER}));
         content.add_child(header);
 
-        const expanded = this._expanded.has(group.key);
-        const shown = expanded ? group.windows : group.windows.slice(0, MAX_PANES);
-        const hidden = group.windows.length - shown.length;
         // card padding 24, header 40 + gap 10, chin, slack 10
-        const bodyH = this._bladeH - 24 - 50 - CHIN - 10 - (hidden ? 50 : 0);
-        const paneH = Math.max(90, Math.floor((bodyH - (shown.length - 1) * 10) / shown.length));
-        for (const window of shown)
-            content.add_child(this._pane(window, paneH));
-        if (hidden) {
-            const more = new St.Label({text: `Show ${hidden} more`, style_class: 'mutsu-blade-more'});
-            makeTappable(more, () => {
-                this._expanded.add(group.key);
-                this._build();
-            }, `Show ${hidden} more windows`);
-            content.add_child(more);
-        }
+        const paneH = Math.max(90, this._bladeH - 24 - 50 - CHIN - 10);
+        content.add_child(this._pane(group.windows[0], paneH));
         // The card's chin: two equal halves, edge to edge.
         const actions = new St.BoxLayout({style_class: 'mutsu-blade-actions', height: CHIN,
             x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.FILL,
@@ -385,15 +367,10 @@ export class TabletBlades {
         this._hint.text = 'Now tap the app to place beside it';
     }
 
+    // A swipe anywhere on a card acts on that card's one window.
     _targets(s) {
-        const target = findHandler(s.source, this._root, '_mutsuWindow') ??
-            findHandler(s.source, this._root, '_mutsuBlade');
-        if (!target)
-            return null;
-        const blade = target._mutsuBlade ? target : findHandler(target, this._root, '_mutsuBlade');
-        if (target._mutsuWindow && blade?._mutsuBlade?.windows.length > 1)
-            return {actor: target, windows: [target._mutsuWindow]};
-        return blade?._mutsuBlade ? {actor: blade, windows: blade._mutsuBlade.windows} : null;
+        const blade = findHandler(s.source, this._root, '_mutsuBlade');
+        return blade ? {actor: blade, windows: blade._mutsuBlade.windows} : null;
     }
 
     // ---- router delegate -------------------------------------------------------
@@ -612,7 +589,6 @@ export class TabletBlades {
         this._blades = [];
         this._groups = null;
         this._carry = this._swipe = this._scroll = null;
-        this._expanded.clear();
         if (restore && returnTo && !returnTo.minimized && returnTo.get_compositor_private())
             Main.activateWindow(returnTo);
     }
