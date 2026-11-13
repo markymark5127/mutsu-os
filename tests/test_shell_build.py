@@ -103,7 +103,7 @@ class ThemeBakeTests(unittest.TestCase):
             for name in ("gnome-shell-light.css", "gnome-shell-dark.css"):
                 text = css(name)
                 self.assertIn("Mutsu OS (built in)", text)
-                self.assertIn("#FFFCF6", text, "Japandi")
+                self.assertIn("Shoji Glass", text, "Japandi")
                 self.assertIn(".toggle-switch:checked { background: #5879AD", text, "liquid accent")
                 self.assertNotIn(".mutsu-gamepad", text, "only the sage block of the tablet stylesheet")
             self.assertNotIn("Mutsu", css("gnome-shell-high-contrast.css"))
