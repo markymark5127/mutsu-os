@@ -1,0 +1,147 @@
+# Weekly Mutsu OS Beta: every Friday, build main, run the GNOME runtime check
+# on that exact image, and only if both pass, move the `beta` tag to it and
+# publish a GitHub pre-release. Software Updates (mutsu-update-backend) and
+# fresh installs follow `beta`, so nothing untested reaches a computer.
+#
+# Tags on ghcr.io/<owner>/mutsu-os:
+#   beta                       the current Beta (moves every week)
+#   beta-<version>-<date>      this Beta, forever (rollback, bug reports)
+# Git tag / release: v<version>-beta.<date>  (version from packaging/release-version)
+name: Beta release
+on:
+  schedule:
+    - cron: '17 14 * * 5'  # Fridays 14:17 UTC (09:17 New York, winter time)
+  workflow_dispatch:
+
+concurrency:
+  group: beta-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    secrets: inherit
+
+  image:
+    name: Resolve the image that was built
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      digest: ${{ steps.resolve.outputs.digest }}
+      repo: ${{ steps.resolve.outputs.repo }}
+    steps:
+      - name: Resolve the exact commit's image
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          tag="latest-${GITHUB_SHA:0:7}"
+          digest="$(skopeo inspect --creds "${GITHUB_ACTOR}:${GH_TOKEN}" --format '{{.Digest}}' "docker://${repo}:${tag}")"
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error::No image for ${GITHUB_SHA}"; exit 1; }
+          echo "Built ${repo}:${tag} (${digest})" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "tag=${tag}"
+            echo "digest=${digest}"
+            echo "repo=${repo}"
+          } >> "$GITHUB_OUTPUT"
+
+  runtime:
+    needs: image
+    uses: ./.github/workflows/gnome-runtime.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      image_tag: ${{ needs.image.outputs.tag }}
+
+  publish:
+    name: Publish the Beta
+    needs: [image, runtime]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write   # git tag + GitHub release
+      packages: write   # move the beta tag
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Name this Beta
+        id: name
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ needs.image.outputs.repo }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < packaging/release-version)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::packaging/release-version must be X.Y.Z"; exit 1; }
+          date="$(date -u +%Y%m%d)"
+          name="${version}-beta.${date}"
+          # A second Beta on the same day (manual run) gets .2, .3, ...
+          n=1
+          while git rev-parse -q --verify "refs/tags/v${name}" >/dev/null; do
+            n=$((n + 1)); name="${version}-beta.${date}.${n}"
+          done
+          echo "Mutsu OS ${name}" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "version=${version}"
+            echo "name=${name}"
+            echo "image_tag=beta-${name#*-beta.}"
+            echo "pretty=$(date -u +%Y-%m-%d)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Move the beta tag to the tested image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ needs.image.outputs.repo }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+          VERSION: ${{ steps.name.outputs.version }}
+          IMAGE_TAG: ${{ steps.name.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          creds="${GITHUB_ACTOR}:${GH_TOKEN}"
+          # Same digest as the image the runtime check passed (and that cosign
+          # signed), so the signature still applies; nothing is rebuilt.
+          for tag in "beta-${VERSION}-${IMAGE_TAG#beta-}" beta; do
+            skopeo copy --all --preserve-digests --src-creds "$creds" --dest-creds "$creds" \
+              "docker://${REPO}@${DIGEST}" "docker://${REPO}:${tag}"
+          done
+          moved="$(skopeo inspect --creds "$creds" --format '{{.Digest}}' "docker://${REPO}:beta")"
+          [[ "$moved" == "$DIGEST" ]] || { echo "::error::beta points at ${moved}, expected ${DIGEST}"; exit 1; }
+          echo "beta → ${DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tag and publish the pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NAME: ${{ steps.name.outputs.name }}
+          VERSION: ${{ steps.name.outputs.version }}
+          PRETTY: ${{ steps.name.outputs.pretty }}
+          IMAGE_TAG: ${{ steps.name.outputs.image_tag }}
+          REPO: ${{ needs.image.outputs.repo }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/notes.md <<NOTES
+          Weekly Mutsu OS Beta, built from ${GITHUB_SHA:0:7} and checked in a real GNOME session before release.
+
+          **Updating:** Settings → Software Updates installs it (computers follow the \`beta\` tag automatically).
+          **This exact build:** \`${REPO}:beta-${VERSION}-${IMAGE_TAG#beta-}\` (\`${DIGEST}\`)
+
+          NOTES
+          gh release create "v${NAME}" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Mutsu OS ${VERSION} Beta (${PRETTY})" \
+            --notes-file /tmp/notes.md \
+            --generate-notes

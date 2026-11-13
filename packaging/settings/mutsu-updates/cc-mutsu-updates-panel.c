@@ -350,7 +350,8 @@ cc_mutsu_updates_panel_init (CcMutsuUpdatesPanel *self)
     adw_preferences_group_set_title (system_group, "Mutsu OS");
     adw_preferences_group_set_description (system_group,
         _("Mutsu OS updates as a whole, like a phone: the new version is prepared in the background "
-          "and starts when you restart. Your apps from Flathub are updated at the same time."));
+          "and starts when you restart. Updates come from the weekly Mutsu OS Beta, released on "
+          "Fridays after testing. Your apps from Flathub are updated at the same time."));
 
     self->version_row = ADW_ACTION_ROW (adw_action_row_new ());
     adw_preferences_row_set_title (ADW_PREFERENCES_ROW (self->version_row), _("Installed Version"));

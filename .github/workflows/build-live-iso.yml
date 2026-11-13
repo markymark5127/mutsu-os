@@ -146,7 +146,7 @@ jobs:
           # (its directory is mounted into the build container).
           printf 'MUTSU_LIVE_VARIANT=%s\n' "$LIVE_VARIANT" > packaging/live/variant.env
           jq --arg image "$PINNED_IMAGE" --arg customize "$PWD/packaging/live/customize.sh" \
-            --arg ref "${SOURCE_TAG%:*}:latest" --arg variant "$LIVE_VARIANT" \
+            --arg ref "${SOURCE_TAG%:*}:beta" --arg variant "$LIVE_VARIANT" \
             '.bootable_environments[0].image = $image
              | .bootable_environments[0].live_customize = [$customize]
              # Distribution build: zstd level 15 with 1 MiB blocks for the

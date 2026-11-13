@@ -23,6 +23,13 @@ on:
         description: 'Published image tag to run against'
         default: latest
         required: true
+  # The weekly Beta release checks the exact image it just built.
+  workflow_call:
+    inputs:
+      image_tag:
+        description: 'Published image tag to run against'
+        type: string
+        required: true
 
 # Skipped runs (a cancelled image build) must not cancel a real check.
 concurrency:

@@ -22,7 +22,7 @@ MUTSU_LIVE_VARIANT=offline
 [[ -r ./variant.env ]] && source ./variant.env
 echo "Mutsu live USB variant: $MUTSU_LIVE_VARIANT"
 
-IMAGE_REF=${MUTSU_IMAGE_REF:-ghcr.io/markymark5127/mutsu-os:latest}
+IMAGE_REF=${MUTSU_IMAGE_REF:-ghcr.io/markymark5127/mutsu-os:beta}  # installs follow the weekly Beta
 INSTALLER_ID=org.bootcinstaller.Installer
 INSTALLER_URL=${MUTSU_INSTALLER_URL:-https://github.com/tuna-os/bootc-installer/releases/latest/download/org.bootcinstaller.Installer.flatpak}
 LIVE_HOME=/var/home/liveuser

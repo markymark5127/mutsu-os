@@ -11,7 +11,13 @@ or by the daily timer) and reports through one world-readable file,
      "booted": {"version", "timestamp", "image"},
      "staged": {...} | null, "rollback": {...} | null,
      "available": true|false|null, "checked": unix-time,
-     "auto": true|false, "error": "..." | null}
+     "auto": true|false, "channel": "beta", "error": "..." | null}
+
+Channel: Mutsu OS updates come only from the weekly Beta releases (the
+`beta` tag, moved by .github/workflows/beta-release.yml after the build and
+the GNOME runtime check pass). A system following anything else of Mutsu's
+(`latest`, a dated tag, or the exact digest an installer pinned) is moved
+onto `beta` by its next update; any other image is left alone.
 
 Commands: status | check | apply | timer | rollback | auto-on | auto-off
 """
@@ -31,6 +37,7 @@ STATE = os.path.join(STATE_DIR, "state.json")
 # Automatic installs are on unless switched off (Bazzite installs updates in
 # the background by default too; they apply at the next restart).
 AUTO_OFF = "/var/lib/mutsu-update/auto-install-off"
+CHANNEL = "beta"
 
 
 def auto_enabled() -> bool:
@@ -51,6 +58,7 @@ def write_state(**changes) -> dict:
     state = read_state()
     state.update(changes)
     state["auto"] = auto_enabled()
+    state["channel"] = CHANNEL
     os.makedirs(STATE_DIR, exist_ok=True)
     os.chmod(STATE_DIR, 0o755)
     fd, tmp = tempfile.mkstemp(dir=STATE_DIR, prefix=".state-")
@@ -104,6 +112,28 @@ def refresh_status(**extra) -> dict:
                        rollback=status["rollback"], **extra)
 
 
+def channel_image(ref: str) -> str | None:
+    """The `beta` reference for a Mutsu image ref (None: not a Mutsu image).
+
+    ghcr.io/markymark5127/mutsu-os:latest       -> ...mutsu-os:beta
+    ghcr.io/markymark5127/mutsu-os@sha256:...   -> ...mutsu-os:beta
+    """
+    name = (ref or "").split("@", 1)[0]
+    last = name.rsplit("/", 1)[-1]
+    if ":" in last:
+        name = name.rsplit(":", 1)[0]
+    if not name.endswith("/mutsu-os"):
+        return None
+    return f"{name}:{CHANNEL}"
+
+
+def switch_target(status: dict) -> str | None:
+    """The beta ref to switch to, or None when already following it."""
+    current = status.get("image") or (status.get("booted") or {}).get("image") or ""
+    target = channel_image(current)
+    return target if target and target != current else None
+
+
 def remote_digest(image: str) -> str | None:
     if not image:
         return None
@@ -125,13 +155,16 @@ def check_output_says(text: str) -> bool | None:
 
 def update_available(status: dict) -> bool | None:
     """Is the registry's image newer than what's booted (or staged)?"""
-    # bootc compares the right manifest itself; skopeo is the fallback.
-    result = run(["bootc", "upgrade", "--check"], timeout=300)
-    if result.returncode == 0:
-        said = check_output_says(result.stdout + "\n" + result.stderr)
-        if said is not None:
-            return said
-    image = status.get("image") or (status.get("booted") or {}).get("image")
+    target = switch_target(status)
+    if target is None:
+        # Already on beta: bootc compares the right manifest itself; skopeo
+        # is the fallback.
+        result = run(["bootc", "upgrade", "--check"], timeout=300)
+        if result.returncode == 0:
+            said = check_output_says(result.stdout + "\n" + result.stderr)
+            if said is not None:
+                return said
+    image = target or status.get("image") or (status.get("booted") or {}).get("image")
     latest = remote_digest(image)
     if latest is None:
         return None
@@ -184,9 +217,16 @@ def parse_progress(line: str) -> float | None:
 
 
 def apply_system() -> tuple[bool, str]:
+    # Off the beta channel: `bootc switch` onto it (a normal update otherwise).
+    try:
+        target = switch_target(bootc_status())
+    except (RuntimeError, ValueError, OSError):
+        target = None
+    action = ["bootc", "switch"] if target else ["bootc", "upgrade"]
+    tail = [target] if target else []
     read_fd, write_fd = os.pipe()
     log = tempfile.TemporaryFile(mode="w+", encoding="utf-8")
-    proc = subprocess.Popen(["bootc", "upgrade", "--progress-fd", str(write_fd)],
+    proc = subprocess.Popen(action + ["--progress-fd", str(write_fd)] + tail,
                             pass_fds=(write_fd,), stdout=log, stderr=subprocess.STDOUT, text=True)
     os.close(write_fd)
     last = 0.0
@@ -204,7 +244,7 @@ def apply_system() -> tuple[bool, str]:
     if proc.returncode != 0 and "--progress-fd" in output:
         # Older bootc without progress reporting: plain upgrade.
         write_state(phase="downloading", progress=None)
-        result = run(["bootc", "upgrade"])
+        result = run(action + tail)
         return result.returncode == 0, (result.stderr or result.stdout).strip()
     return proc.returncode == 0, output.strip()
 

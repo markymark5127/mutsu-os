@@ -24,16 +24,30 @@ def load_backend():
 
 
 BOOTC_STATUS = {
-    "spec": {"image": {"image": "ghcr.io/markymark5127/mutsu-os:stable"}},
+    "spec": {"image": {"image": "ghcr.io/markymark5127/mutsu-os:beta"}},
     "status": {
-        "booted": {"image": {"image": {"image": "ghcr.io/markymark5127/mutsu-os:stable"},
+        "booted": {"image": {"image": {"image": "ghcr.io/markymark5127/mutsu-os:beta"},
                              "version": "45.20261109", "timestamp": "2026-11-09T05:09:00Z",
                              "imageDigest": "sha256:aaa"}},
         "staged": None,
-        "rollback": {"image": {"image": {"image": "ghcr.io/markymark5127/mutsu-os:stable"},
+        "rollback": {"image": {"image": {"image": "ghcr.io/markymark5127/mutsu-os:beta"},
                                "version": "45.20261102", "imageDigest": "sha256:old"}},
     },
 }
+
+
+def BOOTC_STATUS_OF(ref):
+    data = json.loads(json.dumps(BOOTC_STATUS))
+    data["spec"]["image"]["image"] = ref
+    data["status"]["booted"]["image"]["image"]["image"] = ref
+    return {"image": ref, "booted": {"image": ref}}
+
+
+def BOOTC_STATUS_JSON(ref):
+    data = json.loads(json.dumps(BOOTC_STATUS))
+    data["spec"]["image"]["image"] = ref
+    data["status"]["booted"]["image"]["image"]["image"] = ref
+    return json.dumps(data)
 
 
 class BackendTests(unittest.TestCase):
@@ -129,6 +143,50 @@ class BackendTests(unittest.TestCase):
         self.b.cmd_auto(True)
         self.b.cmd_timer()
         self.assertEqual(applied, [1])
+
+    def test_beta_channel_refs(self):
+        c = self.b.channel_image
+        self.assertEqual(c("ghcr.io/markymark5127/mutsu-os:latest"), "ghcr.io/markymark5127/mutsu-os:beta")
+        self.assertEqual(c("ghcr.io/markymark5127/mutsu-os@sha256:abc"), "ghcr.io/markymark5127/mutsu-os:beta")
+        self.assertEqual(c("ghcr.io/markymark5127/mutsu-os"), "ghcr.io/markymark5127/mutsu-os:beta")
+        self.assertEqual(c("localhost:5000/x/mutsu-os:latest-abc1234"), "localhost:5000/x/mutsu-os:beta")
+        self.assertIsNone(c("ghcr.io/ublue-os/bazzite:stable"))   # someone else's image: leave it
+        self.assertIsNone(self.b.switch_target(BOOTC_STATUS_OF("ghcr.io/markymark5127/mutsu-os:beta")))
+        self.assertEqual(self.b.switch_target(BOOTC_STATUS_OF("ghcr.io/markymark5127/mutsu-os:latest")),
+                         "ghcr.io/markymark5127/mutsu-os:beta")
+
+    def test_off_channel_checks_the_beta_tag(self):
+        status = BOOTC_STATUS_JSON("ghcr.io/markymark5127/mutsu-os:latest")
+        self.replies["bootc status --format=json"] = (0, status, "")
+        self.replies["skopeo inspect --format"] = (0, "sha256:beta1\n", "")
+        self.b.cmd_check()
+        self.assertTrue(self.state()["available"])
+        self.assertEqual(self.state()["channel"], "beta")
+        self.assertNotIn(["bootc", "upgrade", "--check"], self.calls)  # would compare against latest
+        self.assertIn("docker://ghcr.io/markymark5127/mutsu-os:beta", self.calls[-1])
+
+    def test_apply_switches_onto_beta_then_upgrades(self):
+        seen = []
+
+        class FakeProc:
+            returncode = 0
+            def __init__(self, argv, pass_fds=(), **kw):
+                seen.append(argv)
+            def wait(self):
+                return 0
+
+        real = self.b.subprocess.Popen
+        self.b.subprocess.Popen = FakeProc
+        try:
+            self.replies["bootc status --format=json"] = (0, BOOTC_STATUS_JSON("ghcr.io/markymark5127/mutsu-os@sha256:pinned"), "")
+            self.assertTrue(self.b.apply_system()[0])
+            self.replies["bootc status --format=json"] = (0, json.dumps(BOOTC_STATUS), "")
+            self.assertTrue(self.b.apply_system()[0])
+        finally:
+            self.b.subprocess.Popen = real
+        self.assertEqual(seen[0][:2], ["bootc", "switch"])
+        self.assertEqual(seen[0][-1], "ghcr.io/markymark5127/mutsu-os:beta")
+        self.assertEqual(seen[1][:2], ["bootc", "upgrade"])
 
     def test_rollback(self):
         self.replies["bootc rollback"] = (0, "", "")

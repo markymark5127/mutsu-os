@@ -18,6 +18,8 @@ on:
       - '.github/workflows/gnome-runtime.yml'
       - 'tests/gnome/**'
   workflow_dispatch:
+  # The weekly Beta release (beta-release.yml) builds through this workflow.
+  workflow_call:
 
 env:
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
