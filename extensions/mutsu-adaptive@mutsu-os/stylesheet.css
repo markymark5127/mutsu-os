@@ -164,6 +164,9 @@
 .mutsu-blade-action-left { border-radius: 0 0 0 25px; }
 .mutsu-blade-action-right { border-radius: 0 0 25px 0; }
 .mutsu-blade-action:hover, .mutsu-blade-action:focus { background-color: rgba(255, 255, 255, 0.26); }
+/* Slide Over on a card whose app is in Slide Over: lit sage; tap to leave. */
+.mutsu-blade-action-on { background-color: rgba(164, 190, 160, 0.45); }
+.mutsu-blade-action-on:hover, .mutsu-blade-action-on:focus { background-color: rgba(164, 190, 160, 0.6); }
 .mutsu-pane {
   spacing: 6px;
   padding: 6px;

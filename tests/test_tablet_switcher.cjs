@@ -18,8 +18,9 @@ const globalMock = {display: {focus_window: focus}};
 const geometry = fs.readFileSync(path.join(path.dirname(process.argv[2]), 'tabletGeometry.js'), 'utf8')
     .replace(/export /g, '');
 const {navigationAction, sameSequence} = new Function(`${geometry}; return {navigationAction, sameSequence};`)();
-const Switcher = new Function('Clutter','Main','GLib','global','navigationAction','sameSequence',
-    `${source}; return TabletSwitcher;`)(Clutter, Main, GLib, globalMock, navigationAction, sameSequence);
+const Meta = {TabList: {NORMAL_ALL: 0}, WindowType: {NORMAL: 0}};
+const Switcher = new Function('Clutter','Main','GLib','Meta','global','navigationAction','sameSequence',
+    `${source}; return TabletSwitcher;`)(Clutter, Main, GLib, Meta, globalMock, navigationAction, sameSequence);
 const state = Object.create(Switcher.prototype);
 let homes = 0, shows = 0, docks = 0;
 const switches = [];
@@ -28,7 +29,7 @@ Object.assign(state, {_drag: null, _suppressed: () => false, _gesturesEnabled: (
     _monitor: () => monitor, _home: () => homes++, show: () => shows++,
     _blades: {visible: false}, _dock: {show: () => docks++},
     _bar: {add_style_class_name: c => barClasses.add(c), remove_style_class_name: c => barClasses.delete(c)},
-    _quickSwitch: direction => switches.push(direction),
+    _quickSwitch: direction => switches.push(direction), _homeShowing: () => false,
     _startPreview() {}, _updatePreview() {}, _resetPreview() {}, _finishPreview() {},
     _shrinkIntoHome() {}});
 function send(type, x, y, time, sequence = 1) {
@@ -58,6 +59,42 @@ send('TOUCH_CANCEL',500,620,3200);
 send('TOUCH_BEGIN',500,760,3300);
 send('TOUCH_END',500,710,3400);
 assert.equal(docks,1, 'short pull reveals dock');
+// On Home (Slide Over floating over it, or nothing open) Home's own dock is
+// already there: a short pull must not stack the temporary dock on it.
+state._homeShowing = () => true;
+send('TOUCH_BEGIN',500,760,3500);
+send('TOUCH_END',500,710,3600);
+assert.equal(docks,1, 'no second dock over Home');
+state._homeShowing = () => false;
+{
+    const win = (o = {}) => ({minimized: false, is_skip_taskbar: () => false, get_window_type: () => 0,
+        get_monitor: () => 0, is_on_all_workspaces: () => false, get_workspace: () => ({active: true}), ...o});
+    const slide = win(), app = win();
+    const probe = Object.assign(Object.create(Switcher.prototype),
+        {_monitor: () => monitor, _split: {slides: [slide]}});
+    globalMock.display.get_tab_list = () => [slide];
+    assert.equal(probe._homeShowing(), true, 'Slide Over alone does not cover Home');
+    globalMock.display.get_tab_list = () => [slide, app];
+    assert.equal(probe._homeShowing(), false, 'a full-screen app behind Slide Over covers Home');
+    app.minimized = true;
+    assert.equal(probe._homeShowing(), true, 'minimized apps do not cover Home');
+    Main.overview.visible = true;
+    assert.equal(probe._homeShowing(), false, 'the overview is not Home');
+    Main.overview.visible = false;
+    // Swiping Home: the main app follows the finger, not the Slide Over app.
+    app.minimized = false;
+    globalMock.display.get_tab_list = () => [slide, app];
+    const prevFocus = globalMock.display.focus_window;
+    globalMock.display.focus_window = slide;
+    assert.equal(probe._mainWindow(monitor), app, 'Slide Over focused: the app behind it is the one that shrinks');
+    globalMock.display.focus_window = app;
+    assert.equal(probe._mainWindow(monitor), app);
+    globalMock.display.focus_window = slide;
+    globalMock.display.get_tab_list = () => [slide];
+    assert.equal(probe._mainWindow(monitor), null, 'Slide Over over Home: nothing shrinks');
+    globalMock.display.focus_window = prevFocus;
+    delete globalMock.display.get_tab_list;
+}
 assert.equal(homes,1, 'dock pull does not go Home');
 send('TOUCH_BEGIN',500,760,3500);
 send('TOUCH_END',380,750,3600);

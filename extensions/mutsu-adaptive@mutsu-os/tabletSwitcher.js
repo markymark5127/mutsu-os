@@ -177,7 +177,10 @@ export class TabletSwitcher {
                 this._shrinkIntoHome();
             } else if (action === 'dock') {
                 this._resetPreview();
-                this._dock.show();
+                // On Home its own dock is already there: a second one
+                // would sit right on top of it.
+                if (!this._homeShowing())
+                    this._dock.show();
             } else if (action === 'next' || action === 'previous') {
                 this._quickSwitch(action === 'next' ? 1 : -1);
                 this._finishPreview();
@@ -188,17 +191,33 @@ export class TabletSwitcher {
         return Clutter.EVENT_STOP;
     }
 
+    // Is Home on screen, with no app covering it? Slide Over apps float
+    // over Home without covering it (or its dock).
+    _homeShowing() {
+        if (Main.overview.visible)
+            return false;
+        const monitor = this._monitor();
+        const index = Main.layoutManager.monitors?.indexOf?.(monitor) ?? -1;
+        const slides = this._split.slides;
+        return !global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null).some(window =>
+            !window.minimized && !window.is_skip_taskbar() && !slides.includes(window) &&
+            window.get_window_type() === Meta.WindowType.NORMAL &&
+            (index < 0 || window.get_monitor() === index) &&
+            (window.is_on_all_workspaces() || window.get_workspace()?.active));
+    }
+
     // The app follows the finger; everything behind it is hidden so Home
-    // shows through, as on iPadOS.
+    // shows through, as on iPadOS. The app is the main (full-screen) one,
+    // even when a Slide Over app has focus; Slide Over stays where it is.
     _startPreview() {
         this._resetPreview();
         if (Main.overview.visible)
             return;
-        const window = global.display.focus_window;
+        const monitor = this._monitor();
+        const window = this._mainWindow(monitor);
         const source = window?.get_compositor_private();
         if (!source || window.is_skip_taskbar())
             return;
-        const monitor = this._monitor();
         const rect = window.get_frame_rect();
         if (!cloneable(rect.width, rect.height) || !cloneable(...source.get_size()))
             return;
@@ -210,15 +229,41 @@ export class TabletSwitcher {
         this._previewClone.set_position(rect.x - monitor.x, rect.y - monitor.y);
         this._previewClone.set_pivot_point(0.5, 0.5);
         this._preview.add_child(this._previewClone);
+        // Slide Over stays on top while the app shrinks away under it.
+        for (const slide of this._split.slides) {
+            const actor = slide.minimized ? null : slide.get_compositor_private?.();
+            if (!actor || slide.get_monitor() !== window.get_monitor() || !cloneable(...actor.get_size()))
+                continue;
+            const clone = new Clutter.Clone({source: actor});
+            clone.set_size(...actor.get_size());
+            clone.set_position(actor.x - monitor.x, actor.y - monitor.y);
+            this._preview.add_child(clone);
+        }
         Main.layoutManager.uiGroup.add_child(this._preview);
         this._hideWindows(monitor);
+    }
+
+    // The focused app, or, when that is a Slide Over app, the newest app on
+    // screen behind it. None: Slide Over is floating over Home.
+    _mainWindow(monitor) {
+        const slides = this._split.slides;
+        const focus = global.display.focus_window;
+        if (focus && !slides.includes(focus))
+            return focus;
+        const index = Main.layoutManager.monitors?.indexOf?.(monitor) ?? -1;
+        return global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null).find(window =>
+            !window.minimized && !window.is_skip_taskbar() && !slides.includes(window) &&
+            window.get_window_type() === Meta.WindowType.NORMAL &&
+            (index < 0 || window.get_monitor() === index)) ?? null;
     }
 
     _hideWindows(monitor) {
         this._showWindows();
         const index = Main.layoutManager.monitors.indexOf?.(monitor) ?? -1;
+        const slides = this._split.slides;
         for (const window of global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null)) {
-            if (window.minimized || (index >= 0 && window.get_monitor() !== index))
+            if (window.minimized || slides.includes(window) ||
+                (index >= 0 && window.get_monitor() !== index))
                 continue;
             const actor = window.get_compositor_private();
             if (actor && actor.opacity > 0) {

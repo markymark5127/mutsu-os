@@ -45,8 +45,10 @@ covers it; when no app is in the way, Home shows through.
 
 ## Navigation (bottom edge)
 
-- Short pull: temporary dock.
-- Swipe up: Home. The app follows your finger and shrinks away.
+- Short pull: temporary dock (on Home, where the dock is already showing,
+  nothing extra appears).
+- Swipe up: Home. The app follows your finger and shrinks away. Slide Over
+  apps stay where they are, floating over Home.
 - Swipe up and pause: **multitasking blades**.
 - Swipe along the edge: previous/next app.
 - Full-screen games keep the first swipe; it lights the Home indicator, and a
@@ -76,7 +78,9 @@ traffic lights.
 - **Spaces** along the top filter by desktop; **+** adds one.
 - Hold a blade and drag it onto another blade for **Split View**, onto a
   Space to move that window there, or to the right edge for **Slide Over**.
-  The blade's Split View / Slide Over buttons do the same.
+  The blade's Split View / Slide Over buttons do the same. On an app
+  already in Slide Over the button is lit: tap it to make that app full
+  screen again.
 - Tap empty space, press Escape or Done to go back; Home goes Home.
 - Keyboard: ←/→ browse, Enter opens, Delete closes, M minimizes.
 
@@ -93,8 +97,11 @@ traffic lights.
   including a Split View pair, so three apps can be on screen at once. On
   the handle above the floating app: drag left for the next app in the
   stack, drag right or tap to tuck the stack away. A tab at the right edge
-  brings it back (tap or drag left). Making a Slide Over app full screen
-  (green button) or moving it into Split View takes it out of the stack.
+  brings it back (tap or drag left). To leave Slide Over, **pull the handle
+  down** (the app follows your finger; let go further down and it becomes
+  the full-screen app), or tap the lit **Slide Over** button on its
+  multitasking card. The green button, or moving it into Split View, also
+  takes it out of the stack.
 - **Floating windows:** the green button floats an app; a round grip at its
   bottom-right corner resizes it by touch. Move it by dragging its title bar.
 - Fixed-size apps cannot be split or put in Slide Over.

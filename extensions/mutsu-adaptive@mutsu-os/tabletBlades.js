@@ -230,14 +230,25 @@ export class TabletBlades {
             y_align: Clutter.ActorAlign.END});
         if (actions.layout_manager)
             actions.layout_manager.homogeneous = true;
-        for (const [label, side, action] of [
-            ['Split View', 'left', () => this._chooseSplit(group, blade)],
-            ['Slide Over', 'right', () => { this.hide(false); this._split.slideOver(group.windows[0]); }],
+        // Already in Slide Over: the button is lit, and tapping it takes the
+        // app out of Slide Over as the full-screen app.
+        const window = group.windows[0];
+        const sliding = !!this._split.slides?.includes(window);
+        for (const [label, side, action, on, name] of [
+            ['Split View', 'left', () => this._chooseSplit(group, blade), false, 'Split View'],
+            ['Slide Over', 'right', () => {
+                this.hide(false);
+                if (sliding)
+                    this._split.leaveSlideOver(window);
+                else
+                    this._split.slideOver(window);
+            }, sliding, sliding ? 'Leave Slide Over (full screen)' : 'Slide Over'],
         ]) {
-            const button = new St.Bin({style_class: `mutsu-blade-action mutsu-blade-action-${side}`,
+            const button = new St.Bin({style_class: `mutsu-blade-action mutsu-blade-action-${side}` +
+                    (on ? ' mutsu-blade-action-on' : ''),
                 x_expand: true, y_expand: true, child: new St.Label({text: label, x_align: Clutter.ActorAlign.CENTER,
                     y_align: Clutter.ActorAlign.CENTER})});
-            makeTappable(button, action, label);
+            makeTappable(button, action, name);
             actions.add_child(button);
         }
         blade.add_child(actions);

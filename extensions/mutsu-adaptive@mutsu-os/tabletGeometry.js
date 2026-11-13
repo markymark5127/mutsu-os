@@ -51,12 +51,19 @@ export const SLIDE_FLICK_VELOCITY = 0.6;
 // Dragged this far past an edge (fraction of the app's width), it tucks
 // away to that side however slowly it was moved.
 export const SLIDE_TUCK_OVERHANG = 0.3;
+// Pulled down this far (px), mostly straight down, Slide Over lets go of the
+// app and it becomes the full-screen app.
+export const SLIDE_PULL_DOWN = 80;
 
 // What a released Slide Over drag means. `overhang` is how far the app was
 // dragged past the screen edge, as a fraction of its width: negative past
 // the left edge, positive past the right. Dragging it off a side, or
 // flicking toward a side, tucks it away on that side; nothing else does.
-export function slideOverRelease(dx, velocity, overhang = 0) {
+// `dy` is how far it was pulled down: far enough and mostly downward, it
+// leaves Slide Over ('fullscreen').
+export function slideOverRelease(dx, velocity, overhang = 0, dy = 0) {
+    if (dy >= SLIDE_PULL_DOWN && dy > Math.abs(dx) * 1.5)
+        return 'fullscreen';
     if (overhang <= -SLIDE_TUCK_OVERHANG)
         return 'tuck-left';
     if (overhang >= SLIDE_TUCK_OVERHANG)

@@ -133,6 +133,9 @@ function putAway(window, actor) {
 //                                  the other edge instead
 //   tap an arrow tab (or drag it   that app slides back in from its edge
 //   inward)
+//   pull the handle down          it leaves Slide Over and becomes the
+//                                 full-screen app (so does tapping Slide
+//                                 Over on its multitasking card)
 // A third app put in Slide Over replaces the oldest one.
 export class TabletSplitView {
     constructor(monitor = () => Main.layoutManager.primaryMonitor) {
@@ -365,6 +368,28 @@ export class TabletSplitView {
         return true;
     }
 
+    // Out of Slide Over: the app becomes the full-screen app, wherever it
+    // was (on screen or tucked away off an edge).
+    leaveSlideOver(window) {
+        const e = this._entry(window);
+        if (!e)
+            return false;
+        const actor = window.get_compositor_private?.();
+        if (actor) {
+            stopSlideTransitions(actor);
+            actor._mutsuSlideClone?.destroy();
+            actor._mutsuSlideClone = null;
+            actor._mutsuSlidingIn = false;
+            actor.translation_y = 0;
+            resetActor(actor);
+        }
+        this._removeSlide(window, false);
+        window.unminimize();
+        maximizeWindow(window, Meta);
+        Main.activateWindow(window);
+        return true;
+    }
+
     // Tablet mode is ending: Slide Over apps on screen fold off their edge
     // (not into the dock) and wait minimized as ordinary apps; tucked ones
     // are already minimized. Then Slide Over is cleared.
@@ -546,6 +571,16 @@ export class TabletSplitView {
         const frame = this._frame(e);
         const r = e.window.get_frame_rect();
         return Math.abs(r.width - frame.width) > 2 || Math.abs(r.height - frame.height) > 2;
+    }
+
+    // While the handle is pulled down the app and its handle follow the
+    // finger, damped; 0 puts them back.
+    _pullDown(e, dy) {
+        const offset = Math.round(Math.min(Math.max(0, dy), 240) * 0.5);
+        const actor = e.window.get_compositor_private?.();
+        if (actor)
+            actor.translation_y = offset;
+        e.handle.translation_y = offset;
     }
 
     _placeHandle(e, rect) {
@@ -765,8 +800,10 @@ export class TabletSplitView {
                 this._layout();
             }
             this._tabs.left.translation_x = this._tabs.right.translation_x = 0;
-            if (drag.kind === 'handle')
+            if (drag.kind === 'handle') {
+                this._pullDown(drag.entry, 0);
                 this._layoutSlide(); // back where it was
+            }
             return Clutter.EVENT_STOP;
         }
         if (drag.kind === 'divider') {
@@ -782,10 +819,18 @@ export class TabletSplitView {
             }
         } else if (drag.kind === 'handle') {
             // The app moves with its handle, sideways only, at a fixed size,
-            // and stops where it meets the other Slide Over app.
+            // and stops where it meets the other Slide Over app. Pulled
+            // straight down instead, it follows the finger down a little and,
+            // let go far enough down, leaves Slide Over.
             const e = drag.entry;
+            const dy = y - drag.y;
             drag.samples.push([Date.now(), x]);
-            if (e && this._entries.includes(e) && this._monitor()) {
+            if (!drag.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 12)
+                drag.axis = dy > Math.abs(dx) ? 'down' : 'side';
+            if (drag.axis === 'down') {
+                if (e && this._entries.includes(e))
+                    this._pullDown(e, dy);
+            } else if (e && this._entries.includes(e) && this._monitor()) {
                 const frame = this._clampMove(e, drag.startX + dx, drag.leftOf);
                 this._placing = true;
                 try {
@@ -800,10 +845,19 @@ export class TabletSplitView {
                 this._drag = null;
                 // Where the finger wanted it, before keeping it on screen.
                 const wanted = drag.startX + dx;
-                const result = slideOverRelease(dx, dragVelocity(drag.samples),
-                    this._overhang(e, wanted, this._frame(e).width, drag.leftOf));
+                const down = drag.axis === 'down';
+                const result = down
+                    ? slideOverRelease(0, 0, 0, dy)
+                    : slideOverRelease(dx, dragVelocity(drag.samples),
+                        this._overhang(e, wanted, this._frame(e).width, drag.leftOf));
+                if (e && this._entries.includes(e))
+                    this._pullDown(e, 0);
                 if (!e || !this._entries.includes(e)) {
                     // closed mid-drag
+                } else if (result === 'fullscreen') {
+                    this.leaveSlideOver(e.window);
+                } else if (down) {
+                    this._layoutSlide(); // not far enough: it settles back
                 } else if (result === 'tuck-left' || result === 'tuck-right') {
                     this.hideSlide(e.window, result === 'tuck-left' ? 'left' : 'right');
                 } else if (result === 'tap') {

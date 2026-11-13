@@ -210,6 +210,22 @@ assert(panel.classes.has('mutsu-status-slim'));
 assert.deepEqual(chrome.slice(0, 2), [false, true], 'desktop controls reset at start, tablet controls in tablet');
 assert.equal(chrome.at(-1), true);
 
+// Going Home: apps go away, a Slide Over app stays floating over Home.
+{
+    const saved = windows.map(w => [w, w.minimized]);
+    const main = makeWindow({maximized: true}), floating = makeWindow();
+    const realSwitcher = e._switcher;
+    e._switcher = {hide() {}, split: {slides: [floating]}};
+    e._goHome();
+    assert.equal(main.minimized, true, 'Home: the full-screen app goes away');
+    assert.equal(floating.minimized, false, 'Home: Slide Over stays open');
+    e._switcher = realSwitcher;
+    windows.splice(windows.indexOf(main), 1);
+    windows.splice(windows.indexOf(floating), 1);
+    for (const [w, minimized] of saved)
+        w.minimized = minimized;
+}
+
 // New window: maximized once shown; a fixed-size one is left alone.
 const created = makeWindow();
 display.emit('window-created', created);

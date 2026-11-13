@@ -643,12 +643,16 @@ export default class MutsuAdaptiveExtension extends Extension {
         split?.leaveTablet?.();
     }
 
+    // Every app goes away except Slide Over: like iPadOS, Slide Over apps
+    // stay floating where they are, over Home.
     _goHome() {
         this._switcher?.hide();
         const monitor = this._tabletMonitor();
         const index = Main.layoutManager.monitors.indexOf(monitor);
+        const slides = this._switcher?.split?.slides ?? [];
         for (const window of global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null)) {
-            if (window.minimized || window.is_skip_taskbar() || isSearchWindow(window))
+            if (window.minimized || window.is_skip_taskbar() || isSearchWindow(window) ||
+                slides.includes(window))
                 continue;
             if (index >= 0 && window.get_monitor() !== index)
                 continue;

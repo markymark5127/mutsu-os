@@ -418,6 +418,34 @@ const other = ball().find(a => a._mutsuWindow && a._mutsuWindow !== splitButton.
 btap(other, 1200);
 assert.equal(splits.at(-1)?.[0], 'split', 'Split View pairs two apps');
 assert.equal(blades.visible, false, 'blades close after choosing');
+// Slide Over from the card; on an app already in Slide Over the button is lit
+// and tapping it again takes the app out, full screen.
+const reopen = () => {
+    blades.show();
+    const root = uiGroup.children.at(-1);
+    const tap = (actor, t) => {
+        const ev = type => ({type: () => type, get_coords: () => [10, 10], get_time: () => t,
+            get_event_sequence: () => 1, get_source: () => actor, get_button: () => 1});
+        root.emit('captured-event', ev('TOUCH_BEGIN'));
+        root.emit('captured-event', ev('TOUCH_END'));
+    };
+    return {actors: () => all(root), tap};
+};
+let card = reopen();
+card.tap(card.actors().find(a => a.accessible_name === 'Slide Over'), 1300);
+assert.equal(splits.at(-1)?.[0], 'slide', 'Slide Over from the card');
+runTimers();
+split.slides = [web];
+split.leaveSlideOver = w => splits.push(['leave', w]);
+card = reopen();
+const lit = card.actors().find(a => a.accessible_name === 'Leave Slide Over (full screen)');
+assert(lit && lit.classes.has('mutsu-blade-action-on'), 'Slide Over is lit on the Slide Over app\'s card');
+assert.equal(card.actors().filter(a => a.classes.has('mutsu-blade-action-on')).length, 1, 'only on that card');
+card.tap(lit, 1400);
+assert.deepEqual(splits.at(-1), ['leave', web], 'tapping it again leaves Slide Over');
+assert.equal(blades.visible, false, 'and multitasking closes');
+runTimers();
+split.slides = [];
 // Keyboard: Escape returns to the previous app.
 blades.show();
 const broot2 = uiGroup.children.at(-1);
