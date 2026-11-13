@@ -13,16 +13,19 @@
 #panel .panel-button {
   color: #D7F8FF;
   border-radius: 3px;
+  margin: 0;
 }
 #panel .panel-button:hover,
 #panel .panel-button:focus {
   background-color: rgba(0, 229, 255, 0.14);
+  background-gradient-direction: none;
   box-shadow: none;
   color: #00E5FF;
 }
 #panel .panel-button:active,
 #panel .panel-button:checked {
   background-color: rgba(255, 45, 155, 0.20);
+  background-gradient-direction: none;
   box-shadow: none;
   color: #FF86CB;
 }
@@ -33,6 +36,7 @@
 #panel .panel-button.clock-display:active,
 #panel .panel-button.clock-display:checked {
   background-color: transparent;
+  background-gradient-direction: none;
   box-shadow: none;
 }
 #panel .panel-button.clock-display .clock {
@@ -41,11 +45,13 @@
 #panel .panel-button.clock-display:hover .clock,
 #panel .panel-button.clock-display:focus .clock {
   background-color: rgba(0, 229, 255, 0.14);
+  background-gradient-direction: none;
   box-shadow: none;
 }
 #panel .panel-button.clock-display:active .clock,
 #panel .panel-button.clock-display:checked .clock {
   background-color: rgba(255, 45, 155, 0.20);
+  background-gradient-direction: none;
   box-shadow: none;
 }
 #panel.mutsu-glass-dark {
@@ -65,6 +71,7 @@
 #panel.mutsu-glass-dark .panel-button.clock-display:hover .clock,
 #panel.mutsu-glass-dark .panel-button.clock-display:focus .clock {
   background-color: rgba(0, 229, 255, 0.14);
+  background-gradient-direction: none;
   box-shadow: none;
   color: #00E5FF;
 }
@@ -73,6 +80,7 @@
 #panel.mutsu-glass-dark .panel-button.clock-display:active .clock,
 #panel.mutsu-glass-dark .panel-button.clock-display:checked .clock {
   background-color: rgba(255, 45, 155, 0.20);
+  background-gradient-direction: none;
   box-shadow: none;
 }
 #panel.mutsu-glass-dark .panel-button.clock-display:hover,
@@ -80,6 +88,7 @@
 #panel.mutsu-glass-dark .panel-button.clock-display:active,
 #panel.mutsu-glass-dark .panel-button.clock-display:checked {
   background-color: transparent;
+  background-gradient-direction: none;
   box-shadow: none;
 }
 #panel:overview,
@@ -251,4 +260,13 @@
 /* Japandi lifts the dock over a reflection floor; Cyberpunk keeps it low. */
 #dashtodockContainer.bottom #dashtodockBox {
   padding-bottom: 0;
+}
+
+/* Japandi's adaptive ink running dots: Cyberpunk keeps its plain dot. */
+#dashtodockContainer .app-grid-running-dot,
+#dashtodockContainer.mutsu-dock-light .app-grid-running-dot,
+#dashtodockContainer.mutsu-dock-dark .app-grid-running-dot {
+  background-color: #7F9A82;
+  border: none;
+  box-shadow: none;
 }

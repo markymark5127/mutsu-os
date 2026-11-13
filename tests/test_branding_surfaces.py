@@ -162,6 +162,14 @@ class BrandingSurfacesTest(unittest.TestCase):
         css = (ROOT / "branding/shell/japandi.css").read_text()
         floor = re.search(r"#dashtodockContainer.bottom #dashtodockBox \{\s*padding-bottom: (\d+)px", css)
         self.assertEqual(int(floor.group(1)), int(re.search(r"REFLECTION_DEPTH = (\d+)", glassfx).group(1)))
+        # Running dots adapt: ink picked for contrast against the dock glass
+        # over the wallpaper (glass.js), with an opposite-tone halo.
+        riceglass = (ext / "glass.js").read_text()
+        self.assertIn("export function dockReadsDark", riceglass)
+        self.assertIn("this._clearDock()", riceglass[riceglass.index("    destroy() {"):])
+        for cls in (".mutsu-dock-light .app-grid-running-dot", ".mutsu-dock-dark .app-grid-running-dot"):
+            self.assertIn(cls, css)
+        self.assertNotIn("#7F9A82", css[css.index("Running dots"):css.index("The dock floats")])
         # Show Apps: nine round dots, no tile
         show = (ROOT / "branding/icons/mutsu-show-apps-symbolic.svg").read_text()
         self.assertEqual(show.count("<circle"), 9)

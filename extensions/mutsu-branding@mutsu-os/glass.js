@@ -20,20 +20,35 @@ const BRIGHTNESS = 1.04;    // paper glows a touch, like light through shoji
 // Ink adapts like Apple's bar: cream over a dark wallpaper strip.
 const DARK_CLASS = 'mutsu-glass-dark';
 const DARK_BELOW = 0.20;    // mean linear luminance of the strip behind the bar
+// Dock running dots adapt the same way: charcoal with a light halo where the
+// dock glass reads light, cream with a dark halo where it reads dark.
+const DOCK_NAME = 'dashtodockContainer';
+const DOCK_DARK_CLASS = 'mutsu-dock-dark';
+const DOCK_LIGHT_CLASS = 'mutsu-dock-light';
+// The dots sit low on the dock, where its milky glass (japandi.css
+// .dash-background) is clearest: about 46% warm cream over the wallpaper.
+const DOCK_GLASS = 0.46;
+const DOCK_GLASS_LUMA = 0.83;   // linear luminance of that cream
+const INK_LUMA = 0.028;         // charcoal #2B2F2C
+const CREAM_LUMA = 0.92;        // cream #FBF7EE
 
 function linear(c) {
     c /= 255;
     return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
 }
 
-// Mean luminance of the top rows of a small (already scaled) pixbuf.
-function stripLuminance(pix, rows) {
+// Mean luminance of some rows (and optionally columns) of a small (already
+// scaled) pixbuf: the top rows by default.
+export function stripLuminance(pix, rows, {fromBottom = false, x0 = 0, x1 = 1} = {}) {
     const data = pix.read_pixel_bytes().get_data();
     const stride = pix.get_rowstride();
     const n = pix.get_n_channels();
+    const h = pix.get_height(), w = pix.get_width();
+    const first = fromBottom ? Math.max(0, h - rows) : 0;
+    const last = fromBottom ? h : Math.min(rows, h);
     let sum = 0, count = 0;
-    for (let y = 0; y < Math.min(rows, pix.get_height()); y++) {
-        for (let x = 0; x < pix.get_width(); x++) {
+    for (let y = first; y < last; y++) {
+        for (let x = Math.floor(x0 * w); x < Math.ceil(x1 * w); x++) {
             const i = y * stride + x * n;
             sum += 0.2126 * linear(data[i]) + 0.7152 * linear(data[i + 1]) +
                 0.0722 * linear(data[i + 2]);
@@ -41,6 +56,14 @@ function stripLuminance(pix, rows) {
         }
     }
     return count ? sum / count : 1;
+}
+
+// What the eye sees behind the dots (the glass over the wallpaper strip),
+// and whether cream contrasts with it better than charcoal (WCAG ratio).
+export function dockReadsDark(wallpaperLuma, glass = DOCK_GLASS) {
+    const seen = glass * DOCK_GLASS_LUMA + (1 - glass) * wallpaperLuma;
+    const contrast = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    return contrast(CREAM_LUMA, seen) > contrast(INK_LUMA, seen);
 }
 
 function makeBlur(cornerRadius = 0) {
@@ -127,6 +150,10 @@ export class RiceGlass {
             GdkPixbuf.Pixbuf.new_from_stream_at_scale_async(stream, 96, 54, false, null, (_s, r) => {
                 try {
                     const pix = GdkPixbuf.Pixbuf.new_from_stream_finish(r);
+                    // The dock sits over the bottom few rows, centred.
+                    const behind = stripLuminance(pix, 5, {fromBottom: true, x0: 0.25, x1: 0.75});
+                    if (serial === this._serial && !this._destroyed)
+                        this._setDockDark(dockReadsDark(behind));
                     done(stripLuminance(pix, 3) < DARK_BELOW);
                 } catch (e) {
                     done(false);
@@ -134,6 +161,21 @@ export class RiceGlass {
                 stream.close_async(GLib.PRIORITY_LOW, null, null);
             });
         });
+    }
+
+    _setDockDark(isDark) {
+        this._dockDark = isDark;
+        const dock = Main.layoutManager.uiGroup.get_children().find(c => c.name === DOCK_NAME);
+        if (!dock)
+            return;
+        dock.remove_style_class_name(isDark ? DOCK_LIGHT_CLASS : DOCK_DARK_CLASS);
+        dock.add_style_class_name(isDark ? DOCK_DARK_CLASS : DOCK_LIGHT_CLASS);
+    }
+
+    _clearDock() {
+        const dock = Main.layoutManager.uiGroup.get_children().find(c => c.name === DOCK_NAME);
+        dock?.remove_style_class_name(DOCK_DARK_CLASS);
+        dock?.remove_style_class_name(DOCK_LIGHT_CLASS);
     }
 
     _setDark(isDark) {
@@ -157,6 +199,8 @@ export class RiceGlass {
 
     _refresh() {
         this._clear();
+        if (this._dockDark !== undefined)
+            this._setDockDark(this._dockDark);
         try {
             if (this._a11y?.get_boolean('high-contrast'))
                 return;
@@ -191,6 +235,7 @@ export class RiceGlass {
             Main.layoutManager.disconnect(this._monitorsId);
         this._monitorsId = 0;
         Main.panel.remove_style_class_name(DARK_CLASS);
+        this._clearDock();
         for (const id of this._bgIds ?? [])
             this._bg.disconnect(id);
         if (this._ifaceId)

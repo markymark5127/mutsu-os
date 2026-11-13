@@ -44,6 +44,9 @@ uniform float width;
 uniform float height;
 uniform float radius;
 uniform float strength;
+uniform float refract;      // 0 = no bending (panes with text right at the edge)
+uniform float bevel_px;     // how far in from the edge the bevel glow reaches
+uniform float rim_alpha;    // the rim shows even where the pane's tint is faint
 
 float mutsu_box(vec2 p, vec2 b, float r) {
     vec2 q = abs(p) - b + vec2(r);
@@ -70,7 +73,7 @@ const GLASS_CODE = `
     // Refraction: the thick edge pulls what it shows inward, like a lens rim.
     float k = clamp(1.0 - e / 22.0, 0.0, 1.0);
     float inside = step(0.0, e);
-    vec2 bend = -n * k * k * 9.0 * strength * inside / tex;
+    vec2 bend = -n * k * k * 9.0 * strength * refract * inside / tex;
     vec4 bent = texture2D(cogl_sampler0, clamp(uv + bend, 0.0, 1.0));
     vec3 colour = bent.a > 0.004 ? bent.rgb / bent.a : base.rgb / max(base.a, 0.004);
     vec4 glass = vec4(colour * base.a, base.a);
@@ -82,7 +85,7 @@ const GLASS_CODE = `
 
     float rim = smoothstep(2.4, 0.0, e);           // the 1-2 px edge itself
     float spec = rim * (0.22 + 0.85 * pow(lit, 1.6) + 0.50 * pow(under, 2.0));
-    float bevel = smoothstep(16.0, 0.0, e) * (0.18 * pow(lit, 1.4) + 0.07 * pow(under, 2.0));
+    float bevel = smoothstep(bevel_px, 0.0, e) * (0.18 * pow(lit, 1.4) + 0.07 * pow(under, 2.0));
     float sheen = 0.0;
     float shade = smoothstep(9.0, 0.0, e) * 0.05 * under * inside;   // a hint of depth on the far edge
 
@@ -90,6 +93,9 @@ const GLASS_CODE = `
     sheen = 0.07 * clamp(1.0 - sheen_y / 0.42, 0.0, 1.0);
     float shine = (spec + bevel + sheen) * strength * inside;
     glass.rgb = glass.rgb * (1.0 - shade * strength) + vec3(shine) * base.a;
+    // A faint pane still gets a visible lit edge: the rim adds its own light.
+    float rim_light = rim * rim_alpha * (0.45 + 0.55 * max(lit, under * 0.7)) * strength * inside;
+    glass = glass * (1.0 - rim_light) + vec4(rim_light);
     cogl_color_out = glass * cogl_color_in;
 `;
 
@@ -203,9 +209,9 @@ function glassEffect() {
             return {};   // until it has an actor and a texture: drawn unlit
         }
     };
-    effect.setShape = (radius, strength) => {
+    effect.setShape = (radius, strength, {refract = 1, bevel = 16, rimAlpha = 0} = {}) => {
         effect._radius = radius;
-        effect.setUniforms({strength});
+        effect.setUniforms({strength, refract, bevel_px: bevel, rim_alpha: rimAlpha});
     };
     return effect;
 }
@@ -242,6 +248,7 @@ export class LiquidGlass {
 
         this._patchMenus();
         this._watchBanners();
+        this._watchPanel();
         // Dash-to-Dock builds (and rebuilds) the dock after us.
         this._addedId = Main.layoutManager.uiGroup.connect('child-added', () => this._dockSoon(400));
         this._monitorsId = Main.layoutManager.connect('monitors-changed', () => this._dockSoon(400));
@@ -251,7 +258,9 @@ export class LiquidGlass {
 
     // ---- glazing ----------------------------------------------------------
 
-    glaze(actor, {strength = 1, fallbackRadius = 20} = {}) {
+    // `activeOn`: only light the pane while that actor is hovered or open
+    // (top bar buttons); the effect is switched off the rest of the time.
+    glaze(actor, {strength = 1, fallbackRadius = 20, refract = 1, bevel = 16, rimAlpha = 0, activeOn = null} = {}) {
         if (this._destroyed || !actor || this._glazed.has(actor))
             return;
         let effect;
@@ -260,7 +269,12 @@ export class LiquidGlass {
         } catch (e) {
             return;   // no shader support: the surface stays plain glass
         }
-        const update = () => effect.setShape(radiusOf(actor, fallbackRadius), strength);
+        const active = () => !activeOn || activeOn.has_style_pseudo_class('hover') ||
+            activeOn.has_style_pseudo_class('checked') || activeOn.has_style_pseudo_class('active');
+        const update = () => {
+            effect.setShape(radiusOf(actor, fallbackRadius), strength, {refract, bevel, rimAlpha});
+            effect.enabled = active();
+        };
         try {
             update();
             actor.add_effect_with_name(EFFECT_NAME, effect);
@@ -274,7 +288,10 @@ export class LiquidGlass {
             actor.connect('style-changed', update),
             actor.connect('destroy', () => this._glazed.delete(actor)),
         ];
-        this._glazed.set(actor, {effect, ids});
+        const extra = [];
+        if (activeOn && activeOn !== actor)
+            extra.push([activeOn, activeOn.connect('style-changed', update)]);
+        this._glazed.set(actor, {effect, ids, extra});
     }
 
     _unglaze(actor) {
@@ -284,6 +301,11 @@ export class LiquidGlass {
         for (const id of entry.ids) {
             try {
                 actor.disconnect(id);
+            } catch (e) {}
+        }
+        for (const [other, id] of entry.extra ?? []) {
+            try {
+                other.disconnect(id);
             } catch (e) {}
         }
         try {
@@ -324,6 +346,45 @@ export class LiquidGlass {
         });
         for (const child of bin.get_children())
             this.glaze(child, {fallbackRadius: 24});
+    }
+
+    // Top bar buttons (the app menus File, Edit... and the status icons):
+    // hovered or open, the capsule behind them is a small pane of liquid
+    // glass. No refraction (the label sits right at its edge), a short bevel.
+    _watchPanel() {
+        this._panelIds = [];
+        for (const box of [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox]) {
+            if (!box)
+                continue;
+            this._panelIds.push([box, box.connect('child-added', () => this._glazePanelSoon())]);
+        }
+        this._glazePanelSoon();
+    }
+
+    _glazePanelSoon() {
+        const id = GLib.timeout_add(GLib.PRIORITY_LOW, 300, () => {
+            this._timeouts.delete(id);
+            this._glazePanel();
+            return GLib.SOURCE_REMOVE;
+        });
+        this._timeouts.add(id);
+    }
+
+    _glazePanel() {
+        if (this._destroyed)
+            return;
+        const capsule = {strength: 1, fallbackRadius: 99, refract: 0, bevel: 7, rimAlpha: 0.55};
+        for (const box of [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox]) {
+            for (const container of box?.get_children() ?? []) {
+                const button = container.get_first_child?.() ?? null;
+                if (!button?.has_style_class_name?.('panel-button'))
+                    continue;
+                // The clock draws its capsule on the inner .clock.
+                const clock = button.has_style_class_name('clock-display')
+                    ? this._find(button, a => a.has_style_class_name?.('clock')) : null;
+                this.glaze(clock ?? button, {...capsule, activeOn: button});
+            }
+        }
     }
 
     // ---- dock -----------------------------------------------------------------
@@ -453,6 +514,9 @@ export class LiquidGlass {
             GLib.source_remove(id);
         this._timeouts.clear();
         this._unpatchMenus();
+        for (const [box, id] of this._panelIds ?? [])
+            box.disconnect(id);
+        this._panelIds = [];
         if (this._bannerBin && this._bannerId)
             this._bannerBin.disconnect(this._bannerId);
         this._bannerId = 0;
