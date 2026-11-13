@@ -135,7 +135,7 @@ command -v rsvg-convert >/dev/null || {
 login_logo=/usr/share/pixmaps/mutsu/mutsu-login-wordmark.png
 grep -q 'fill="#788773"' "$wordmark" || {
   echo >&2 "Wordmark colour changed: update the cream login recolour"; exit 1; }
-sed's/fill="#788773"/fill="#FBF7EE"/' "$wordmark" | \
+sed 's/fill="#788773"/fill="#FBF7EE"/' "$wordmark" | \
   rsvg-convert --width=280 --keep-aspect-ratio --output="$login_logo"
 test -s "$login_logo"
 

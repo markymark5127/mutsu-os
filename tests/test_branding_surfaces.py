@@ -81,6 +81,13 @@ class BrandingSurfacesTest(unittest.TestCase):
                              (BRAND / "cursors/japandi/left_ptr.svg").read_bytes())
 
     @unittest.skipUnless(shutil.which("rsvg-convert"), "needs rsvg-convert")
+    def test_no_command_glued_to_its_quote(self):
+        # `sed's/a/b/'` runs a command literally named "seds/a/b/" and only
+        # fails inside the image build; bash -n can't catch it.
+        for line_no, line in enumerate(SCRIPT.splitlines(), 1):
+            self.assertNotRegex(line, r"(^|[\s;&|(])(sed|grep|awk|printf|echo|tr|cut)['\"]",
+                                f"install-branding.sh:{line_no}: {line.strip()}")
+
     def test_whole_cursor_set_is_drawn_in_one_style(self):
         # The arrow alone was Mutsu's; hand, text, resize and busy cursors were
         # Adwaita's and looked out of place. Every common shape is now drawn.
