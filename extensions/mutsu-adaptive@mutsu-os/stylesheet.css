@@ -375,47 +375,47 @@
  * GNOME only offers fixed accent colours and the Shell can't be given a
  * custom one, so Mutsu paints its own here (built into the theme too).
  * Shoji Glass: quiet sage for quiet places (today, running dots, levels),
- * liquid glass for "on" moments: a teal -> dusk violet gradient from the
- * wallpaper where St draws gradients, its solid middle #5879AD where it
- * takes one colour. Deep enough for white text. GTK apps keep sage. */
+ * liquid sage glass for "on" moments: a light sage -> moss gradient where
+ * St draws gradients, its solid middle #61806A where it takes one colour.
+ * Japandi through and through (no blues). Deep enough for white text. */
 .quick-toggle:checked,
 .quick-toggle:checked:focus {
-  background-color: #3D8C99;
+  background-color: #7A9A7F;
   background-gradient-direction: horizontal;
-  background-gradient-start: #3D8C99;
-  background-gradient-end: #7466C2;
+  background-gradient-start: #7A9A7F;
+  background-gradient-end: #4F6B57;
   border-color: rgba(255, 255, 255, 0.45);
   color: #ffffff;
 }
 .quick-toggle:checked:hover {
-  background-color: #4A99A6;
-  background-gradient-start: #4A99A6;
-  background-gradient-end: #8174CC;
+  background-color: #86A68B;
+  background-gradient-start: #86A68B;
+  background-gradient-end: #5A7862;
   color: #ffffff;
 }
 .quick-toggle:checked:active {
-  background-color: #33808C;
-  background-gradient-start: #33808C;
-  background-gradient-end: #685AB4;
+  background-color: #6E8E73;
+  background-gradient-start: #6E8E73;
+  background-gradient-end: #465F4D;
   color: #ffffff;
 }
 .quick-toggle-has-menu .quick-toggle-menu-button:checked,
 .quick-toggle-has-menu .quick-toggle-menu-button:checked:focus {
-  background-color: #6A5DB6;
+  background-color: #557360;
   background-gradient-direction: none;
   color: #ffffff;
 }
-.quick-toggle-has-menu .quick-toggle-menu-button:checked:hover { background-color: #776ABF; }
-.quick-toggle-has-menu .quick-toggle-menu-button:checked:active { background-color: #5E52A8; }
+.quick-toggle-has-menu .quick-toggle-menu-button:checked:hover { background-color: #5F7D69; }
+.quick-toggle-has-menu .quick-toggle-menu-button:checked:active { background-color: #4A6654; }
 .quick-settings-system-item .icon.active,
-.quick-toggle-menu .header .icon.active { background-color: #5879AD; color: #ffffff; }
-.toggle-switch:checked { background: #5879AD; color: #ffffff; }
-.toggle-switch:checked:hover { background-color: #6586BA; }
-.check-box:checked StIcon { background-color: #5879AD; color: #ffffff; border-color: transparent; }
-.check-box:checked:hover StIcon { background-color: #6586BA; }
-.check-box:checked:active StIcon { background-color: #4C6CA0; }
-.slider { -barlevel-active-background-color: #5879AD; }
-StEntry { selection-background-color: rgba(88, 121, 173, 0.30); }
+.quick-toggle-menu .header .icon.active { background-color: #61806A; color: #ffffff; }
+.toggle-switch:checked { background: #61806A; color: #ffffff; }
+.toggle-switch:checked:hover { background-color: #6D8C75; }
+.check-box:checked StIcon { background-color: #61806A; color: #ffffff; border-color: transparent; }
+.check-box:checked:hover StIcon { background-color: #6D8C75; }
+.check-box:checked:active StIcon { background-color: #557360; }
+.slider { -barlevel-active-background-color: #61806A; }
+StEntry { selection-background-color: rgba(97, 128, 106, 0.30); }
 .osd-monitor-label, .osd-break-countdown-label { background-color: #7F9A82; color: #ffffff; }
 /* The rest of the places GNOME paints its (green) accent: quiet sage. */
 .level-bar { background-color: #7F9A82; }
@@ -424,20 +424,20 @@ StEntry { selection-background-color: rgba(88, 121, 173, 0.30); }
 /* Primary buttons (Review & Install, dialogs): liquid capsule. */
 .button.default, .modal-dialog-button.default, .notification-button.default,
 .button:default, .modal-dialog-button:default {
-  background-color: #3D8C99;
+  background-color: #7A9A7F;
   background-gradient-direction: horizontal;
-  background-gradient-start: #3D8C99;
-  background-gradient-end: #7466C2;
+  background-gradient-start: #7A9A7F;
+  background-gradient-end: #4F6B57;
   color: #ffffff;
 }
 .button.default:hover, .modal-dialog-button.default:hover,
 .button:default:hover, .modal-dialog-button:default:hover {
-  background-color: #4A99A6;
-  background-gradient-start: #4A99A6;
-  background-gradient-end: #8174CC;
+  background-color: #86A68B;
+  background-gradient-start: #86A68B;
+  background-gradient-end: #5A7862;
 }
-.search-entry:focus, StEntry:focus { border-color: #7466C2; }
-.keyboard-key.default-key, .keyboard-key:checked, .keyboard-key.enter-key { background-color: #5879AD; color: #ffffff; }
+.search-entry:focus, StEntry:focus { border-color: #4F6B57; }
+.keyboard-key.default-key, .keyboard-key:checked, .keyboard-key.enter-key { background-color: #61806A; color: #ffffff; }
 .workspace-thumbnail-indicator { border-color: #7F9A82; }
 .app-grid-running-dot, .app-well-app-running-dot { background-color: #7F9A82; }
 .page-indicator:checked .page-indicator-icon { background-color: #7F9A82; }

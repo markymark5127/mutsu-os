@@ -62,10 +62,10 @@ install -Dm0644 "$brand/icons/mutsu-ai.svg" \
   /usr/share/icons/MutsuJapandi/scalable/apps/mutsu-ai.svg
 install -Dm0644 "$brand/icons/mutsu-app-grid.svg" \
   /usr/share/icons/MutsuJapandi/scalable/actions/mutsu-app-grid.svg
-# Dock "Show Apps" button: a sage tile with a cream grid instead of GNOME's
-# faint grey dots. Dash to Dock asks for view-app-grid-<mode>-symbolic and
+# Dock "Show Apps" button: nine round dots and no tile (the Shoji Glass
+# render) instead of GNOME's faint grey grid. Dash to Dock asks for view-app-grid-<mode>-symbolic and
 # falls back to view-app-grid-symbolic; both themes get both names. Colours
-# come from the Shell CSS (color + success-color on .show-apps-icon).
+# come from the Shell CSS (color on .show-apps-icon).
 for theme_dir in MutsuJapandi MutsuCyberpunk; do
   for name in view-app-grid-symbolic view-app-grid-user-symbolic; do
     install -Dm0644 "$brand/icons/mutsu-show-apps-symbolic.svg" \
@@ -392,10 +392,10 @@ for theme in japandi cyberpunk; do
   fi
 done
 
-# Japandi app and folder icons as liquid-glass objects, rendered to PNG at
-# every size (simplified drawings at 32 px and below). They replace the flat
-# Japandi drawings above; other apps keep their own icons.
-python3 "$brand/icons/glass/draw-glass-icons.py" --render /usr/share/icons/MutsuJapandi
+# Japandi app and folder icons as flat objects (no tile, no glass: the Shell
+# is the glass), rendered to PNG at every size (simplified drawings at 32 px
+# and below). They replace the older drawings above; other apps keep theirs.
+python3 "$brand/icons/objects/draw-icons.py" --render /usr/share/icons/MutsuJapandi
 
 # Sound theme. Quiet tones; inherits freedesktop for anything we do not ship.
 if [[ -d "$brand/sounds/MutsuJapandi" ]]; then

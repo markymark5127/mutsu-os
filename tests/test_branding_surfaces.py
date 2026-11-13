@@ -141,7 +141,31 @@ class BrandingSurfacesTest(unittest.TestCase):
         # Kiwi's dock styling strips every highlight behind dock icons.
         self.assertIn("dock-styling=false", (ROOT / "packaging/60-mutsu-kiwi.dconf").read_text())
         accent = (ROOT / "extensions/mutsu-adaptive@mutsu-os/stylesheet.css").read_text()
-        self.assertIn("background-gradient-end: #7466C2", accent)  # liquid "on" moments
+        self.assertIn("background-gradient-end: #4F6B57", accent)  # liquid sage "on" moments
+        for blue in ("#3D8C99", "#7466C2", "#5879AD"):
+            self.assertNotIn(blue, accent, "the accent stays Japandi")
+        # Liquid glass as an effect: a shader on menus, banners and the dock,
+        # plus the dock's reflection; switchable, Japandi only, off in high contrast.
+        glassfx = (ext / "liquidGlass.js").read_text()
+        self.assertIn("extends Clutter.OffscreenEffect", glassfx)
+        self.assertIn("Cogl.SnippetHook.FRAGMENT", glassfx)
+        self.assertIn("PopupMenu.PopupMenu.prototype", glassfx)
+        self.assertIn("_bannerBin", glassfx)
+        self.assertIn("scale_y = -1", glassfx)               # mirrored icons
+        self.assertIn("PopupMenu.PopupMenu.prototype.open = this._origOpen", glassfx)  # unpatched
+        self.assertIn("new LiquidGlass()", main)
+        self.assertIn("'liquid-glass'", main)
+        self.assertIn("high-contrast", main[main.index("    _syncLiquidGlass() {"):])
+        self.assertIn("this._liquidGlass?.destroy()", main[main.index("    disable() {"):])
+        schema = (ext / "schemas/org.gnome.shell.extensions.mutsu-branding.gschema.xml").read_text()
+        self.assertIn('<key name="liquid-glass" type="b">', schema)
+        css = (ROOT / "branding/shell/japandi.css").read_text()
+        floor = re.search(r"#dashtodockContainer.bottom #dashtodockBox \{\s*padding-bottom: (\d+)px", css)
+        self.assertEqual(int(floor.group(1)), int(re.search(r"REFLECTION_DEPTH = (\d+)", glassfx).group(1)))
+        # Show Apps: nine round dots, no tile
+        show = (ROOT / "branding/icons/mutsu-show-apps-symbolic.svg").read_text()
+        self.assertEqual(show.count("<circle"), 9)
+        self.assertNotIn("<rect", show)
         main = (ext / "extension.js").read_text()
         self.assertIn("new RiceGlass()", main)
         self.assertIn("this._glass?.destroy()", main[main.index("    disable() {"):])

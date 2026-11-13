@@ -11,5 +11,10 @@
       <summary>GNOME Shell styling</summary>
       <description>Controls which Mutsu Shell palette is loaded by this extension. Japandi is the first-boot default.</description>
     </key>
+    <key name="liquid-glass" type="b">
+      <default>true</default>
+      <summary>Liquid glass effect</summary>
+      <description>In Japandi, light menus, notifications and the dock like thick glass (a lit rim, refraction at the edges) and reflect the dock's icons below it.</description>
+    </key>
   </schema>
 </schemalist>

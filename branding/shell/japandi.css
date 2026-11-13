@@ -10,8 +10,10 @@
  *   shoji     warm milky glass: vertical sheen rgba(255,253,248,.74) ->
  *             rgba(243,236,223,.58), 1px rgba(255,255,255,.80) rim
  *   tile      lighter glass inside a panel: rgba(255,255,255,.42), .60 rim
- *   liquid    the accent (tablet stylesheet's accent block): teal #3D8C99 ->
- *             dusk violet #7466C2, solid #5879AD where St takes one colour
+ *   liquid    the accent (tablet stylesheet's accent block): sage glass
+ *             #8AA88D -> moss #4F6B57, solid #61806A where St takes one colour
+ *   light     liquidGlass.js adds the lit rim, edge refraction and sheen as a
+ *             shader, and the dock's reflection; CSS stays the tint
  *   ink       charcoal #2B2F2C, never pure black
  *   radii     panels 28, menus 20, tiles 16-18, capsules 99
  *   shadow    one soft, low-contrast shadow (St draws only one), none on
@@ -271,18 +273,29 @@
   box-shadow: 0 4px 12px rgba(40, 32, 24, 0.14);
 }
 
-/* Dock "Show Apps": a quiet charcoal dot grid (no tile), like the rest of
- * the dock's line work; it lifts on hover like any dock item. */
+/* Dock "Show Apps": nine bright dots on the glass, no tile (the Shoji Glass
+ * render). White with a soft warm shadow so it reads on the milky dock. */
 #dashtodockContainer .show-apps .show-apps-icon,
 #dash .show-apps .show-apps-icon {
-  color: rgba(43, 47, 44, 0.78);
+  color: #FFFFFF;
   success-color: rgba(0, 0, 0, 0);
+  icon-shadow: 0 1px 3px rgba(46, 38, 28, 0.45);
 }
 #dashtodockContainer .show-apps .show-apps-icon:hover,
 #dash .show-apps .show-apps-icon:hover {
-  color: #2B2F2C;
+  color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.26);
+  border-radius: 16px;
 }
 #dashtodockContainer .show-apps:checked .show-apps-icon,
 #dash .show-apps:checked .show-apps-icon {
-  color: #5879AD;
+  color: #FFFFFF;
+  background-color: rgba(97, 128, 106, 0.55);
+  border-radius: 16px;
+}
+
+/* The dock floats over a little floor where its icons reflect
+ * (mutsu-branding liquidGlass.js draws the reflection; 26 px there too). */
+#dashtodockContainer.bottom #dashtodockBox {
+  padding-bottom: 26px;
 }

@@ -5,12 +5,14 @@
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import {SearchIntegration} from './searchIntegration.js';
 import {RiceGlass} from './glass.js';
 import {DockLiquid} from './dockLiquid.js';
+import {LiquidGlass} from './liquidGlass.js';
 
 const BASE = '/usr/share/mutsu-os/branding/shell';
 // Names the look built into GNOME Shell's own theme at image build time
@@ -66,6 +68,10 @@ export default class MutsuBrandingExtension extends Extension {
         menu.addAction('Calm Japandi', () => this._settings.set_string('appearance', 'japandi'));
         menu.addAction('Cyberpunk', () => this._settings.set_string('appearance', 'cyberpunk'));
         menu.addAction('Follow System', () => this._settings.set_string('appearance', 'system'));
+        this._glassSwitch = new PopupMenu.PopupSwitchMenuItem('Liquid Glass Effect',
+            this._settings.get_boolean('liquid-glass'));
+        this._glassSwitch.connect('toggled', (_item, on) => this._settings.set_boolean('liquid-glass', on));
+        menu.addMenuItem(this._glassSwitch);
 
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'left');
         this._pinLogoLeft();
@@ -77,6 +83,15 @@ export default class MutsuBrandingExtension extends Extension {
         });
 
         this._changedId = this._settings.connect('changed::appearance', () => this._applyAppearance(true));
+        // Liquid glass (the shader light on menus, notifications and the
+        // dock, and the dock reflection) can be switched off on its own.
+        this._glassChangedId = this._settings.connect('changed::liquid-glass', () => this._syncLiquidGlass());
+        try {
+            this._a11y = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
+            this._a11yId = this._a11y.connect('changed::high-contrast', () => this._syncLiquidGlass());
+        } catch (e) {
+            this._a11y = null;
+        }
         this._applyAppearance(false);
     }
 
@@ -120,6 +135,7 @@ export default class MutsuBrandingExtension extends Extension {
                 log(`Mutsu dock capsule: ${e}`);
             }
         }
+        this._syncLiquidGlass();
 
         // Logo always follows current mode
         const iconPath = isJapandi ? JAPANDI_SYMBOL : DARK_SYMBOL;
@@ -361,11 +377,32 @@ export default class MutsuBrandingExtension extends Extension {
         this._activeStylesheet = null;
     }
 
+    // Japandi only, never in high contrast, and only while the key is on.
+    _syncLiquidGlass() {
+        this._liquidGlass?.destroy();
+        this._liquidGlass = null;
+        const on = this._settings.get_boolean('liquid-glass');
+        this._glassSwitch?.setToggleState(on);
+        let highContrast = false;
+        try {
+            highContrast = this._a11y?.get_boolean('high-contrast') ?? false;
+        } catch (e) {}
+        if (!on || highContrast || this._settings.get_string('appearance') !== 'japandi')
+            return;
+        try {
+            this._liquidGlass = new LiquidGlass();
+        } catch (e) {
+            log(`Mutsu liquid glass: ${e}`);
+        }
+    }
+
     disable() {
         this._glass?.destroy();
         this._glass = null;
         this._dockLiquid?.destroy();
         this._dockLiquid = null;
+        this._liquidGlass?.destroy();
+        this._liquidGlass = null;
         this._searchIntegration?.destroy();
         this._searchIntegration = null;
         this._unloadStyle();
@@ -373,6 +410,15 @@ export default class MutsuBrandingExtension extends Extension {
             this._settings.disconnect(this._changedId);
             this._changedId = 0;
         }
+        if (this._glassChangedId) {
+            this._settings.disconnect(this._glassChangedId);
+            this._glassChangedId = 0;
+        }
+        if (this._a11y && this._a11yId)
+            this._a11y.disconnect(this._a11yId);
+        this._a11y = null;
+        this._a11yId = 0;
+        this._glassSwitch = null;
         if (this._pinId) {
             GLib.source_remove(this._pinId);
             this._pinId = 0;

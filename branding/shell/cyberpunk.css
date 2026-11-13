@@ -247,3 +247,8 @@
   background-color: rgba(0, 229, 255, 0.18);
   color: #00E5FF;
 }
+
+/* Japandi lifts the dock over a reflection floor; Cyberpunk keeps it low. */
+#dashtodockContainer.bottom #dashtodockBox {
+  padding-bottom: 0;
+}
