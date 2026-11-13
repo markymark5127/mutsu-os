@@ -18,7 +18,9 @@ const BASE = '/usr/share/mutsu-os/branding/shell';
 // Names the look built into GNOME Shell's own theme at image build time
 // (see packaging/shell/bake-shell-theme.py); that one needs no loading.
 const BUILT_IN = '/usr/share/mutsu-os/shell-theme-built-in';
-const JAPANDI_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-japandi.svg';
+// Japandi top bar: the Mutsu mark as a liquid-glass bubble (the flat sage
+// mark stays the app/theme logo elsewhere).
+const JAPANDI_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-glass.svg';
 const DARK_SYMBOL = '/usr/share/mutsu-os/branding/icons/mutsu-logo-symbolic-white.svg';
 
 function builtInLook() {

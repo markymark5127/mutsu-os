@@ -173,5 +173,5 @@ class CleanInstallTests(TestCase):
         self.assertIn("mutsu-tablet-mode-symbolic", read(
             "extensions/mutsu-adaptive@mutsu-os/extension.js"))
         ext = read("extensions/mutsu-branding@mutsu-os/extension.js")
-        self.assertIn("mutsu-logo-japandi.svg", ext)
+        self.assertIn("mutsu-logo-glass.svg", ext)
         self.assertIn("mutsu-logo-symbolic-white.svg", ext)

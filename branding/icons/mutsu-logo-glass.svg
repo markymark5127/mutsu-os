@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Mutsu mark as a liquid-glass bubble for the top bar (Japandi): a clear
+       sphere with a lit rim, a faint sage body and a warm persimmon glow low
+       right, and the two Mutsu arcs in bright white. A thin charcoal outer
+       line and a soft shadow under the arcs keep it readable on the light
+       bar as well as the dark one. -->
+  <defs>
+    <radialGradient id="body" cx="0.38" cy="0.30" r="0.75">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.62"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#7F9A82" stop-opacity="0.55"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="0.72" cy="0.78" r="0.5">
+      <stop offset="0" stop-color="#F2A27A" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#F2A27A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="1"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.85"/>
+    </linearGradient>
+    <linearGradient id="spec" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="46.5" fill="none" stroke="#2B2F2C" stroke-opacity="0.42" stroke-width="2.4"/>
+  <circle cx="50" cy="50" r="44" fill="url(#body)"/>
+  <circle cx="50" cy="50" r="44" fill="url(#glow)"/>
+  <ellipse cx="38" cy="22" rx="20" ry="9" fill="url(#spec)" transform="rotate(-22 38 22)"/>
+  <g fill="none" stroke-linecap="round" stroke-width="7.5">
+    <path d="M22 54 Q50 29 78 52 M22 69 Q50 44 78 67" stroke="#2B2F2C" stroke-opacity="0.45" stroke-width="9.5" transform="translate(0 2.2)"/>
+    <path d="M22 54 Q50 29 78 52 M22 69 Q50 44 78 67" stroke="#FFFFFF"/>
+  </g>
+  <circle cx="50" cy="50" r="44" fill="none" stroke="url(#rim)" stroke-width="3.2"/>
+</svg>
