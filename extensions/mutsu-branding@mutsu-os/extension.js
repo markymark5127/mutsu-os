@@ -13,6 +13,7 @@ import {SearchIntegration} from './searchIntegration.js';
 import {RiceGlass} from './glass.js';
 import {DockLiquid} from './dockLiquid.js';
 import {LiquidGlass} from './liquidGlass.js';
+import {MacWindowSizing} from './windowSizing.js';
 
 const BASE = '/usr/share/mutsu-os/branding/shell';
 // Names the look built into GNOME Shell's own theme at image build time
@@ -62,6 +63,7 @@ export default class MutsuBrandingExtension extends Extension {
         menu.addAction('Setup Wizard…', () => this._launch(['/usr/bin/mutsu-search', '--setup']));
         menu.addAction('System Settings…', () => this._launch(['gnome-control-center']));
         menu.addAction('Files', () => this._launch(['nautilus']));
+        menu.addAction('Report a Bug…', () => this._launch(['/usr/bin/mutsu-report-bug']));
         menu.addAction('Show Applications', () => {
             try {
                 Main.overview.showApps();
@@ -88,6 +90,9 @@ export default class MutsuBrandingExtension extends Extension {
         // Liquid glass (the shader light on menus, notifications and the
         // dock, and the dock reflection) can be switched off on its own.
         this._glassChangedId = this._settings.connect('changed::liquid-glass', () => this._syncLiquidGlass());
+        this._sizingChangedId = this._settings.connect('changed::mac-window-sizing',
+            () => this._syncWindowSizing());
+        this._syncWindowSizing();
         try {
             this._a11y = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
             this._a11yId = this._a11y.connect('changed::high-contrast', () => this._syncLiquidGlass());
@@ -398,7 +403,22 @@ export default class MutsuBrandingExtension extends Extension {
         }
     }
 
+    _syncWindowSizing() {
+        this._windowSizing?.destroy();
+        this._windowSizing = null;
+        // An older compiled schema may not have the key yet: default on.
+        const known = this._settings.settings_schema.has_key('mac-window-sizing');
+        if (!known || this._settings.get_boolean('mac-window-sizing'))
+            this._windowSizing = new MacWindowSizing();
+    }
+
     disable() {
+        this._windowSizing?.destroy();
+        this._windowSizing = null;
+        if (this._sizingChangedId) {
+            this._settings.disconnect(this._sizingChangedId);
+            this._sizingChangedId = 0;
+        }
         this._glass?.destroy();
         this._glass = null;
         this._dockLiquid?.destroy();

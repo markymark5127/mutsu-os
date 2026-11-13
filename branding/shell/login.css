@@ -1,0 +1,86 @@
+/*
+ * Mutsu OS — the login screen (GDM).
+ * Built into GNOME Shell's theme after the look stylesheet (bake-shell-theme.py)
+ * so it is there from the first frame. It is the same for everyone whatever
+ * look they pick after logging in, so it lives apart from japandi.css (which
+ * Cyberpunk must restyle in full) and Cyberpunk does not override it.
+ */
+/* ---- Login screen: the Japandi dawn ----------------------------------------
+ * GDM runs this same baked Shell theme. Without these it was GNOME's flat
+ * #222226 with the wordmark at the foot. The background is the dawn
+ * wallpaper drawn without its big glass mark (draw-liquid-glass.py --login),
+ * which would sit right behind the centred account list. Ink is cream: the
+ * sky and ridges behind the list are mid-dark. In the session the unlock
+ * screen covers this group with its own blurred wallpaper, so it only shows
+ * on the login screen. */
+#lockDialogGroup {
+  background-color: #3B5547;
+  background-image: url("file:///usr/share/backgrounds/mutsu/mutsu-login.png");
+  background-size: cover;
+  background-position: center;
+}
+/* A soft dusk vignette keeps cream text legible over the bright sun. */
+.login-dialog {
+  background-gradient-direction: radial;
+  background-gradient-start: rgba(24, 34, 29, 0.30);
+  background-gradient-end: rgba(24, 34, 29, 0.05);
+  color: #FBF7EE;
+}
+.login-dialog-logo-bin {
+  margin: 2em 0 3em;
+}
+.login-dialog .user-widget .user-widget-label {
+  color: #FBF7EE;
+}
+.login-dialog .user-widget .user-icon {
+  background-color: rgba(251, 247, 238, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  color: #FBF7EE;
+}
+/* Accounts: rice-paper glass cards. */
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item {
+  background-color: rgba(251, 247, 238, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 20px;
+  color: #FBF7EE;
+  transition-duration: 180ms;
+}
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:hover,
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:focus,
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:selected {
+  background-color: rgba(251, 247, 238, 0.26);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+.login-dialog-not-listed-button,
+.login-dialog-not-listed-label {
+  color: rgba(251, 247, 238, 0.85);
+}
+/* Password field: a cream capsule with charcoal ink, sage when focused. */
+.login-dialog .login-dialog-prompt-entry {
+  background-color: rgba(255, 253, 248, 0.80);
+  border: 1px solid rgba(255, 255, 255, 0.90);
+  border-radius: 99px;
+  color: #2B2F2C;
+  selection-background-color: #61806A;
+  selected-color: #FFFFFF;
+}
+.login-dialog .login-dialog-prompt-entry:focus {
+  border-color: #8AA88D;
+}
+.login-dialog-button.next-button.default,
+.login-dialog .login-button {
+  background-color: #61806A;
+  color: #FFFFFF;
+  border-radius: 99px;
+}
+.login-dialog-button.next-button.default:hover,
+.login-dialog .login-button:hover {
+  background-color: #6F8F78;
+}
+.login-dialog .caps-lock-warning-label,
+.login-dialog .login-dialog-message {
+  color: #FBF7EE;
+}
+#panel.login-screen .panel-button {
+  color: #FBF7EE;
+}

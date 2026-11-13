@@ -9,8 +9,12 @@ over the sun as a disc of liquid glass, with two small glass orbs, and an
 out-of-focus bamboo branch sits behind the top bar. The dock sits over the
 front ridge, where the gold crest light and deep sage meet.
 
+--login draws the login-screen variant: the same dawn without the large
+glass Mutsu mark, which would sit right behind the centred account list
+(the login screen shows the wordmark at its foot instead).
+
 Pillow only, deterministic. Usage:
-    draw-liquid-glass.py OUT.png [--width 3840]
+    draw-liquid-glass.py OUT.png [--width 3840] [--login]
 """
 import argparse
 import math
@@ -335,7 +339,7 @@ class Painter:
         return rgb
 
 
-def draw(width):
+def draw(width, login=False):
     p = Painter(width)
     sun_x, sun_y = 2260, 1150
     img = p.sky()
@@ -361,7 +365,8 @@ def draw(width):
         pts = p.ridge_points(base, waves, peaks)
         img = p.ridge(img, pts, top, bottom, warm, warmth, lit, sun_x)
 
-    img = p.glass(img, 1820, 880, 430, blur=12, logo=True)
+    if not login:
+        img = p.glass(img, 1820, 880, 430, blur=12, logo=True)
     img = p.glass(img, 3230, 560, 120, blur=18)
     img = p.glass(img, 2860, 1330, 64, blur=12)
     img = p.bamboo(img)
@@ -372,8 +377,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('out')
     ap.add_argument('--width', type=int, default=BASE_W)
+    ap.add_argument('--login', action='store_true',
+                    help='login-screen variant without the large glass mark')
     a = ap.parse_args()
-    draw(a.width).save(a.out, optimize=True)
+    draw(a.width, a.login).save(a.out, optimize=True)
 
 
 if __name__ == '__main__':

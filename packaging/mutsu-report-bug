@@ -1,0 +1,413 @@
+#!/usr/bin/env python3
+"""Mutsu OS — Report a Bug.
+
+A small window that turns "something went wrong" into a useful issue on the
+Mutsu OS tracker. The person describes the problem and chooses what to
+attach (system details, recent error messages); the app shows exactly what
+will be included, saves a copy, and opens a pre-filled GitHub issue in the
+browser. Nothing is sent by this app: the person reviews and submits the
+issue themselves on GitHub, where it is public.
+
+Home paths and the machine's host name are replaced in everything collected,
+because the tracker is public.
+
+    mutsu-report-bug            open the window
+    mutsu-report-bug --print    print the system details and recent errors
+"""
+import datetime
+import json
+import os
+import re
+import shutil
+import socket
+import subprocess
+import sys
+import urllib.parse
+from pathlib import Path
+
+DEFAULT_ISSUES = "https://github.com/markymark5127/mutsu-os/issues"
+# GitHub refuses very long new-issue URLs; stay well under its limit and
+# point to the saved copy for anything cut.
+MAX_URL = 7000
+CATEGORIES = [
+    "Desktop, top bar or dock",
+    "Boot, login or shutdown",
+    "Menus or Control Center",
+    "Mutsu Search or apps",
+    "Mutsu AI",
+    "Games and Steam",
+    "Tablet mode or touch",
+    "Updates",
+    "Something else",
+]
+ERROR_WORDS = re.compile(
+    r"JS ERROR|TypeError|ReferenceError|Exception|Traceback|segfault|"
+    r"core dumped|\berror\b|\bfailed\b|\bcritical\b", re.I)
+
+
+# ---- Collecting ---------------------------------------------------------------
+
+def run(cmd, timeout=6):
+    """Output of a command, or '' if it is missing, fails or hangs."""
+    if not shutil.which(cmd[0]):
+        return ""
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                             env={**os.environ, "LC_ALL": "C"})
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return out.stdout.strip()
+
+
+def read(path):
+    try:
+        return Path(path).read_text(errors="replace").strip()
+    except OSError:
+        return ""
+
+
+def os_release():
+    values = {}
+    for line in read("/etc/os-release").splitlines() or read("/usr/lib/os-release").splitlines():
+        key, sep, value = line.partition("=")
+        if sep:
+            values[key] = value.strip().strip('"')
+    return values
+
+
+def issues_url():
+    url = os_release().get("BUG_REPORT_URL", "")
+    if url.startswith("https://github.com/") and url.rstrip("/").endswith("/issues"):
+        return url.rstrip("/")
+    return DEFAULT_ISSUES
+
+
+def image_line():
+    """The booted image and when it was built (rpm-ostree on bootc systems)."""
+    raw = run(["rpm-ostree", "status", "--json", "--booted"])
+    try:
+        booted = next(d for d in json.loads(raw)["deployments"] if d.get("booted"))
+    except (ValueError, KeyError, StopIteration, TypeError):
+        return ""
+    ref = booted.get("container-image-reference", "")
+    ref = ref.split(":", 1)[-1] if ref.startswith("ostree-") else ref
+    digest = booted.get("container-image-reference-digest", "")
+    stamp = booted.get("timestamp")
+    when = ""
+    if isinstance(stamp, int):
+        when = datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    parts = [p for p in (ref, digest[:19] if digest else "", when) if p]
+    return " · ".join(parts)
+
+
+def hardware_line():
+    dmi = Path("/sys/class/dmi/id")
+    vendor = read(dmi / "sys_vendor")
+    family = read(dmi / "product_family") or read(dmi / "product_version")
+    model = read(dmi / "product_name")
+    return " ".join(dict.fromkeys(p for p in (vendor, family, model) if p and p != "None"))
+
+
+def cpu_line():
+    for line in read("/proc/cpuinfo").splitlines():
+        if line.startswith("model name"):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
+def gpu_lines():
+    out = run(["lspci"])
+    return [re.sub(r"^\S+\s+", "", line) for line in out.splitlines()
+            if re.search(r"VGA|3D controller|Display controller", line)]
+
+
+def memory_line():
+    for line in read("/proc/meminfo").splitlines():
+        if line.startswith("MemTotal:"):
+            kb = int(line.split()[1])
+            return f"{kb / 1024 / 1024:.1f} GB"
+    return ""
+
+
+def extensions_lines():
+    enabled = run(["gnome-extensions", "list", "--enabled"]).split()
+    lines = []
+    for uuid in enabled:
+        info = run(["gnome-extensions", "info", uuid], timeout=3)
+        state = next((l.split(":", 1)[1].strip() for l in info.splitlines()
+                      if l.strip().startswith("State:")), "")
+        lines.append(f"{uuid} ({state})" if state and state != "ACTIVE" else uuid)
+    return lines
+
+
+def system_details():
+    rel = os_release()
+    rows = [
+        ("Mutsu OS", rel.get("PRETTY_NAME") or rel.get("NAME", "")),
+        ("Image", image_line()),
+        ("Kernel", run(["uname", "-r"])),
+        ("Desktop", " · ".join(p for p in (
+            run(["gnome-shell", "--version"]),
+            os.environ.get("XDG_SESSION_TYPE", "")) if p)),
+        ("Computer", hardware_line()),
+        ("Processor", cpu_line()),
+        ("Graphics", "; ".join(gpu_lines())),
+        ("Memory", memory_line()),
+    ]
+    text = "\n".join(f"{k}: {v}" for k, v in rows if v)
+    exts = extensions_lines()
+    if exts:
+        text += "\nShell extensions: " + ", ".join(exts)
+    return text
+
+
+def recent_errors(limit=40):
+    """Error-looking lines from this boot's desktop session, newest last."""
+    sources = [
+        ["journalctl", "--user", "-b", "-p", "warning", "-n", "400", "--no-pager", "-o", "short"],
+        ["journalctl", "-b", "_COMM=gnome-shell", "-n", "400", "--no-pager", "-o", "short"],
+        ["journalctl", "-b", "-p", "err", "-n", "200", "--no-pager", "-o", "short"],
+    ]
+    seen, lines = set(), []
+    for cmd in sources:
+        for line in run(cmd, timeout=10).splitlines():
+            if line.startswith("--") or not ERROR_WORDS.search(line):
+                continue
+            # Same message from the same process counts once.
+            key = re.sub(r"^\w{3} \d+ [\d:]+ \S+ ", "", line)
+            key = re.sub(r"\[\d+\]", "", key)
+            if key in seen:
+                continue
+            seen.add(key)
+            lines.append(line)
+    return "\n".join(lines[-limit:])
+
+
+def redact(text, home=None, user=None, host=None):
+    """Hide the home folder, account name and host name in collected text."""
+    home = home if home is not None else str(Path.home())
+    user = user if user is not None else os.environ.get("USER", "")
+    host = host if host is not None else socket.gethostname()
+    if home and home != "/":
+        text = text.replace(home, "~")
+    if host and host not in ("localhost", "mutsu"):
+        text = re.sub(rf"\b{re.escape(host)}\b", "<computer>", text)
+    if user and len(user) > 2 and user not in ("root", "gdm"):
+        text = re.sub(rf"\b{re.escape(user)}\b", "<user>", text)
+    return text
+
+
+# ---- The report ---------------------------------------------------------------
+
+def build_report(summary, category, what, steps, details="", errors=""):
+    parts = [f"**Area:** {category}", "", "### What happened", what.strip() or "_Not described_"]
+    if steps.strip():
+        parts += ["", "### Steps to make it happen", steps.strip()]
+    if details:
+        parts += ["", "### System", "```", details, "```"]
+    if errors:
+        parts += ["", "<details><summary>Recent error messages</summary>", "", "```", errors, "```",
+                  "", "</details>"]
+    parts += ["", "_Sent with Mutsu OS Report a Bug._"]
+    title = summary.strip() or "Bug report"
+    return title, "\n".join(parts)
+
+
+def issue_link(base, title, body, saved_path=None, max_len=MAX_URL):
+    """New-issue URL; long bodies are trimmed and point to the saved copy."""
+    def url(b):
+        query = urllib.parse.urlencode({"title": title, "body": b, "labels": "bug"},
+                                       quote_via=urllib.parse.quote)
+        return f"{base}/new?{query}"
+    link = url(body)
+    if len(link) <= max_len:
+        return link, False
+    note = "\n\n_The report was too long for the link. "
+    note += (f"The full copy is saved as `{saved_path.name}`; please attach it here._"
+             if saved_path else "Please paste the rest of it here._")
+    cut = len(body)
+    while cut > 0:
+        cut = int(cut * 0.85)
+        trimmed = body[:cut].rsplit("\n", 1)[0]
+        # Keep code fences balanced so the issue renders.
+        if trimmed.count("```") % 2:
+            trimmed += "\n```"
+        if trimmed.count("<details>") > trimmed.count("</details>"):
+            trimmed += "\n\n</details>"
+        link = url(trimmed + note)
+        if len(link) <= max_len:
+            return link, True
+    return url(note.strip()), True
+
+
+def save_copy(title, body, folder=None):
+    folder = Path(folder) if folder else Path.home() / "Documents" / "Mutsu Bug Reports"
+    folder.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    path = folder / f"mutsu-bug-{stamp}.md"
+    path.write_text(f"# {title}\n\n{body}\n", encoding="utf-8")
+    return path
+
+
+# ---- Window -------------------------------------------------------------------
+
+def run_app():
+    import gi
+    gi.require_version("Gtk", "4.0")
+    gi.require_version("Adw", "1")
+    from gi.repository import Adw, Gdk, Gio, GLib, Gtk
+
+    class ReportWindow(Adw.ApplicationWindow):
+        def __init__(self, app):
+            super().__init__(application=app, title="Report a Bug")
+            self.set_default_size(560, 760)
+            self._details = None
+            self._errors = None
+
+            self.toasts = Adw.ToastOverlay()
+            view = Adw.ToolbarView()
+            view.add_top_bar(Adw.HeaderBar())
+            page = Adw.PreferencesPage()
+            view.set_content(page)
+            self.toasts.set_child(view)
+            self.set_content(self.toasts)
+
+            intro = Adw.PreferencesGroup(
+                title="Something not right?",
+                description="Tell us what happened. You'll check the report on GitHub "
+                            "before anything is posted.")
+            self.summary = Adw.EntryRow(title="Short summary")
+            self.summary.connect("changed", lambda *_: self._update())
+            intro.add(self.summary)
+            self.category = Adw.ComboRow(title="Where", model=Gtk.StringList.new(CATEGORIES))
+            intro.add(self.category)
+            page.add(intro)
+
+            self.what = self._text_group(page, "What happened?",
+                                         "And what did you expect to happen instead?")
+            self.steps = self._text_group(page, "How can we make it happen? (optional)",
+                                          "The steps, one per line, if you know them.")
+
+            attach = Adw.PreferencesGroup(
+                title="Include",
+                description="Home folders, your account name and the computer's name are "
+                            "hidden. GitHub issues are public.")
+            self.with_details = Adw.SwitchRow(
+                title="System details", active=True,
+                subtitle="Mutsu OS version, computer model, graphics and extensions")
+            self.with_errors = Adw.SwitchRow(
+                title="Recent error messages", active=True,
+                subtitle="Errors logged since this computer started")
+            attach.add(self.with_details)
+            attach.add(self.with_errors)
+            preview = Adw.ButtonRow(title="Preview Report", end_icon_name="go-next-symbolic")
+            preview.connect("activated", lambda *_: self._preview())
+            attach.add(preview)
+            page.add(attach)
+
+            actions = Adw.PreferencesGroup()
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12,
+                          margin_top=6, halign=Gtk.Align.CENTER)
+            self.send = Gtk.Button(label="Continue on GitHub")
+            self.send.add_css_class("suggested-action")
+            self.send.add_css_class("pill")
+            self.send.connect("clicked", lambda *_: self._send())
+            copy = Gtk.Button(label="Copy Report")
+            copy.add_css_class("pill")
+            copy.connect("clicked", lambda *_: self._copy())
+            box.append(self.send)
+            box.append(copy)
+            actions.add(box)
+            page.add(actions)
+            self._update()
+
+        def _text_group(self, page, title, hint):
+            group = Adw.PreferencesGroup(title=title, description=hint)
+            view = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR, top_margin=10,
+                                bottom_margin=10, left_margin=12, right_margin=12,
+                                accepts_tab=False)
+            view.get_buffer().connect("changed", lambda *_: self._update())
+            frame = Gtk.ScrolledWindow(child=view, min_content_height=110,
+                                       hscrollbar_policy=Gtk.PolicyType.NEVER)
+            frame.add_css_class("card")
+            group.add(frame)
+            page.add(group)
+            return view.get_buffer()
+
+        @staticmethod
+        def _text(buf):
+            return buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False)
+
+        def _update(self):
+            ready = bool(self.summary.get_text().strip() and self._text(self.what).strip())
+            self.send.set_sensitive(ready)
+
+        def _report(self):
+            if self.with_details.get_active() and self._details is None:
+                self._details = redact(system_details())
+            if self.with_errors.get_active() and self._errors is None:
+                self._errors = redact(recent_errors())
+            return build_report(
+                self.summary.get_text(),
+                CATEGORIES[self.category.get_selected()],
+                self._text(self.what), self._text(self.steps),
+                self._details if self.with_details.get_active() else "",
+                self._errors if self.with_errors.get_active() else "")
+
+        def _preview(self):
+            title, body = self._report()
+            view = Gtk.TextView(editable=False, monospace=True, wrap_mode=Gtk.WrapMode.WORD_CHAR,
+                                top_margin=12, bottom_margin=12, left_margin=12, right_margin=12)
+            view.get_buffer().set_text(f"{title}\n\n{body}")
+            tv = Adw.ToolbarView()
+            tv.add_top_bar(Adw.HeaderBar())
+            tv.set_content(Gtk.ScrolledWindow(child=view, vexpand=True))
+            dialog = Adw.Dialog(title="Report Preview", content_width=620, content_height=640,
+                                child=tv)
+            dialog.present(self)
+
+        def _copy(self):
+            title, body = self._report()
+            Gdk.Display.get_default().get_clipboard().set(f"# {title}\n\n{body}\n")
+            self.toasts.add_toast(Adw.Toast(title="Report copied"))
+
+        def _send(self):
+            title, body = self._report()
+            try:
+                saved = save_copy(title, body)
+            except OSError:
+                saved = None
+            link, trimmed = issue_link(issues_url(), title, body, saved)
+            try:
+                Gio.AppInfo.launch_default_for_uri(link, None)
+            except GLib.Error:
+                self.toasts.add_toast(Adw.Toast(title="Couldn't open the browser. Use Copy Report."))
+                return
+            where = f"A copy is in Documents › Mutsu Bug Reports." if saved else ""
+            msg = "Finish on GitHub. " + ("Attach the saved copy there. " if trimmed else "") + where
+            self.toasts.add_toast(Adw.Toast(title=msg.strip(), timeout=8))
+
+    class App(Adw.Application):
+        def __init__(self):
+            super().__init__(application_id="io.github.markymark5127.MutsuReportBug",
+                             flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
+
+        def do_activate(self):
+            win = self.props.active_window or ReportWindow(self)
+            win.present()
+
+    return App().run([sys.argv[0]])
+
+
+def main(argv):
+    if "--print" in argv:
+        print(redact(system_details()))
+        errors = redact(recent_errors())
+        if errors:
+            print("\nRecent error messages:\n" + errors)
+        return 0
+    return run_app()
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

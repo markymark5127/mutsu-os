@@ -18,6 +18,7 @@ RUN bash /tmp/mutsu-settings/build-gnome-settings.sh /out
 FROM ghcr.io/ublue-os/bazzite-gnome:stable AS shell
 COPY packaging/shell/ /tmp/mutsu-shell/
 COPY branding/shell/japandi.css /tmp/mutsu-shell-css/japandi.css
+COPY branding/shell/login.css /tmp/mutsu-shell-css/login.css
 COPY extensions/mutsu-adaptive@mutsu-os/stylesheet.css /tmp/mutsu-shell-css/adaptive.css
 RUN set -eux; \
     dnf5 -y install glib2-devel; \
@@ -25,6 +26,7 @@ RUN set -eux; \
     python3 /tmp/mutsu-shell/bake-shell-theme.py \
         /usr/share/gnome-shell/gnome-shell-theme.gresource /out/gnome-shell-theme.gresource \
         /tmp/mutsu-shell-css/japandi.css \
+        /tmp/mutsu-shell-css/login.css \
         "/tmp/mutsu-shell-css/adaptive.css::/* ---- Mutsu sage accent"
 
 # Base Image
@@ -300,10 +302,14 @@ RUN set -eux; \
 # This does not alter bootc/OSTree technical IDs or user home directories.
 COPY packaging/mutsu-updater /usr/bin/mutsu-updater
 COPY packaging/mutsu-branding-doctor /usr/bin/mutsu-branding-doctor
+COPY packaging/mutsu-report-bug /usr/bin/mutsu-report-bug
+COPY packaging/mutsu-report-bug.desktop /usr/share/applications/mutsu-report-bug.desktop
 COPY packaging/run-mutsu-update.sh /usr/libexec/mutsu-os/run-mutsu-update.sh
 COPY packaging/install-remaining-branding.sh /tmp/mutsu-install-remaining-branding.sh
 COPY packaging/brand-just-recipes.py /tmp/mutsu-brand-just-recipes.py
-RUN chmod 0755 /usr/bin/mutsu-updater /usr/bin/mutsu-branding-doctor /usr/libexec/mutsu-os/run-mutsu-update.sh && \
+RUN chmod 0755 /usr/bin/mutsu-updater /usr/bin/mutsu-branding-doctor /usr/bin/mutsu-report-bug /usr/libexec/mutsu-os/run-mutsu-update.sh && \
+    chmod 0644 /usr/share/applications/mutsu-report-bug.desktop && \
+    python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" /usr/bin/mutsu-report-bug && \
     bash /tmp/mutsu-install-remaining-branding.sh && \
     python3 /tmp/mutsu-brand-just-recipes.py && \
     rm -f /tmp/mutsu-install-remaining-branding.sh /tmp/mutsu-brand-just-recipes.py

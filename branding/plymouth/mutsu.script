@@ -21,8 +21,21 @@ for (i = 0; i < spinner_frames; i++) {
 }
 spinner_sprite.SetOpacity(0.55);
 
-# Status text under the logo.
-status_image = Image.Text("Preparing Mutsu OS", 0.14, 0.17, 0.14);
+# Status text under the logo, named for what the machine is doing. Plymouth
+# runs this same theme at power-on, shutdown, restart and while offline
+# updates install, so a single "Preparing" label was wrong most of the time.
+fun status_label() {
+    mode = Plymouth.GetMode();
+    if (mode == "shutdown") return "Shutting down";
+    if (mode == "reboot") return "Restarting";
+    if (mode == "updates" || mode == "system-upgrade") return "Installing updates. Keep your computer on";
+    if (mode == "firmware-upgrade") return "Updating firmware. Keep your computer on";
+    return "Starting Mutsu OS";
+}
+status_text = status_label();
+# Offline updates report their progress; show it after the label.
+update_percent = -1;
+status_image = Image.Text(status_text, 0.14, 0.17, 0.14);
 status_sprite = Sprite(status_image);
 status_sprite.SetZ(15);
 
@@ -71,7 +84,9 @@ fun refresh() {
     t = Math.Int(Plymouth.GetTime() * 2) % 3;
     if (t == 1) dots = "..";
     if (t == 2) dots = "...";
-    status_image = Image.Text("Preparing Mutsu OS" + dots, 0.14, 0.17, 0.14);
+    label = status_text + dots;
+    if (update_percent >= 0) label = status_text + "  " + update_percent + "%";
+    status_image = Image.Text(label, 0.14, 0.17, 0.14);
     status_sprite.SetImage(status_image);
     center_sprites();
 }
@@ -80,3 +95,8 @@ Plymouth.SetRefreshFunction(refresh);
 Plymouth.SetDisplayPasswordFunction(display_password);
 Plymouth.SetDisplayQuestionFunction(display_question);
 Plymouth.SetDisplayNormalFunction(display_normal);
+
+fun system_update(progress) {
+    update_percent = Math.Int(progress);
+}
+Plymouth.SetSystemUpdateFunction(system_update);

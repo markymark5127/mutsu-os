@@ -32,7 +32,12 @@ GDM login (image build, `packaging/install-branding.sh`):
 
 - `/etc/dconf/profile/gdm` reads `system-db:gdm` (created if the base image has none)
 - `/etc/dconf/db/gdm.d/90-mutsu-logo` sets the wordmark, Japandi background, and sage colors
-- `/usr/share/gnome-shell/theme/mutsu/gnome-shell.css` is the greeter wash
+- The login screen look is `branding/shell/login.css`, built into GNOME Shell's theme
+  (GDM reads that theme, not the dconf background): the Japandi dawn drawn without its
+  big glass mark (`draw-liquid-glass.py --login` → `/usr/share/backgrounds/mutsu/mutsu-login.png`),
+  rice-paper account cards, a cream password capsule and the wordmark in cream at the foot
+- `/usr/share/gnome-shell/theme/mutsu/gnome-shell.css` is an older copy of the wash that
+  nothing loads
 
 The session lock screen uses the same wallpaper and sage colors. GNOME blurs that
 wallpaper on purpose; the clock and unlock controls stay sharp. A centered lock-screen

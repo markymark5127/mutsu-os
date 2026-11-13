@@ -11,3 +11,10 @@ button-layout='close,minimize,maximize:'
 [org/gnome/desktop/interface]
 clock-format='12h'
 enable-hot-corners=false
+
+# Apps open as windows, like a Mac, not maximized. Mutter maximizes any window
+# that opens near screen size; the Mutsu branding extension sizes new windows
+# to nearly fill the screen instead (mac-window-sizing).
+[org/gnome/mutter]
+auto-maximize=false
+center-new-windows=true

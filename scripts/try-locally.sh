@@ -47,6 +47,16 @@ for ext in mutsu-adaptive@mutsu-os mutsu-branding@mutsu-os; do
       changed=$((changed + 1))
     fi
   done
+  # New settings keys need the extension's schema, or it fails to load.
+  for file in "$repo/extensions/$ext"/schemas/*.gschema.xml; do
+    [[ -f "$file" ]] || continue
+    if ! cmp -s "$file" "$dest/schemas/$(basename "$file")"; then
+      install -m0644 "$file" "$dest/schemas/"
+      glib-compile-schemas --strict "$dest/schemas"
+      echo "  $ext/schemas/$(basename "$file")"
+      changed=$((changed + 1))
+    fi
+  done
   echo "$ext: $changed file(s) updated"
 done
 

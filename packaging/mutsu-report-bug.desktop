@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Report a Bug
+GenericName=Bug Reporter
+Comment=Tell the Mutsu OS team about something that isn't working
+Exec=/usr/bin/mutsu-report-bug
+Icon=mutsu-os-logo
+Terminal=false
+Categories=System;Utility;
+Keywords=bug;problem;issue;crash;feedback;report;
+StartupNotify=true
+StartupWMClass=io.github.markymark5127.MutsuReportBug

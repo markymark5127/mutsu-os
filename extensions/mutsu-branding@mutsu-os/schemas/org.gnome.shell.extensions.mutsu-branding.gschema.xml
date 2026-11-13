@@ -16,5 +16,10 @@
       <summary>Liquid glass effect</summary>
       <description>In Japandi, light menus, notifications and the dock like thick glass (a lit rim, refraction at the edges) and reflect the dock's icons below it.</description>
     </key>
+    <key name="mac-window-sizing" type="b">
+      <default>true</default>
+      <summary>Open apps as windows, not maximized</summary>
+      <description>On the desktop, a new app window opens centred and nearly filling the space between the top bar and the dock, like macOS, instead of maximized. Tablet mode and full-screen windows are left alone.</description>
+    </key>
   </schema>
 </schemalist>

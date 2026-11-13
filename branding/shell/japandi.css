@@ -150,7 +150,15 @@
   background-gradient-end: rgba(243, 236, 223, 0.74);
   border: 1px solid rgba(255, 255, 255, 0.80);
   border-radius: 20px;
-  /* no shadow here: St draws it as a square block around the menu */
+  /* No shadow: St draws it as a square block behind the translucent menu.
+   * It has to be said explicitly, or GNOME's own faint menu shadow
+   * (0 2px 4px) stays and shows as a square layer under the rounded glass,
+   * clearest on the big Control Center panel. */
+  box-shadow: none;
+}
+.quick-settings,
+.quick-toggle-menu {
+  box-shadow: none;
 }
 .popup-menu-item {
   border-radius: 12px;
@@ -342,3 +350,4 @@
 #dashtodockContainer.bottom #dashtodockBox {
   padding-bottom: 26px;
 }
+

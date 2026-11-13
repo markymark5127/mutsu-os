@@ -130,10 +130,18 @@ command -v rsvg-convert >/dev/null || {
   echo >&2 "Missing librsvg2-tools in the Mutsu image"
   exit 1
 }
+# Cream ink: it sits at the foot of the login screen over the dark front
+# ridges of the dawn background, where the sage wordmark disappeared.
 login_logo=/usr/share/pixmaps/mutsu/mutsu-login-wordmark.png
-rsvg-convert --width=280 --keep-aspect-ratio \
-  --output="$login_logo" "$wordmark"
+grep -q 'fill="#788773"' "$wordmark" || {
+  echo >&2 "Wordmark colour changed: update the cream login recolour"; exit 1; }
+sed's/fill="#788773"/fill="#FBF7EE"/' "$wordmark" | \
+  rsvg-convert --width=280 --keep-aspect-ratio --output="$login_logo"
 test -s "$login_logo"
+
+# Login screen background (the baked Shell theme's #lockDialogGroup).
+install -Dm0644 "$brand/wallpapers/mutsu-login-2560.png" \
+  /usr/share/backgrounds/mutsu/mutsu-login.png
 
 for name in mutsu-japandi-4k.png mutsu-japandi-mist-4k.png mutsu-cyberpunk-4k.png; do
   if [[ ! -s "$brand/wallpapers/$name" ]]; then
@@ -361,8 +369,8 @@ fi
 install -d -m 0755 /usr/share/gnome-shell/theme/mutsu
 cat > /usr/share/gnome-shell/theme/mutsu/gnome-shell.css <<'CSS'
 #lockDialogGroup {
-  background-color: #f3efe7;
-  background-image: url("file:///usr/share/backgrounds/mutsu/mutsu-japandi-4k.png");
+  background-color: #3B5547;
+  background-image: url("file:///usr/share/backgrounds/mutsu/mutsu-login.png");
   background-size: cover;
   background-position: center;
 }
