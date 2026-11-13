@@ -1,8 +1,55 @@
 # Mutsu OS development tracker
 
-**Status as of October 27, 2026:** Mutsu image integration, branding, first-run wizard, Mutsu Search, adaptive desktop, Global Menu, and theme switching are in source. **A verified, installed, user-ready Mutsu OS alpha is not yet established.** Image build, boot, installer, and hardware checks still require CI/VM evidence.
+**Status as of November 13, 2026:** features and the Shoji Glass look are in, and images build and pass the GNOME runtime check (headless GNOME Shell in CI, with screenshots). What stands between here and a **developer alpha** is making updates safe. Beta and 1.0 work has not started. The same plan is kept visually on the roadmap whiteboard; keep the two in step.
 
 This is the canonical **release roadmap**, with executable work tracked as GitHub Issues. Use issue checklists and `Closes #N` in PR descriptions. Cross-reference the [ai-desktop](https://github.com/markymark5127/ai-desktop) repo for the GTK launcher and AI features.
+
+## Where we are: developer alpha → beta → 1.0
+
+### Done (in the image, CI-checked)
+
+- Tablet mode (fold, rotate, Home, dock), Split View, Slide Over, one multitasking card per window
+- On-screen keyboard; gamepad hides it with a real pad and remembers its layout
+- Mutsu Search, Mutsu Mechanic (now a chat inside Search) and local AI
+- Online and offline live USB installers (live boot tested in a VM)
+- Japandi sage palette, Mac shortcuts (keyd; Toshy removed)
+- Software Updates and Mutsu Search pages in GNOME Settings
+- Welcome wizard: Wi-Fi, look and keyboard, phone, AI privacy, backups
+- Shoji Glass theme for the Shell: glass top bar with adaptive ink, glass dock, menus and notifications; Japandi object icons; a matching cursor set
+- Black-screen login fixed; log warnings quieted; faster tablet/desktop switch
+- One image built and passed the GNOME runtime check
+
+### Developer alpha: what's left
+
+The goal: a tester can install it and update without ever being stranded.
+
+1. **GNOME runtime check tests the exact image it follows.** It still pulls `latest` and overlays the commit's extensions; it should pull `latest-<sha>` of the build that triggered it and check out that commit.
+2. **Installer ISO from a tested image.** ISO builds are running; they should only use an image that passed step 1.
+3. **Updates only offer images that passed testing.** Publish a `tested` tag after the runtime check passes; the Software Updates page and `bootc` follow that tag, not `latest`.
+4. **Roll back on its own if login fails** (for example greenboot-style boot checks, or a GDM-reached marker with `bootc rollback` on repeated failure).
+5. **A real version number, release notes and known issues.** `os-release` currently says "Mutsu OS 1.0 (Shibui)"; use e.g. `0.1 alpha` plus the build date and commit.
+6. **Fix the intermittent "factor" Shell error** (`mutsu-adaptive`: `can't access property "factor", obj is null`; seen in the runtime check on November 13).
+7. **Test on the Yoga:** switch speed, login screen and the glass look (Slide Over and Search are confirmed).
+
+### Beta
+
+- Automated install test in CI (today the ISO only boots live; it never installs)
+- Local AI end-to-end test and a "Repair AI" button in Mechanic
+- Tablet and gamepad pages in Settings (Search and Updates exist)
+- Battery: limit charging to 80%
+- "Report a problem" log bundle in Mechanic
+- Dark mode pass for Shoji Glass (the top bar adapts; the rest is light only)
+
+### 1.0
+
+- Framework 12 hardware pass
+- Stylus: pen buttons, palm rejection, notes
+- Fingerprint and the tablet lock screen
+- Secure Boot confirmed end to end
+- Office apps decision (the first-boot portal only offers one today) and more languages (English only)
+- A user guide and a support channel
+
+The issue-based milestones below are the older, more detailed tracker; their "Remaining" columns predate the list above.
 
 ### Definitions
 
@@ -66,11 +113,7 @@ This is the canonical **release roadmap**, with executable work tracked as GitHu
 
 ## Next work order
 
-1. Obtain **real container build + boot evidence**: [#8](https://github.com/markymark5127/mutsu-os/issues/8).
-2. Live-test the Adaptive Desktop extension (still disabled by default): [#14](https://github.com/markymark5127/mutsu-os/issues/14).
-3. Verify the first GNOME user session: [#9](https://github.com/markymark5127/mutsu-os/issues/9).
-4. Produce and boot-test a qcow2 or ISO: [#11](https://github.com/markymark5127/mutsu-os/issues/11).
-5. Proceed to visual Shell changes, tablet posture, and AI only after the safe boot foundation.
+Follow the developer alpha list above, in order: exact-image runtime check, tested-only updates, automatic rollback, real version number, then the "factor" error. Beta items are small and independent after that; 1.0 needs the hardware to test on.
 
 ## Source-to-image integration and risk notes
 
