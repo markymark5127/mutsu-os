@@ -248,7 +248,6 @@ export class LiquidGlass {
 
         this._patchMenus();
         this._watchBanners();
-        this._watchPanel();
         // Dash-to-Dock builds (and rebuilds) the dock after us.
         this._addedId = Main.layoutManager.uiGroup.connect('child-added', () => this._dockSoon(400));
         this._monitorsId = Main.layoutManager.connect('monitors-changed', () => this._dockSoon(400));
@@ -258,9 +257,7 @@ export class LiquidGlass {
 
     // ---- glazing ----------------------------------------------------------
 
-    // `activeOn`: only light the pane while that actor is hovered or open
-    // (top bar buttons); the effect is switched off the rest of the time.
-    glaze(actor, {strength = 1, fallbackRadius = 20, refract = 1, bevel = 16, rimAlpha = 0, activeOn = null} = {}) {
+    glaze(actor, {strength = 1, fallbackRadius = 20, refract = 1, bevel = 16, rimAlpha = 0} = {}) {
         if (this._destroyed || !actor || this._glazed.has(actor))
             return;
         let effect;
@@ -269,12 +266,7 @@ export class LiquidGlass {
         } catch (e) {
             return;   // no shader support: the surface stays plain glass
         }
-        const active = () => !activeOn || activeOn.has_style_pseudo_class('hover') ||
-            activeOn.has_style_pseudo_class('checked') || activeOn.has_style_pseudo_class('active');
-        const update = () => {
-            effect.setShape(radiusOf(actor, fallbackRadius), strength, {refract, bevel, rimAlpha});
-            effect.enabled = active();
-        };
+        const update = () => effect.setShape(radiusOf(actor, fallbackRadius), strength, {refract, bevel, rimAlpha});
         try {
             update();
             actor.add_effect_with_name(EFFECT_NAME, effect);
@@ -288,10 +280,7 @@ export class LiquidGlass {
             actor.connect('style-changed', update),
             actor.connect('destroy', () => this._glazed.delete(actor)),
         ];
-        const extra = [];
-        if (activeOn && activeOn !== actor)
-            extra.push([activeOn, activeOn.connect('style-changed', update)]);
-        this._glazed.set(actor, {effect, ids, extra});
+        this._glazed.set(actor, {effect, ids});
     }
 
     _unglaze(actor) {
@@ -301,11 +290,6 @@ export class LiquidGlass {
         for (const id of entry.ids) {
             try {
                 actor.disconnect(id);
-            } catch (e) {}
-        }
-        for (const [other, id] of entry.extra ?? []) {
-            try {
-                other.disconnect(id);
             } catch (e) {}
         }
         try {
@@ -346,45 +330,6 @@ export class LiquidGlass {
         });
         for (const child of bin.get_children())
             this.glaze(child, {fallbackRadius: 24});
-    }
-
-    // Top bar buttons (the app menus File, Edit... and the status icons):
-    // hovered or open, the capsule behind them is a small pane of liquid
-    // glass. No refraction (the label sits right at its edge), a short bevel.
-    _watchPanel() {
-        this._panelIds = [];
-        for (const box of [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox]) {
-            if (!box)
-                continue;
-            this._panelIds.push([box, box.connect('child-added', () => this._glazePanelSoon())]);
-        }
-        this._glazePanelSoon();
-    }
-
-    _glazePanelSoon() {
-        const id = GLib.timeout_add(GLib.PRIORITY_LOW, 300, () => {
-            this._timeouts.delete(id);
-            this._glazePanel();
-            return GLib.SOURCE_REMOVE;
-        });
-        this._timeouts.add(id);
-    }
-
-    _glazePanel() {
-        if (this._destroyed)
-            return;
-        const capsule = {strength: 1, fallbackRadius: 99, refract: 0, bevel: 7, rimAlpha: 0.55};
-        for (const box of [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox]) {
-            for (const container of box?.get_children() ?? []) {
-                const button = container.get_first_child?.() ?? null;
-                if (!button?.has_style_class_name?.('panel-button'))
-                    continue;
-                // The clock draws its capsule on the inner .clock.
-                const clock = button.has_style_class_name('clock-display')
-                    ? this._find(button, a => a.has_style_class_name?.('clock')) : null;
-                this.glaze(clock ?? button, {...capsule, activeOn: button});
-            }
-        }
     }
 
     // ---- dock -----------------------------------------------------------------
@@ -514,9 +459,6 @@ export class LiquidGlass {
             GLib.source_remove(id);
         this._timeouts.clear();
         this._unpatchMenus();
-        for (const [box, id] of this._panelIds ?? [])
-            box.disconnect(id);
-        this._panelIds = [];
         if (this._bannerBin && this._bannerId)
             this._bannerBin.disconnect(this._bannerId);
         this._bannerId = 0;

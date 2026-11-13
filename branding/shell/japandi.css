@@ -35,8 +35,7 @@
   box-shadow: 0 1px 12px rgba(46, 38, 28, 0.08);
 }
 /* Hover and open: a slim capsule of clear glass, brighter at the top and
- * clearer below; liquidGlass.js lights its rim and bevel (one material,
- * no flat fill and no hard highlight line). */
+ * clearer below. Just the one soft layer: no shader rim around it. */
 #panel .panel-button {
   color: #2B2F2C;
   border-radius: 99px;
