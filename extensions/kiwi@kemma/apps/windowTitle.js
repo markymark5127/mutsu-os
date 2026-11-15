@@ -85,7 +85,12 @@ class WindowTitleIndicator extends PanelMenu.Button {
         this.setMenu(this._menu);
         Main.panel.menuManager.addMenu(this._menu);
 
-        this._box = new St.BoxLayout({style_class: 'panel-button'});
+        this._box = new St.BoxLayout({
+            // Not 'panel-button': nested in the panel button it got the theme's
+            // vertical margins twice, squeezing the label and cutting off g, y, p.
+            style_class: 'kiwi-window-title-box',
+            y_expand: true,
+        });
         
         this._icon = new St.Icon({
             style_class: 'app-menu-icon kiwi-window-title-icon',

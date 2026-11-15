@@ -196,6 +196,14 @@ export class ModeTransition {
         }
     }
 
+    // Shell quitting: stop the queued steps but leave the actors alone (the
+    // Shell is destroying them itself).
+    cancelPending() {
+        for (const id of this._timeouts)
+            GLib.source_remove(id);
+        this._timeouts = [];
+    }
+
     destroy() {
         this._clear(true);
         if (this._monitorsId)

@@ -143,6 +143,17 @@ export default class MutsuAdaptiveExtension extends Extension {
         this._debounceSource = 0;
         this._pendingTablet = null;
         this._signals = [];
+        // The Shell doesn't call disable() when it quits, but its main loop
+        // still runs while the UI is torn down, so a pending settle or
+        // animation timer would land on destroyed actors (the Accessibility
+        // menu's text-size switch, the mode HUD). Drop them; anything the
+        // settle step would have restored is in the journal for next login.
+        try {
+            if (global.context)
+                this._connect(global.context, 'prepare-shutdown', () => this._dropPending());
+        } catch (error) {
+            log(`Mutsu Adaptive: no shutdown signal (${error.message})`);
+        }
         try {
             this._transition = new ModeTransition();
         } catch (error) {
@@ -426,6 +437,15 @@ export default class MutsuAdaptiveExtension extends Extension {
         if (this._settleSource)
             GLib.source_remove(this._settleSource);
         this._settleSource = 0;
+    }
+
+    // Shell quitting: cancel every timer that would touch the UI later.
+    _dropPending() {
+        if (this._debounceSource)
+            GLib.source_remove(this._debounceSource);
+        this._debounceSource = 0;
+        this._cancelSettle();
+        this._transition?.cancelPending();
     }
 
     _logSwitch(what, timings, start) {

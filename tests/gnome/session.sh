@@ -63,6 +63,9 @@ done
 sleep 10 # let extensions finish enabling
 python3 "$SRC/tests/gnome/drive.py" "$OUT"
 rc=$?
+# The last checks leave tablet mode; let the post-switch settle (~0.6 s)
+# finish so the result doesn't depend on how fast the Shell is killed.
+sleep 2
 kill "$shell" 2>/dev/null
 wait "$shell" 2>/dev/null
 python3 "$SRC/tests/gnome/drive.py" --analyze-only "$OUT" || rc=1
