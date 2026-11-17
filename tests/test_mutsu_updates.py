@@ -57,6 +57,7 @@ class BackendTests(unittest.TestCase):
         self.b.STATE_DIR = self.tmp.name
         self.b.STATE = os.path.join(self.tmp.name, "state.json")
         self.b.AUTO_OFF = os.path.join(self.tmp.name, "var", "auto-install-off")
+        self.b.POLICY = os.path.join(self.tmp.name, "policy.json")  # none: not signing-ready
         self.calls = []
         self.replies = {}
         self.b.run = self.fake_run
@@ -188,6 +189,67 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(seen[0][-1], "ghcr.io/markymark5127/mutsu-os:beta")
         self.assertEqual(seen[1][:2], ["bootc", "upgrade"])
 
+    def trust_mutsu_images(self):
+        key = os.path.join(self.tmp.name, "mutsu-os.pub")
+        Path(key).write_text("-----BEGIN PUBLIC KEY-----\n")
+        Path(self.b.POLICY).write_text(json.dumps({"default": [{"type": "reject"}], "transports": {"docker": {
+            "": [{"type": "insecureAcceptAnything"}],
+            "ghcr.io/markymark5127/mutsu-os": [{"type": "sigstoreSigned", "keyPaths": [key],
+                                                "signedIdentity": {"type": "matchRepository"}}]}}}))
+        return key
+
+    def test_signing_ready_needs_the_rule_and_the_key(self):
+        ref = "ghcr.io/markymark5127/mutsu-os:beta"
+        self.assertFalse(self.b.signing_ready(ref))            # no policy file
+        key = self.trust_mutsu_images()
+        self.assertTrue(self.b.signing_ready(ref))
+        self.assertTrue(self.b.signing_ready("ghcr.io/markymark5127/mutsu-os@sha256:abc"))
+        self.assertFalse(self.b.signing_ready("ghcr.io/ublue-os/bazzite:stable"))
+        os.remove(key)
+        self.assertFalse(self.b.signing_ready(ref))            # rule without its key
+
+    def apply_with(self, status_json):
+        seen = []
+
+        class FakeProc:
+            returncode = 0
+            def __init__(self, argv, pass_fds=(), **kw):
+                seen.append(argv)
+            def wait(self):
+                return 0
+
+        real = self.b.subprocess.Popen
+        self.b.subprocess.Popen = FakeProc
+        try:
+            self.replies["bootc status --format=json"] = (0, status_json, "")
+            self.assertTrue(self.b.apply_system()[0])
+        finally:
+            self.b.subprocess.Popen = real
+        return [a for a in seen[0] if a not in ("--progress-fd",) and not a.isdigit()]
+
+    def test_unverified_beta_moves_onto_signature_checks(self):
+        self.trust_mutsu_images()
+        argv = self.apply_with(json.dumps(BOOTC_STATUS))      # spec has no `signature`
+        self.assertEqual(argv, ["bootc", "switch", "--enforce-container-sigpolicy",
+                                "ghcr.io/markymark5127/mutsu-os:beta"])
+
+    def test_verified_beta_just_upgrades(self):
+        self.trust_mutsu_images()
+        data = json.loads(json.dumps(BOOTC_STATUS))
+        data["spec"]["image"]["signature"] = "containerPolicy"
+        self.assertEqual(self.apply_with(json.dumps(data)), ["bootc", "upgrade"])
+
+    def test_without_the_key_nothing_is_enforced(self):
+        self.assertEqual(self.apply_with(json.dumps(BOOTC_STATUS)), ["bootc", "upgrade"])
+        argv = self.apply_with(BOOTC_STATUS_JSON("ghcr.io/markymark5127/mutsu-os:latest"))
+        self.assertNotIn("--enforce-container-sigpolicy", argv)
+
+    def test_channel_switch_is_signature_checked_when_ready(self):
+        self.trust_mutsu_images()
+        argv = self.apply_with(BOOTC_STATUS_JSON("ghcr.io/markymark5127/mutsu-os@sha256:pinned"))
+        self.assertEqual(argv, ["bootc", "switch", "--enforce-container-sigpolicy",
+                                "ghcr.io/markymark5127/mutsu-os:beta"])
+
     def test_rollback(self):
         self.replies["bootc rollback"] = (0, "", "")
         self.replies["bootc status --format=json"] = (0, json.dumps(BOOTC_STATUS), "")
@@ -257,6 +319,21 @@ class ImageWiringTests(unittest.TestCase):
                        "mutsu-update-backend", "systemctl enable mutsu-update-timer.timer",
                        "systemctl --global enable mutsu-update-notify.path", "uupd.timer"):
             self.assertIn(needle, text)
+
+    def test_image_checks_update_signatures(self):
+        text = (ROOT / "Containerfile").read_text()
+        self.assertIn("install-image-trust.sh /tmp/mutsu-cosign.pub", text)
+        self.assertIn("COPY cosign.pub", text)
+        script = (ROOT / "packaging" / "install-image-trust.sh").read_text()
+        name = next(l.split("=", 1)[1].strip() for l in (ROOT / "image-template.env").read_text().splitlines()
+                    if l.startswith("IMAGE_NAME="))
+        self.assertIn(f"repo=ghcr.io/markymark5127/{name}\n", script)
+        self.assertIn("sigstoreSigned", script)
+        self.assertIn("use-sigstore-attachments: true", script)
+        self.assertNotIn("cosign.pub", (ROOT / ".containerignore").read_text().split())
+        backend = (ROOT / "packaging" / "mutsu-update-backend").read_text()
+        self.assertIn("key=/etc/pki/containers/mutsu-os.pub\n", script)
+        self.assertIn("--enforce-container-sigpolicy", backend)
 
     def test_polkit_rule_covers_every_unit_the_page_starts(self):
         rule = (ROOT / "packaging" / "updates" / "50-mutsu-updates.rules").read_text()

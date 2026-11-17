@@ -101,6 +101,41 @@ jobs:
             echo "pretty=$(date -u +%Y-%m-%d)"
           } >> "$GITHUB_OUTPUT"
 
+      # Installed systems only accept Mutsu images signed with cosign.pub
+      # (packaging/install-image-trust.sh). build.yml signs only on main, so
+      # a manual run from another branch would hand every computer an update
+      # it refuses: check the signature the way they will before moving beta.
+      - name: Require the image's cosign signature
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ needs.image.outputs.repo }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+          KEY: cosign.pub
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          if ! skopeo copy --quiet --src-creds "${GITHUB_ACTOR}:${GH_TOKEN}" \
+              "docker://${REPO}:${DIGEST/:/-}.sig" "dir:${work}/sig"; then
+            echo "::error::${REPO}@${DIGEST} has no cosign signature; signed systems would refuse it"; exit 1
+          fi
+          python3 - "${work}/sig" "$DIGEST" "$REPO" "$KEY" <<'PY'
+          import base64, json, pathlib, subprocess, sys
+          root, digest, repo, key = pathlib.Path(sys.argv[1]), *sys.argv[2:]
+          for layer in json.loads((root / "manifest.json").read_text())["layers"]:
+              blob = root / layer["digest"].split(":", 1)[1]
+              critical = json.loads(blob.read_bytes())["critical"]
+              if (critical["image"]["docker-manifest-digest"], critical["identity"]["docker-reference"]) != (digest, repo):
+                  continue
+              sig = root / "signature"
+              sig.write_bytes(base64.b64decode(layer["annotations"]["dev.cosignproject.cosign/signature"]))
+              if subprocess.run(["openssl", "dgst", "-sha256", "-verify", key, "-signature", str(sig), str(blob)],
+                                capture_output=True).returncode == 0:
+                  sys.exit(0)
+          print(f"::error::{repo}@{digest} is not signed by {key}")
+          sys.exit(1)
+          PY
+          echo "Signature verified against cosign.pub" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Move the beta tag to the tested image
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

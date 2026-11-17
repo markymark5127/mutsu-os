@@ -19,6 +19,12 @@ the GNOME runtime check pass). A system following anything else of Mutsu's
 (`latest`, a dated tag, or the exact digest an installer pinned) is moved
 onto `beta` by its next update; any other image is left alone.
 
+Signatures: CI signs every image; the image ships the key and a policy.json
+rule for it (install-image-trust.sh). Once that rule is on the booted system,
+the next update that installs anything uses `bootc switch
+--enforce-container-sigpolicy`, so bootc checks signatures from then on
+instead of tracking the image as unverified.
+
 Commands: status | check | apply | timer | rollback | auto-on | auto-off
 """
 
@@ -38,6 +44,7 @@ STATE = os.path.join(STATE_DIR, "state.json")
 # the background by default too; they apply at the next restart).
 AUTO_OFF = "/var/lib/mutsu-update/auto-install-off"
 CHANNEL = "beta"
+POLICY = "/etc/containers/policy.json"
 
 
 def auto_enabled() -> bool:
@@ -95,7 +102,10 @@ def bootc_status() -> dict:
         raise RuntimeError(result.stderr.strip() or "bootc status failed")
     data = json.loads(result.stdout or "{}")
     status = data.get("status") or {}
+    spec_image = (data.get("spec") or {}).get("image") or {}
     return {
+        # bootc leaves `signature` out for an unverified image reference.
+        "verified": spec_image.get("signature") not in (None, "insecure"),
         "booted": describe(status.get("booted")),
         "staged": describe(status.get("staged")),
         "rollback": describe(status.get("rollback")),
@@ -125,6 +135,23 @@ def channel_image(ref: str) -> str | None:
     if not name.endswith("/mutsu-os"):
         return None
     return f"{name}:{CHANNEL}"
+
+
+def signing_ready(ref: str) -> bool:
+    """Does this system's policy require a signature for this image?"""
+    name = (ref or "").split("@", 1)[0]
+    if ":" in name.rsplit("/", 1)[-1]:
+        name = name.rsplit(":", 1)[0]
+    try:
+        with open(POLICY, encoding="utf-8") as fh:
+            rules = json.load(fh)["transports"]["docker"][name]
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    for rule in rules:
+        if rule.get("type") == "sigstoreSigned":
+            keys = rule.get("keyPaths") or [rule.get("keyPath")]
+            return bool(keys) and all(k and os.path.isfile(k) for k in keys)
+    return False
 
 
 def switch_target(status: dict) -> str | None:
@@ -218,11 +245,20 @@ def parse_progress(line: str) -> float | None:
 
 def apply_system() -> tuple[bool, str]:
     # Off the beta channel: `bootc switch` onto it (a normal update otherwise).
+    # Not yet signature-checked but able to be: switch onto the same image
+    # with the policy enforced.
     try:
-        target = switch_target(bootc_status())
+        status = bootc_status()
     except (RuntimeError, ValueError, OSError):
-        target = None
+        status = {}
+    target = switch_target(status) if status else None
+    current = status.get("image") or (status.get("booted") or {}).get("image") or ""
+    enforce = signing_ready(target or current)
+    if enforce and not target and not status.get("verified", True):
+        target = current
     action = ["bootc", "switch"] if target else ["bootc", "upgrade"]
+    if target and enforce:
+        action.append("--enforce-container-sigpolicy")
     tail = [target] if target else []
     read_fd, write_fd = os.pipe()
     log = tempfile.TemporaryFile(mode="w+", encoding="utf-8")

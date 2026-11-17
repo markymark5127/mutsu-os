@@ -297,6 +297,14 @@ RUN set -eux; \
     python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" /usr/libexec/mutsu-os/mutsu-update-backend; \
     rm -rf /tmp/mutsu-settings-rpms /tmp/mutsu-update-units
 
+### SIGNED UPDATES
+# Check Mutsu images against cosign.pub (CI signs each push). Software
+# Updates moves systems onto the checked path once this is booted.
+COPY cosign.pub /tmp/mutsu-cosign.pub
+COPY packaging/install-image-trust.sh /tmp/mutsu-install-image-trust.sh
+RUN bash /tmp/mutsu-install-image-trust.sh /tmp/mutsu-cosign.pub && \
+    rm -f /tmp/mutsu-cosign.pub /tmp/mutsu-install-image-trust.sh
+
 ### USER-FACING MUTSU IDENTITY
 # Clear inherited Bazzite first-run, wallpaper choices, and update launcher.
 # This does not alter bootc/OSTree technical IDs or user home directories.

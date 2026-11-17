@@ -50,6 +50,19 @@ class BetaReleaseTests(unittest.TestCase):
         self.assertEqual(runtime["type"], "string")
         self.assertIn("inputs.image_tag", (WF / "gnome-runtime.yml").read_text())
 
+    def test_beta_moves_only_to_a_signed_image(self):
+        # Installed systems enforce cosign.pub (install-image-trust.sh); an
+        # unsigned beta would be an update every computer refuses.
+        steps = self.wf["jobs"]["publish"]["steps"]
+        names = [s.get("name") for s in steps]
+        check = names.index("Require the image's cosign signature")
+        self.assertLess(check, names.index("Move the beta tag to the tested image"))
+        step = steps[check]
+        self.assertEqual(step["env"]["KEY"], "cosign.pub")
+        self.assertEqual(step["env"]["DIGEST"], "${{ needs.image.outputs.digest }}")
+        self.assertIn("openssl", step["run"])
+        self.assertIn("docker-manifest-digest", step["run"])
+
 
 
 class BetaTextTests(unittest.TestCase):
