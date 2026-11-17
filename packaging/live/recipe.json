@@ -5,7 +5,7 @@
   "bootable_environments": [
     {
       "id": "mutsu",
-      "image": "ghcr.io/markymark5127/mutsu-os:latest",
+      "image": "ghcr.io/markymark5127/mutsu-os:beta",
       "title": "Mutsu OS (Live Desktop)",
       "desktop": "gnome",
       "modes": ["live"]

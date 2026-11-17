@@ -1,4 +1,5 @@
-"""Guard the separate Mutsu USB Live Desktop workflow from automatic runs.
+"""Guard the separate Mutsu USB Live Desktop workflow: it runs on demand or
+from a published Beta, never on pushes or schedules of its own.
 
 The installer ISO and QCOW2 jobs are intentionally unaffected by this file.
 These checks cover the recipe and workflow wiring, not graphical boot success.
@@ -13,17 +14,52 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/build-live-iso.yml"
+BETA = ROOT / ".github/workflows/beta-release.yml"
 RECIPE = ROOT / "packaging/live/recipe.json"
 
 
 class LiveISOTests(unittest.TestCase):
-    def test_only_manual_dispatch(self):
+    def test_only_manual_dispatch_or_beta_release(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertRegex(workflow, r"(?m)^on:\n  workflow_dispatch:\n")
         self.assertNotRegex(
             workflow, r"(?m)^  (push|pull_request|schedule|workflow_run):"
         )
-        self.assertIn("name: Build Mutsu Live USB ISO (manual)", workflow)
+        self.assertIn("name: Build Mutsu Live USB ISO", workflow)
+
+    def test_beta_release_builds_both_live_usbs_after_publishing(self):
+        beta = BETA.read_text(encoding="utf-8")
+        for variant in ("offline", "online"):
+            job = re.search(
+                rf"(?ms)^  live-usb-{variant}:\n(.*?)(?=^  \S|\Z)", beta
+            )
+            self.assertIsNotNone(job, variant)
+            body = job.group(1)
+            self.assertIn("needs: publish", body)
+            self.assertIn("uses: ./.github/workflows/build-live-iso.yml", body)
+            self.assertIn("image_tag: ${{ needs.publish.outputs.image_tag }}", body)
+            self.assertIn(f"variant: {variant}", body)
+            self.assertIn("release_tag: ${{ needs.publish.outputs.release_tag }}", body)
+            self.assertIn("contents: write", body)
+
+    def test_beta_iso_is_attached_as_7zip_parts_under_2gib(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        step = workflow[workflow.index("Attach the ISO to the Beta release as 7-Zip parts"):]
+        self.assertIn("if: inputs.release_tag != ''", step)
+        self.assertIn("-mx=0 -v2000m", step)
+        self.assertIn('t "${base}.iso.7z.001"', step)
+        self.assertIn("2147483648", step)
+        self.assertIn("gh release upload", step)
+        # Only after both boot tests: no always() on the upload step.
+        self.assertNotIn("always()", step.split("- name:")[0])
+
+    def test_live_usbs_only_carry_betas(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn("default: latest", workflow)
+        self.assertNotIn("^latest", workflow)
+        self.assertIn("^beta(", workflow)
+        online = (ROOT / ".github/workflows/build-live-iso-online.yml").read_text(encoding="utf-8")
+        self.assertIn("default: beta", online)
 
     def test_live_not_installer(self):
         recipe = json.loads(RECIPE.read_text(encoding="utf-8"))
@@ -34,12 +70,12 @@ class LiveISOTests(unittest.TestCase):
         self.assertEqual(entry["id"], "mutsu")
         self.assertEqual(entry["desktop"], "gnome")
         self.assertEqual(entry["modes"], ["live"])
-        self.assertEqual(entry["image"], "ghcr.io/markymark5127/mutsu-os:latest")
+        self.assertEqual(entry["image"], "ghcr.io/markymark5127/mutsu-os:beta")
         self.assertNotIn("offline_payloads", recipe)
 
     def test_builds_from_published_immutable_container(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn('default: latest', workflow)
+        self.assertIn('default: beta', workflow)
         self.assertIn('skopeo inspect', workflow)
         self.assertIn('PINNED_IMAGE=', workflow)
         self.assertIn('sudo podman pull "$pinned"', workflow)

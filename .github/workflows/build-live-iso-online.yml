@@ -1,17 +1,17 @@
-name: Build Mutsu Live USB ISO, online installer (manual)
+name: Build Mutsu Live USB ISO, online installer
 
 # Same live USB, but small (~5 GB): the installer downloads Mutsu OS from
 # GHCR while installing, and the default apps install after the first boot.
-# The offline variant ("Build Mutsu Live USB ISO (manual)") carries
+# The offline variant ("Build Mutsu Live USB ISO") carries
 # everything on the USB and installs without internet.
 on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Published GHCR tag (latest or latest-<7-character commit SHA>)"
+        description: "Published Beta tag (beta, or beta-<version>-<date> for an earlier Beta)"
         required: true
         type: string
-        default: latest
+        default: beta
 
 permissions:
   contents: read
@@ -20,6 +20,11 @@ permissions:
 jobs:
   online:
     uses: ./.github/workflows/build-live-iso.yml
+    # The called job asks for contents: write (used only to attach a Beta's
+    # ISO to its release); a caller must grant at least that much.
+    permissions:
+      contents: write
+      packages: read
     with:
       image_tag: ${{ inputs.image_tag }}
       variant: online

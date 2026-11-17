@@ -2,6 +2,7 @@
 # on that exact image, and only if both pass, move the `beta` tag to it and
 # publish a GitHub pre-release. Software Updates (mutsu-update-backend) and
 # fresh installs follow `beta`, so nothing untested reaches a computer.
+# Once published, both live USBs (offline and online) are built from it.
 #
 # Tags on ghcr.io/<owner>/mutsu-os:
 #   beta                       the current Beta (moves every week)
@@ -71,6 +72,11 @@ jobs:
     permissions:
       contents: write   # git tag + GitHub release
       packages: write   # move the beta tag
+    outputs:
+      # This Beta's permanent tag, so the live USBs carry exactly this build
+      # even if another Beta moves `beta` while they are building.
+      image_tag: beta-${{ steps.name.outputs.version }}-${{ steps.name.outputs.date_tag }}
+      release_tag: v${{ steps.name.outputs.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,6 +104,7 @@ jobs:
             echo "version=${version}"
             echo "name=${name}"
             echo "image_tag=beta-${name#*-beta.}"
+            echo "date_tag=${name#*-beta.}"
             echo "pretty=$(date -u +%Y-%m-%d)"
           } >> "$GITHUB_OUTPUT"
 
@@ -173,6 +180,15 @@ jobs:
           **Updating:** Settings → Software Updates installs it (computers follow the \`beta\` tag automatically).
           **This exact build:** \`${REPO}:beta-${VERSION}-${IMAGE_TAG#beta-}\` (\`${DIGEST}\`)
 
+          **Live USB:** attached below about an hour after this release, once both have passed their boot tests.
+          - \`mutsu-os-${NAME}-live.iso.7z.*\`: installs without internet (~21 GB, 32 GB+ USB stick).
+          - \`mutsu-os-${NAME}-live-online.iso.7z.*\`: smaller, downloads Mutsu OS while installing (~5 GB).
+
+          Download **every** part of one variant into the same folder, then open the \`.7z.001\` file with
+          [7-Zip](https://www.7-zip.org/) (Windows), [Keka](https://www.keka.io/) (macOS) or \`7z x\` (Linux).
+          It extracts the bootable \`.iso\`; check it against the matching \`.iso.sha256\`, then write it with
+          Fedora Media Writer (Custom Image). Writing it erases the USB stick.
+
           NOTES
           gh release create "v${NAME}" \
             --target "$GITHUB_SHA" \
@@ -180,3 +196,31 @@ jobs:
             --title "Mutsu OS ${VERSION} Beta (${PRETTY})" \
             --notes-file /tmp/notes.md \
             --generate-notes
+
+  # Both live USBs for this Beta (offline ~21 GB, online ~5 GB). Each ends up
+  # as an artifact on this run (mutsu-os-live-amd64, mutsu-os-live-online-amd64).
+  live-usb-offline:
+    name: Live USB (offline installer)
+    needs: publish
+    uses: ./.github/workflows/build-live-iso.yml
+    permissions:
+      contents: write   # attach the ISO parts to the release
+      packages: read
+    with:
+      image_tag: ${{ needs.publish.outputs.image_tag }}
+      variant: offline
+      release_tag: ${{ needs.publish.outputs.release_tag }}
+    secrets: inherit
+
+  live-usb-online:
+    name: Live USB (online installer)
+    needs: publish
+    uses: ./.github/workflows/build-live-iso.yml
+    permissions:
+      contents: write   # attach the ISO parts to the release
+      packages: read
+    with:
+      image_tag: ${{ needs.publish.outputs.image_tag }}
+      variant: online
+      release_tag: ${{ needs.publish.outputs.release_tag }}
+    secrets: inherit

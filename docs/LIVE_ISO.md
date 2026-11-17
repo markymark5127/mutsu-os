@@ -1,24 +1,35 @@
-# Mutsu OS — experimental Live USB desktop (manual only)
+# Mutsu OS — experimental Live USB desktop
 
-The **Build Mutsu Live USB ISO (manual)** workflow creates a separate
+The **Build Mutsu Live USB ISO** workflow creates a separate
 `mutsu-os-live.iso` that boots directly into the **actual Mutsu GNOME
 desktop**, with a temporary, writable in-memory overlay and a live user.
 This is **not** the Anaconda installer ISO and does not install Mutsu onto
 any internal drive. It lets you inspect the appearance, dock, launcher,
 Wi-Fi, and touch behaviour on real hardware before considering installation.
 
-## Build it only when you request it
+## When it is built
 
-1. Open [GitHub Actions](https://github.com/markymark5127/mutsu-os/actions/workflows/build-live-iso.yml).
-2. Choose **Run workflow**, select `main`, and leave `image_tag=latest`
-   to use the most recently published Mutsu OS image.
-3. Optionally enter `latest-abcdef0` to use a previously published
-   commit-specific Mutsu OS image. It must exist in GHCR.
-4. Once the run completes, open its **Artifacts** area and download
-   `mutsu-os-live-amd64`. Extract `mutsu-os-live.iso`.
+Live USBs are only built from a **Beta** image (one that passed the GNOME
+runtime check and is signed), never from `latest`.
 
-The workflow has only `workflow_dispatch`: no pushes, pull requests,
-cron schedules, or dependent workflows can trigger it. Existing Anaconda
+- **Automatically, with every Beta.** Once the *Beta release* workflow
+  publishes a Beta, the same run builds both variants from that Beta's
+  permanent tag (`beta-<version>-<date>`). Download `mutsu-os-live-amd64`
+  (offline) or `mutsu-os-live-online-amd64` (online) from that run's
+  **Artifacts** area. Once both boot tests pass, each ISO is also attached
+  to the Beta's public GitHub release as an uncompressed 7-Zip archive split
+  into 2000 MiB parts (`mutsu-os-<version>-beta.<date>-live[-online].iso.7z.001`,
+  `.002`, …), because GitHub limits release files to 2 GiB. Download every
+  part of one variant into one folder and open the `.7z.001` file with
+  7-Zip, Keka or `7z x` to get the bootable ISO; compare it with the
+  `.iso.sha256` file.
+- **On demand.** Open [GitHub Actions](https://github.com/markymark5127/mutsu-os/actions/workflows/build-live-iso.yml),
+  choose **Run workflow**, select `main`, and leave `image_tag=beta` for the
+  current Beta, or enter `beta-0.1.0-20261113` for an earlier one. It must
+  exist in GHCR.
+
+Nothing else triggers it: no pushes, pull requests or cron schedules of its
+own. Existing Anaconda
 installer and QCOW2 workflows remain separate and unchanged. The source
 container is resolved to an immutable SHA-256 digest before building.
 
@@ -54,6 +65,6 @@ failure from an unavailable serial login. A successful ISO build and QEMU
 login still do **not** prove that graphics, touchscreen gestures, Wi-Fi, or
 Newelle work on real hardware.
 
-This manual-only live workflow does **not** run Mutsu's usual installer.
+This live workflow does **not** run Mutsu's usual installer.
 It also does not create a persistent USB installation. The original
 `Build disk images` installer-ISO and QCOW2 pipeline is untouched.

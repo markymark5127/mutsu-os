@@ -1,22 +1,25 @@
-name: Build Mutsu Live USB ISO (manual)
+name: Build Mutsu Live USB ISO
 
 # Intentionally no push, pull_request, schedule, or workflow_run events.
-# The live desktop is experimental and should be built only on demand.
+# It runs on demand, or from beta-release.yml once a Beta is published
+# (both variants, from that Beta's image). Live USBs only ever carry a
+# Beta: an image that passed the GNOME runtime check and is signed.
 on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Published GHCR tag (latest or latest-<7-character commit SHA>)"
+        description: "Published Beta tag (beta, or beta-<version>-<date> for an earlier Beta)"
         required: true
         type: string
-        default: latest
+        default: beta
       variant:
         description: "offline: the USB carries the system and apps, installs without internet (~21 GB). online: small USB, installs over the internet (~5 GB)."
         required: true
         type: choice
         options: [offline, online]
         default: offline
-  # The "online installer" workflow (build-live-iso-online.yml) reuses this.
+  # Reused by the "online installer" workflow (build-live-iso-online.yml)
+  # and by beta-release.yml.
   workflow_call:
     inputs:
       image_tag:
@@ -25,10 +28,15 @@ on:
       variant:
         required: true
         type: string
+      # beta-release.yml: the GitHub release (v<version>-beta.<date>) to
+      # attach the ISO to, as 7-Zip parts under GitHub's 2 GiB asset limit.
+      release_tag:
+        required: false
+        type: string
+        default: ''
 
-permissions:
-  contents: read
-  packages: read
+# Job-level permissions below; a caller can only narrow them.
+permissions: {}
 
 concurrency:
   group: mutsu-live-iso-${{ inputs.variant }}
@@ -38,7 +46,12 @@ jobs:
   build-live-iso:
     name: Build and verify live desktop ISO
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    # ~50 min to build and boot-test, plus packing and uploading ~21 GB of
+    # release parts on a Beta.
+    timeout-minutes: 180
+    permissions:
+      contents: write   # attach the parts to a Beta release (release_tag only)
+      packages: read
     steps:
       - name: Checkout Mutsu live-ISO sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -47,14 +60,19 @@ jobs:
         env:
           INPUT_TAG: ${{ inputs.image_tag }}
           INPUT_VARIANT: ${{ inputs.variant }}
+          INPUT_RELEASE: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
-          [[ "$INPUT_TAG" =~ ^latest(-[a-f0-9]{7})?$ ]] || {
-            echo "::error::Use latest or latest-<7-character lowercase commit SHA>"
+          [[ "$INPUT_TAG" =~ ^beta(-[0-9]+\.[0-9]+\.[0-9]+-[0-9]{8}(\.[0-9]+)?)?$ ]] || {
+            echo "::error::Use beta or beta-<version>-<date> (e.g. beta-0.1.0-20261113); live USBs only carry Betas"
             exit 1
           }
           [[ "$INPUT_VARIANT" == offline || "$INPUT_VARIANT" == online ]] || {
             echo "::error::variant must be offline or online"
+            exit 1
+          }
+          [[ -z "$INPUT_RELEASE" || "$INPUT_RELEASE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]{8}(\.[0-9]+)?$ ]] || {
+            echo "::error::release_tag must be a Beta release tag (v<version>-beta.<date>)"
             exit 1
           }
           echo "IMAGE_TAG=$INPUT_TAG" >> "$GITHUB_ENV"
@@ -71,7 +89,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             podman skopeo jq xorriso mtools squashfs-tools dosfstools \
-            systemd-boot systemd-boot-efi gdisk qemu-system-x86 ovmf
+            systemd-boot systemd-boot-efi gdisk qemu-system-x86 ovmf 7zip
 
       - name: Resolve and pull exact published Mutsu image
         env:
@@ -331,3 +349,43 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+
+      # Public download for a Beta. GitHub release assets must be under
+      # 2 GiB, so the ISO goes up as an uncompressed (the squashfs inside is
+      # already zstd) 7-Zip archive split into 2000 MiB parts. Opening the
+      # .7z.001 part in 7-Zip / Keka / `7z x` rebuilds the bootable ISO.
+      # Runs only when every earlier step, including both boot tests, passed.
+      - name: Attach the ISO to the Beta release as 7-Zip parts
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          # Make room: the parts are as large as the ISO itself.
+          sudo rm -rf mutsu-live-out/build
+          sudo podman rmi --all --force >/dev/null 2>&1 || true
+          df -h "$PWD"
+
+          suffix=""; [[ "$LIVE_VARIANT" == online ]] && suffix="-online"
+          iso="mutsu-os-live${suffix}.iso"
+          base="mutsu-os-${RELEASE_TAG#v}-live${suffix}"
+          mkdir -p release
+          # The archive holds one file, named for its variant.
+          ln mutsu-live-out/mutsu-os-live.iso "release/${iso}"
+          (cd release && sha256sum "$iso" > "${base}.iso.sha256")
+
+          sevenz="$(command -v 7z || command -v 7zz)"
+          (cd release && "$sevenz" a -t7z -mx=0 -v2000m "${base}.iso.7z" "$iso" >/dev/null)
+          rm "release/${iso}"
+          (cd release && "$sevenz" t "${base}.iso.7z.001" >/dev/null)
+
+          for part in release/"${base}".iso.7z.*; do
+            size="$(stat -c %s "$part")"
+            (( size < 2147483648 )) || { echo "::error::${part} is ${size} bytes, over GitHub's 2 GiB limit"; exit 1; }
+          done
+          (cd release && sha256sum "${base}".iso.7z.* > "${base}.iso.7z.sha256")
+
+          gh release upload "$RELEASE_TAG" release/* --clobber --repo "$GITHUB_REPOSITORY"
+          count="$(ls release/"${base}".iso.7z.* | wc -l)"
+          echo "Attached ${base}.iso as ${count} 7-Zip parts to ${RELEASE_TAG}." >> "$GITHUB_STEP_SUMMARY"
