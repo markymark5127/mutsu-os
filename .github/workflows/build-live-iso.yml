@@ -18,6 +18,11 @@ on:
         type: choice
         options: [offline, online]
         default: offline
+      release_tag:
+        description: "Optional: attach the ISO to this existing Beta release (v<version>-beta.<date>), e.g. to redo a failed upload"
+        required: false
+        type: string
+        default: ''
   # Reused by the "online installer" workflow (build-live-iso-online.yml)
   # and by beta-release.yml.
   workflow_call:
@@ -362,10 +367,19 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
-          # Make room: the parts are as large as the ISO itself.
-          sudo rm -rf mutsu-live-out/build
+          # Make room: the parts are as large as the ISO itself. Best effort:
+          # the offline variant's build leaves its image store's overlay
+          # mounted, so unmount everything under build/ (deepest first) before
+          # deleting it, and carry on if something is still held.
+          build="$PWD/mutsu-live-out/build"
+          findmnt -rn -o TARGET | awk -v b="$build" 'index($0, b) == 1' | sort -r \
+            | while read -r mnt; do sudo umount -l "$mnt" || true; done
+          sudo rm -rf "$build" || echo "::warning::Could not remove all of ${build}; continuing"
           sudo podman rmi --all --force >/dev/null 2>&1 || true
           df -h "$PWD"
+          need=$(( $(stat -c %s mutsu-live-out/mutsu-os-live.iso) + 2 * 1024 * 1024 * 1024 ))
+          free=$(( $(df --output=avail -B1 "$PWD" | tail -1) ))
+          (( free > need )) || { echo "::error::Need $((need >> 30)) GiB free for the 7-Zip parts, have $((free >> 30)) GiB"; exit 1; }
 
           suffix=""; [[ "$LIVE_VARIANT" == online ]] && suffix="-online"
           iso="mutsu-os-live${suffix}.iso"

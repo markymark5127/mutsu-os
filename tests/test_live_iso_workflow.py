@@ -50,6 +50,9 @@ class LiveISOTests(unittest.TestCase):
         self.assertIn('t "${base}.iso.7z.001"', step)
         self.assertIn("2147483648", step)
         self.assertIn("gh release upload", step)
+        # The offline store's overlay stays mounted: unmount, never fail on rm.
+        self.assertIn("umount -l", step)
+        self.assertNotRegex(step, r"sudo rm -rf [^|\n]*\n")
         # Only after both boot tests: no always() on the upload step.
         self.assertNotIn("always()", step.split("- name:")[0])
 
