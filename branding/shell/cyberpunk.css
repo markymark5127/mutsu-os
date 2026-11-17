@@ -237,6 +237,88 @@
 .calendar .calendar-day:focus {
   background-color: rgba(0, 229, 255, 0.18);
 }
+/* Calendar ink: Japandi (built in) restates these in charcoal for its cream
+ * glass; on the navy panel they go back to light ink and cyan. */
+.datemenu-today-button,
+.datemenu-today-button:insensitive,
+.datemenu-today-button .date-label {
+  color: #E9F7FF;
+  background-color: transparent;
+}
+.datemenu-today-button .day-label {
+  color: #8FB3C9;
+}
+.datemenu-today-button:hover,
+.datemenu-today-button:focus,
+.datemenu-today-button:active {
+  background-color: rgba(0, 229, 255, 0.12);
+  color: #E9F7FF;
+}
+.calendar:hover,
+.calendar:focus,
+.calendar:active,
+.calendar:insensitive {
+  background-color: transparent;
+  color: #E9F7FF;
+}
+.calendar .calendar-month-header .calendar-month-label,
+.calendar .calendar-month-header .pager-button {
+  color: #E9F7FF;
+  background-color: transparent;
+}
+.calendar .calendar-month-header .calendar-month-label:hover,
+.calendar .calendar-month-header .pager-button:hover,
+.calendar .calendar-month-header .pager-button:focus {
+  background-color: rgba(0, 229, 255, 0.18);
+  color: #E9F7FF;
+}
+.calendar .calendar-day-heading {
+  color: #8FB3C9;
+  background-color: transparent;
+}
+.calendar .calendar-day {
+  color: #E9F7FF;
+}
+.calendar .calendar-day.calendar-weekend {
+  color: #8FB3C9;
+}
+.calendar .calendar-day.calendar-other-month,
+.calendar .calendar-day.calendar-other-month.calendar-weekend {
+  color: rgba(233, 247, 255, 0.45);
+}
+.calendar .calendar-day:selected,
+.calendar .calendar-day:active {
+  background-color: rgba(0, 229, 255, 0.22);
+  color: #E9F7FF;
+}
+.calendar .calendar-day.calendar-today,
+.calendar .calendar-day.calendar-today:hover,
+.calendar .calendar-day.calendar-today:focus,
+.calendar .calendar-day.calendar-today:selected {
+  background-color: #00E5FF;
+  color: #0A1428 !important;
+  font-weight: bold;
+}
+.events-button:hover, .world-clocks-button:hover, .weather-button:hover,
+.events-button:focus, .world-clocks-button:focus, .weather-button:focus,
+.events-button:active, .world-clocks-button:active, .weather-button:active {
+  background-color: rgba(52, 80, 107, 0.55);
+  color: #E9F7FF;
+}
+.events-button .events-box .events-title,
+.world-clocks-button .world-clocks-header,
+.weather-button .weather-box .weather-header-box .weather-header {
+  color: #8FB3C9;
+}
+.world-clocks-button .world-clocks-header.no-world-clocks,
+.weather-button .weather-box .weather-header-box .weather-header.no-location {
+  color: #E9F7FF;
+}
+.events-button .events-box .events-list .event-placeholder,
+.events-button .events-box .events-list .event-box .event-time,
+.world-clocks-button .world-clocks-grid .world-clocks-timezone {
+  color: #8FB3C9;
+}
 .notification-banner, .notification-banner .message {
   background-color: #0A1428;
   background-gradient-direction: none;

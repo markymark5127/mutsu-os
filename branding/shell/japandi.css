@@ -219,6 +219,96 @@
 .calendar .calendar-day:focus {
   background-color: rgba(255, 255, 255, 0.55);
 }
+/* Calendar ink. Underneath sits GNOME's dark theme, whose calendar colours
+ * (white and pale grey text, dark grey hover fills) are made for a dark
+ * panel and wash out on the cream glass; every one is restated here in
+ * charcoal. The header is "insensitive" while it shows today, which GNOME
+ * draws at half-white: keep it dark. */
+.datemenu-today-button,
+.datemenu-today-button:insensitive,
+.datemenu-today-button .date-label {
+  color: #2B2F2C;
+  background-color: transparent;
+}
+.datemenu-today-button .day-label {
+  color: rgba(43, 47, 44, 0.68);
+}
+.datemenu-today-button:hover,
+.datemenu-today-button:focus,
+.datemenu-today-button:active {
+  background-color: rgba(255, 255, 255, 0.50);
+  color: #2B2F2C;
+}
+.calendar:hover,
+.calendar:focus,
+.calendar:active,
+.calendar:insensitive {
+  background-color: transparent;
+  color: #2B2F2C;
+}
+.calendar .calendar-month-header .calendar-month-label,
+.calendar .calendar-month-header .pager-button {
+  color: #2B2F2C;
+  background-color: transparent;
+}
+.calendar .calendar-month-header .calendar-month-label:hover,
+.calendar .calendar-month-header .pager-button:hover,
+.calendar .calendar-month-header .pager-button:focus {
+  background-color: rgba(255, 255, 255, 0.55);
+  color: #2B2F2C;
+}
+.calendar .calendar-day-heading {
+  color: rgba(43, 47, 44, 0.68);
+  background-color: transparent;
+}
+.calendar .calendar-day {
+  color: #2B2F2C;
+}
+.calendar .calendar-day.calendar-weekend {
+  color: rgba(43, 47, 44, 0.72);
+}
+.calendar .calendar-day.calendar-other-month,
+.calendar .calendar-day.calendar-other-month.calendar-weekend {
+  color: rgba(43, 47, 44, 0.45);
+}
+/* The day picked in the grid: a light sage wash. Today: a solid sage disc
+ * with white ink (the general rule above clears day fills, so it is
+ * restated here at the same strength). */
+.calendar .calendar-day:selected,
+.calendar .calendar-day:active {
+  background-color: rgba(127, 154, 130, 0.28);
+  color: #2B2F2C;
+}
+.calendar .calendar-day.calendar-today,
+.calendar .calendar-day.calendar-today:hover,
+.calendar .calendar-day.calendar-today:focus,
+.calendar .calendar-day.calendar-today:selected {
+  background-color: #5F7B63;
+  color: #FFFFFF !important;
+  font-weight: bold;
+}
+/* Events, world clocks and weather cards: no dark grey on hover, and
+ * their secondary text in muted charcoal rather than pale grey. */
+.events-button:hover, .world-clocks-button:hover, .weather-button:hover,
+.events-button:focus, .world-clocks-button:focus, .weather-button:focus,
+.events-button:active, .world-clocks-button:active, .weather-button:active {
+  background-color: rgba(255, 255, 255, 0.58);
+  color: #2B2F2C;
+}
+.events-button .events-box .events-title,
+.world-clocks-button .world-clocks-header,
+.weather-button .weather-box .weather-header-box .weather-header {
+  color: rgba(43, 47, 44, 0.72);
+}
+.world-clocks-button .world-clocks-header.no-world-clocks,
+.weather-button .weather-box .weather-header-box .weather-header.no-location {
+  color: #2B2F2C;
+}
+.events-button .events-box .events-list .event-placeholder,
+.events-button .events-box .events-list .event-box .event-time,
+.world-clocks-button .world-clocks-grid .world-clocks-timezone {
+  color: rgba(43, 47, 44, 0.66);
+}
 
 /* ---- Notifications: compact glass cards ------------------------------------ */
 .notification-banner, .notification-banner .message {
