@@ -8,3 +8,10 @@ Type=oneshot
 ExecStart=/usr/libexec/mutsu-os/mutsu-update-backend rollback
 Nice=10
 IOSchedulingClass=idle
+# bootc writes the new image's SELinux labels into the ostree repo. When an
+# update brings in a newer policy, some labels (e.g.
+# systemd_clonesetup_generator_exec_t) are unknown to the policy that is
+# loaded now, and the kernel only accepts them from a domain with mac_admin.
+# unconfined_service_t lacks it (fsetxattr(security.selinux): Invalid
+# argument), so run unconfined like Universal Blue's uupd.service does.
+SELinuxContext=system_u:unconfined_r:unconfined_t:s0

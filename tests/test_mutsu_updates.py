@@ -335,6 +335,14 @@ class ImageWiringTests(unittest.TestCase):
         self.assertIn("key=/etc/pki/containers/mutsu-os.pub\n", script)
         self.assertIn("--enforce-container-sigpolicy", backend)
 
+    def test_units_that_write_deployments_can_set_new_selinux_labels(self):
+        """An update with a newer policy carries labels the loaded policy
+        doesn't know; only a domain with mac_admin may write them, and
+        unconfined_service_t (the default for a unit) has no mac_admin."""
+        for name in ("apply", "timer", "rollback"):
+            unit = (ROOT / "packaging" / "updates" / f"mutsu-update-{name}.service").read_text()
+            self.assertIn("\nSELinuxContext=system_u:unconfined_r:unconfined_t:s0\n", unit, name)
+
     def test_polkit_rule_covers_every_unit_the_page_starts(self):
         rule = (ROOT / "packaging" / "updates" / "50-mutsu-updates.rules").read_text()
         panel = (ROOT / "packaging" / "settings" / "mutsu-updates" / "cc-mutsu-updates-panel.c").read_text()
