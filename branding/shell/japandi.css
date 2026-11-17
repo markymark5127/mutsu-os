@@ -192,11 +192,16 @@
   border: 1px solid rgba(255, 255, 255, 0.60);
   border-radius: 20px;
 }
+/* Volume and brightness sit on a white glass tile over cream glass: a white
+ * knob and a 12% track vanished into it. The knob is painted in `color`
+ * (St reads no handle border any more), so it is deep moss, a step darker
+ * than the sage fill (mutsu-adaptive); the empty track is a firmer charcoal
+ * so the whole bar reads at 0% too. */
 .slider {
   -barlevel-height: 8px;
-  -barlevel-background-color: rgba(43, 47, 44, 0.12);
+  -barlevel-background-color: rgba(43, 47, 44, 0.24);
   -slider-handle-radius: 11px;
-  color: #FFFFFF;
+  color: #4F6B57;
 }
 .quick-settings-system-item .icon-button,
 .quick-settings-system-item .power-item {
