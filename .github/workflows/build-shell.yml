@@ -42,7 +42,7 @@ jobs:
       - name: The patched JavaScript parses
         run: |
           for f in out/overlay/ui/*.js; do cp "$f" "/tmp/$(basename "$f" .js).mjs"; node --check "/tmp/$(basename "$f" .js).mjs"; done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: mutsu-gnome-shell-overlay
           path: out/
