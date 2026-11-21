@@ -9,3 +9,6 @@ Terminal=false
 Categories=Utility;System;
 Keywords=Mutsu;Mechanic;Search;Spotlight;AI;Repair;
 StartupNotify=true
+# Started and shown over D-Bus, like GNOME's own apps; one instance,
+# kept running between uses (see packaging/mutsu-search).
+DBusActivatable=true

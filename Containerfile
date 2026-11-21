@@ -92,6 +92,10 @@ COPY packaging/mutsu-newelle-link.service /usr/lib/systemd/user/mutsu-newelle-li
 COPY packaging/mutsu-accent.service /usr/lib/systemd/user/mutsu-accent.service
 COPY packaging/mutsu-accent.sh /usr/libexec/mutsu-os/mutsu-accent.sh
 COPY packaging/io.github.markymark5127.AIDesktop.desktop /usr/share/applications/io.github.markymark5127.AIDesktop.desktop
+# Super+Space reaches the running Search over D-Bus (packaging/mutsu-search);
+# D-Bus starts it if needed, and it is started ready after login.
+COPY packaging/io.github.markymark5127.AIDesktop.service /usr/share/dbus-1/services/io.github.markymark5127.AIDesktop.service
+COPY packaging/mutsu-search.service /usr/lib/systemd/user/mutsu-search.service
 COPY packaging/90-mutsu-wallpaper.gschema.override /usr/share/glib-2.0/schemas/90-mutsu-wallpaper.gschema.override
 COPY packaging/20-mutsu-shortcut.dconf /etc/dconf/db/mutsu.d/20-mutsu-shortcut
 COPY packaging/30-mutsu-mac-defaults.dconf /etc/dconf/db/mutsu.d/30-mutsu-mac-defaults
@@ -107,6 +111,7 @@ RUN chmod 0755 /usr/bin/mutsu-search /usr/libexec/mutsu-os/mutsu-first-login /us
     ln -sfn /usr/lib/systemd/user/mutsu-welcome.service /etc/systemd/user/graphical-session.target.wants/mutsu-welcome.service && \
     ln -sfn /usr/lib/systemd/user/mutsu-newelle-link.service /etc/systemd/user/graphical-session.target.wants/mutsu-newelle-link.service && \
     ln -sfn /usr/lib/systemd/user/mutsu-accent.service /etc/systemd/user/graphical-session.target.wants/mutsu-accent.service && \
+    ln -sfn /usr/lib/systemd/user/mutsu-search.service /etc/systemd/user/graphical-session.target.wants/mutsu-search.service && \
     HOME=/etc/skel bash /usr/libexec/mutsu-os/mutsu-accent.sh && \
     grep -q 'mutsu-accent:start' /etc/skel/.config/gtk-4.0/gtk.css /etc/skel/.config/gtk-3.0/gtk.css && \
     rm -f /etc/xdg/autostart/mutsu-first-login.desktop && \

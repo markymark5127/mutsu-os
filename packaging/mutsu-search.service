@@ -1,0 +1,21 @@
+[Unit]
+Description=Mutsu Search, ready before the first Super+Space
+Documentation=https://github.com/markymark5127/mutsu-os
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+# Let the desktop finish starting first; Super+Space still works meanwhile
+# (D-Bus starts Search on demand).
+ExecStartPre=/usr/bin/sleep 8
+# Loads Python, GTK and the app list once and keeps Search's window built
+# but hidden. If Search is already running this just returns.
+ExecStart=/usr/bin/mutsu-search --background
+Restart=on-failure
+RestartSec=5
+# A usage error (an older Search without --background) won't fix itself.
+RestartPreventExitStatus=2
+
+[Install]
+WantedBy=graphical-session.target

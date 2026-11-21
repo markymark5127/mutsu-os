@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 # Mutsu OS Search: stable system entrypoint for the GNOME assistant.
 set -euo pipefail
+app=io.github.markymark5127.AIDesktop
+# Super+Space (and the dock, which uses D-Bus activation directly): ask the
+# running Search to show itself. gapplication is a small C program, so this
+# takes milliseconds instead of starting Python and GTK just to forward the
+# request. If Search isn't running, D-Bus starts it
+# (/usr/share/dbus-1/services/$app.service). Anything else, or any failure,
+# goes through the Python entrypoint as before.
+if [[ $# -eq 0 ]] && command -v gapplication >/dev/null &&
+    gapplication launch "$app" 2>/dev/null; then
+  exit 0
+fi
 export PYTHONPATH="/usr/libexec/mutsu-os/src${PYTHONPATH:+:$PYTHONPATH}"
 exec /usr/bin/python3 -m aidesktop "$@"

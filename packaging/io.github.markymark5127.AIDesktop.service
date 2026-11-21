@@ -1,0 +1,5 @@
+# D-Bus activation for Mutsu Search: Super+Space (gapplication launch) and
+# the dock start it this way when it isn't already running.
+[D-BUS Service]
+Name=io.github.markymark5127.AIDesktop
+Exec=/usr/bin/mutsu-search --gapplication-service
