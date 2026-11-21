@@ -11,8 +11,9 @@ COPY packaging/settings/ /tmp/mutsu-settings/
 RUN bash /tmp/mutsu-settings/build-gnome-settings.sh /out
 
 # Mutsu's GNOME Shell pieces, made from the Shell this base image ships:
-# two of its own JavaScript files patched so the login animation waits for
-# extensions (served through a resource overlay), and its theme with Mutsu's
+# a few of its own JavaScript files patched so Mutsu's core components load
+# first and login and unlock show the desktop once they are on (served
+# through a resource overlay), and its theme with Mutsu's
 # Japandi look and sage accent built in (there from the first frame, login
 # and lock screen included). Throwaway stage; only the results are copied.
 FROM ghcr.io/ublue-os/bazzite-gnome:stable AS shell
@@ -186,10 +187,14 @@ RUN bash /tmp/mutsu-install-touchshell.sh && \
 ### NATIVE MUTSU GNOME SHELL (no per-user first-boot appearance script)
 # Install the real system extension, compose upstream+Mutsu enabled extension
 # defaults, and compile the high-priority user-overridable dconf database.
-# GNOME loads Mutsu at the START of the first user session.
+# The default extensions also go into Mutsu's GNOME session mode, so every
+# user (new or existing) gets them, Mutsu's core loaded first.
 COPY extensions/mutsu-branding@mutsu-os /tmp/mutsu-branding-extension-src
 COPY packaging/install-shell-branding.sh /tmp/mutsu-install-shell-branding.sh
 COPY packaging/configure-native-desktop.py /tmp/mutsu-configure-native-desktop.py
+# The user session's Shell runs in Mutsu's session mode, which
+# configure-native-desktop.py writes: Mutsu's components for every user.
+COPY packaging/shell/mutsu-session-mode.conf /usr/lib/systemd/user/org.gnome.Shell@user.service.d/mutsu-session-mode.conf
 RUN bash /tmp/mutsu-install-shell-branding.sh && \
     python3 /tmp/mutsu-configure-native-desktop.py && \
     rm -rf /tmp/mutsu-branding-extension-src /tmp/mutsu-install-shell-branding.sh \
@@ -255,7 +260,11 @@ RUN set -eux; \
     install -m0644 /tmp/mutsu-shell-out/overlay/ui/*.js /usr/share/mutsu-os/shell-overlay/ui/; \
     install -m0644 /tmp/mutsu-shell-out/gnome-shell-theme.gresource /usr/share/gnome-shell/gnome-shell-theme.gresource; \
     grep -aq 'Mutsu OS (built in)' /usr/share/gnome-shell/gnome-shell-theme.gresource; \
-    grep -q _mutsuWaitForExtensions /usr/share/mutsu-os/shell-overlay/ui/layout.js; \
+    grep -q _mutsuWaitForCore /usr/share/mutsu-os/shell-overlay/ui/layout.js; \
+    grep -q _mutsuFinishDeactivate /usr/share/mutsu-os/shell-overlay/ui/screenShield.js; \
+    python3 -c "import json,sys; m=json.load(open(sys.argv[1])); assert m['parentMode']=='user' and 'dash-to-dock@micxgx.gmail.com' in m['enabledExtensions']" /usr/share/gnome-shell/modes/mutsu.json; \
+    test -s /usr/share/mutsu-os/shell-core; \
+    gnome-shell --list-modes | grep -qx mutsu; \
     echo japandi > /usr/share/mutsu-os/shell-theme-built-in; \
     rm -rf /tmp/mutsu-shell-out
 

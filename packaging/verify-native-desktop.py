@@ -80,6 +80,8 @@ def verify_source_layout(root: Path) -> list[str]:
     if not login_logo.is_file():
         errors.append("Mutsu login wordmark PNG is missing")
 
+    errors.extend(verify_session_mode(root))
+
     extroot = root / "usr/share/gnome-shell/extensions"
     for uuid in REQUIRED_EXTENSIONS:
         meta = extroot / uuid / "metadata.json"
@@ -97,6 +99,37 @@ def verify_source_layout(root: Path) -> list[str]:
 
     if (root / "etc/xdg/autostart/mutsu-first-boot.desktop").exists():
         errors.append("Legacy per-login appearance script is still enabled")
+    return errors
+
+
+def verify_session_mode(root: Path) -> list[str]:
+    """Mutsu's components are part of the OS: GNOME's session mode, not a
+    per-user list that existing accounts never see updated."""
+    errors = []
+    mode = root / "usr/share/gnome-shell/modes/mutsu.json"
+    try:
+        data = json.loads(mode.read_text(encoding="utf-8"))
+        if data.get("parentMode") != "user":
+            errors.append("Mutsu session mode must build on GNOME's user session")
+        listed = data.get("enabledExtensions", [])
+        errors.extend(f"Mutsu session mode does not enable: {uuid}"
+                      for uuid in REQUIRED_EXTENSIONS if uuid not in listed)
+    except (OSError, ValueError, AttributeError) as exc:
+        errors.append(f"Mutsu GNOME session mode is missing or invalid: {exc}")
+        listed = []
+    core = root / "usr/share/mutsu-os/shell-core"
+    try:
+        names = [l.strip() for l in core.read_text(encoding="utf-8").splitlines()
+                 if l.strip() and not l.lstrip().startswith("#")]
+        if not names:
+            errors.append("Mutsu's core Shell component list is empty")
+        errors.extend(f"Core Shell component not in the session mode: {uuid}"
+                      for uuid in names if listed and uuid not in listed)
+    except OSError as exc:
+        errors.append(f"Mutsu's core Shell component list is missing: {exc}")
+    dropin = root / "usr/lib/systemd/user/org.gnome.Shell@user.service.d/mutsu-session-mode.conf"
+    if not dropin.is_file() or "--mode=mutsu" not in dropin.read_text(encoding="utf-8"):
+        errors.append("GNOME Shell is not started in Mutsu's session mode")
     return errors
 
 

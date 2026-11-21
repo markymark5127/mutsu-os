@@ -144,6 +144,26 @@ class CleanInstallTests(TestCase):
         self.assertIn("'dash-to-dock@micxgx.gmail.com'", generated)
         self.assertIn("'mutsu-adaptive@mutsu-os'", generated)
 
+    def test_default_extensions_are_a_session_mode_for_every_user(self):
+        module = self._load_native_desktop()
+        merged = module.merged_extensions(
+            ["gsconnect@andyholmes.github.io"], ["user-theme@gnome-shell-extensions.gcampax.github.com"])
+        mode = __import__("json").loads(module.render_session_mode(merged))
+        self.assertEqual(mode["parentMode"], "user")
+        listed = mode["enabledExtensions"]
+        # Mutsu's core first, in load order, then every other default once.
+        self.assertEqual(listed[:len(module.SHELL_CORE)], list(module.SHELL_CORE))
+        self.assertEqual(sorted(listed), sorted(merged))
+        self.assertLess(listed.index(module.DOCK), listed.index(module.KIWI))
+        core = [l for l in module.render_shell_core().splitlines() if l and not l.startswith("#")]
+        self.assertEqual(core, list(module.SHELL_CORE))
+        # Tablet gestures don't hold up the desktop; they're still in the mode.
+        self.assertNotIn(module.TOUCHSHELL, core)
+        self.assertIn(module.TOUCHSHELL, listed)
+        script = read("packaging/configure-native-desktop.py")
+        self.assertIn('SESSION_MODE = DESKTOP_ROOT / "usr/share/gnome-shell/modes/mutsu.json"', script)
+        self.assertIn('SHELL_CORE_FILE = DESKTOP_ROOT / "usr/share/mutsu-os/shell-core"', script)
+
     def test_image_ships_gnome50_japandi_and_real_floating_dock(self):
         container = read("Containerfile")
         meta = __import__("json").loads(

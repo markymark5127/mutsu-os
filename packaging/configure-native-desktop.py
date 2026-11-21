@@ -1,18 +1,29 @@
 #!/usr/bin/env python3
 """Compile a genuine Mutsu GNOME desktop into the OS image, not a login hook.
 
-GNOME supports machine-wide, user-overridable defaults via dconf and enables
-system GNOME extensions with org.gnome.shell.enabled-extensions. The latter is
-a REPLACEMENT array, so preserve available vendor extension defaults before
-adding Mutsu. This runs only in Containerfile during the image build.
+The default extensions (Bazzite's and Mutsu's own) are part of the OS:
 
-Existing accounts with user-set extension lists retain their choices. GNOME
-does not offer an additive system extension default for already-created users.
+  * /usr/share/gnome-shell/modes/mutsu.json is Mutsu's GNOME Shell session
+    mode (the Shell runs with --mode=mutsu, see
+    packaging/shell/mutsu-session-mode.conf). GNOME always enables a session
+    mode's extensions for every user, new or existing, whatever their own
+    enabled-extensions list says (GNOME freezes that list per user the first
+    time anything toggles an extension, so a system default alone never
+    reaches existing accounts). Users can still turn one off in Extensions.
+  * /usr/share/mutsu-os/shell-core names Mutsu's visible core (dock, menu
+    bar, window buttons, branding, tablet mode). The patched Shell loads
+    these first and shows the desktop, at login and after unlocking, once
+    they are on (packaging/shell/apply-mutsu-shell.py).
+  * The dconf enabled-extensions default stays as the fallback for a plain
+    GNOME session. It is a REPLACEMENT array, so vendor defaults are kept.
+
+This runs only in Containerfile during the image build.
 """
 from __future__ import annotations
 
 import ast
 import configparser
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -28,9 +39,15 @@ TOUCHSHELL = "touchshell@touchshell.com"
 # bottom-edge interception stays off until touch QA passes.
 # Global Menu provides the Mac-style File/Edit/View/Window bar.
 MUTSU_EXTENSIONS = (BRANDING, DOCK, ADAPTIVE, GLOBAL_MENU, KIWI, TOUCHSHELL)
+# What the desktop is shown with, in load order: tablet mode, the dock, then
+# what styles the dock and fills the top bar. Touchshell (tablet gestures)
+# shows nothing on the desktop, so login and unlock don't wait for it.
+SHELL_CORE = (ADAPTIVE, DOCK, KIWI, BRANDING, GLOBAL_MENU)
 DESKTOP_ROOT = Path(os.environ.get("MUTSU_DESKTOP_ROOT", "/"))
 DCONF_DIR = DESKTOP_ROOT / "etc/dconf/db"
 MUTSU_DEFAULTS = DCONF_DIR / "mutsu.d/10-mutsu-shell"
+SESSION_MODE = DESKTOP_ROOT / "usr/share/gnome-shell/modes/mutsu.json"
+SHELL_CORE_FILE = DESKTOP_ROOT / "usr/share/mutsu-os/shell-core"
 GNOME_EXTENSIONS = DESKTOP_ROOT / "usr/share/gnome-shell/extensions"
 BACKGROUND = DESKTOP_ROOT / "usr/share/backgrounds/mutsu/mutsu-japandi-4k.png"
 # Exclude conflicting dock implementations only: GNOME can't render both
@@ -108,6 +125,26 @@ def render_extensions(names: list[str]) -> str:
     )
 
 
+def mode_extensions(names: list[str]) -> list[str]:
+    """Mutsu's core first, in load order, then every other default."""
+    return [*SHELL_CORE, *(n for n in names if n not in SHELL_CORE)]
+
+
+def render_session_mode(names: list[str]) -> str:
+    # Everything else (panel, overview, lock screen...) is GNOME's own user
+    # session, inherited through parentMode.
+    return json.dumps({
+        "parentMode": "user",
+        "enabledExtensions": mode_extensions(names),
+    }, indent=2) + "\n"
+
+
+def render_shell_core() -> str:
+    return ("# Mutsu OS core Shell components: loaded first; the desktop is shown\n"
+            "# once they are on. See packaging/shell/apply-mutsu-shell.py.\n"
+            + "".join(f"{uuid}\n" for uuid in SHELL_CORE))
+
+
 def main() -> None:
     for uuid in MUTSU_EXTENSIONS:
         if not (GNOME_EXTENSIONS / uuid / "metadata.json").is_file():
@@ -122,7 +159,12 @@ def main() -> None:
     MUTSU_DEFAULTS.parent.mkdir(parents=True, exist_ok=True)
     MUTSU_DEFAULTS.write_text(render_extensions(names), encoding="utf-8")
     subprocess.run(["dconf", "update"], check=True)
+    SESSION_MODE.parent.mkdir(parents=True, exist_ok=True)
+    SESSION_MODE.write_text(render_session_mode(names), encoding="utf-8")
+    SHELL_CORE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SHELL_CORE_FILE.write_text(render_shell_core(), encoding="utf-8")
     print("Native Mutsu GNOME extensions:", ", ".join(names))
+    print("Mutsu session mode:", ", ".join(mode_extensions(names)))
     print("Mutsu GNOME default compiled for first login; no runtime script.")
 
 

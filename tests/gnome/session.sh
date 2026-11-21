@@ -30,8 +30,15 @@ if [ -d /usr/share/mutsu-os/shell-overlay/ui ]; then
     export G_RESOURCE_OVERLAYS=/org/gnome/shell/ui=/usr/share/mutsu-os/shell-overlay/ui
     echo "shell overlay: on" | tee -a "$OUT/versions.txt"
 fi
+# Like the real session (org.gnome.Shell@user.service.d/mutsu-session-mode.conf):
+# Mutsu's session mode, its core components loaded first.
+mode=()
+if gnome-shell --list-modes 2>/dev/null | grep -qx mutsu; then
+    mode=(--mode=mutsu)
+    echo "session mode: mutsu" | tee -a "$OUT/versions.txt"
+fi
 gnome-shell --headless --wayland --no-x11 --virtual-monitor 1280x800 --unsafe-mode --force-animations \
-    > "$OUT/shell.log" 2>&1 &
+    "${mode[@]}" > "$OUT/shell.log" 2>&1 &
 shell=$!
 
 ready=0

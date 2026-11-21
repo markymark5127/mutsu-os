@@ -53,6 +53,17 @@ class NativeDesktopVerificationTests(unittest.TestCase):
             (ext / "metadata.json").write_text(json.dumps({
                 "uuid": uuid, "shell-version": ["49", "50"],
             }))
+        modes = root / "usr/share/gnome-shell/modes"
+        modes.mkdir(parents=True)
+        (modes / "mutsu.json").write_text(json.dumps({
+            "parentMode": "user", "enabledExtensions": names + ["gsconnect@andyholmes.github.io"],
+        }))
+        core = root / "usr/share/mutsu-os/shell-core"
+        core.parent.mkdir(parents=True)
+        core.write_text("# core\n" + "\n".join(names[:3]) + "\n")
+        dropin = root / "usr/lib/systemd/user/org.gnome.Shell@user.service.d/mutsu-session-mode.conf"
+        dropin.parent.mkdir(parents=True)
+        dropin.write_text((ROOT / "packaging/shell/mutsu-session-mode.conf").read_text())
         return dbdir
 
     def test_native_image_passes_with_active_mutsu_profile(self):
@@ -85,6 +96,32 @@ class NativeDesktopVerificationTests(unittest.TestCase):
             errors = checker.verify_source_layout(root)
             self.assertTrue(any("not installed" in s for s in errors))
             self.assertTrue(any("per-login appearance" in s for s in errors))
+
+    def test_session_mode_must_carry_every_mutsu_component(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.build_fixture(root)
+            mode = root / "usr/share/gnome-shell/modes/mutsu.json"
+            mode.write_text(json.dumps({
+                "parentMode": "user",
+                "enabledExtensions": list(checker.REQUIRED_EXTENSIONS[1:]),
+            }))
+            (root / "usr/share/mutsu-os/shell-core").write_text("not-in-mode@x\n")
+            errors = checker.verify_source_layout(root)
+            self.assertTrue(any("session mode does not enable: "
+                                + checker.REQUIRED_EXTENSIONS[0] in s for s in errors))
+            self.assertTrue(any("not in the session mode: not-in-mode@x" in s for s in errors))
+
+    def test_shell_must_start_in_mutsu_mode(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.build_fixture(root)
+            (root / "usr/lib/systemd/user/org.gnome.Shell@user.service.d/"
+             "mutsu-session-mode.conf").unlink()
+            (root / "usr/share/gnome-shell/modes/mutsu.json").unlink()
+            errors = checker.verify_source_layout(root)
+            self.assertTrue(any("not started in Mutsu's session mode" in s for s in errors))
+            self.assertTrue(any("session mode is missing" in s for s in errors))
 
     def test_effective_gsettings_must_resolve_to_mutsu(self):
         expected = repr(list(checker.REQUIRED_EXTENSIONS))

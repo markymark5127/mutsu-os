@@ -63,11 +63,12 @@ install -Dm0644 "$brand/icons/mutsu-ai.svg" \
 install -Dm0644 "$brand/icons/mutsu-app-grid.svg" \
   /usr/share/icons/MutsuJapandi/scalable/actions/mutsu-app-grid.svg
 # Dock "Show Apps" button: nine round dots and no tile (the Shoji Glass
-# render) instead of GNOME's faint grey grid. Dash to Dock asks for view-app-grid-<mode>-symbolic and
+# render) instead of GNOME's faint grey grid. Dash to Dock asks for view-app-grid-<mode>-symbolic (the
+# session mode is "mutsu", "user" in a plain GNOME session) and
 # falls back to view-app-grid-symbolic; both themes get both names. Colours
 # come from the Shell CSS (color on .show-apps-icon).
 for theme_dir in MutsuJapandi MutsuCyberpunk; do
-  for name in view-app-grid-symbolic view-app-grid-user-symbolic; do
+  for name in view-app-grid-symbolic view-app-grid-user-symbolic view-app-grid-mutsu-symbolic; do
     install -Dm0644 "$brand/icons/mutsu-show-apps-symbolic.svg" \
       "/usr/share/icons/$theme_dir/scalable/actions/$name.svg"
   done
