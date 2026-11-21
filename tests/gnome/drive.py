@@ -150,10 +150,16 @@ def desktop_checks():
     record(S, "one search: overview search box hidden", st.get("overviewSearchHidden") is True, st)
     record(S, "top-left says Mutsu on the desktop", st.get("appName") in ("Mutsu", None), st)
     if os.path.isdir("/usr/share/mutsu-os/shell-overlay/ui"):
-        login = js("""({waits: typeof Main.layoutManager._mutsuWaitForExtensions === 'function',
-            promise: !!Main.extensionManager.startupComplete})""")
-        record(S, "login animation waits for extensions (Mutsu's Shell overlay)",
-               isinstance(login, dict) and login.get("waits") is True and login.get("promise") is True, login)
+        login = js("""({waits: typeof Main.layoutManager._mutsuWaitForCore === 'function',
+            core: typeof Main.extensionManager.mutsuWaitForCore === 'function',
+            unlock: typeof Main.screenShield?._mutsuFinishDeactivate === 'function',
+            mode: Main.sessionMode.currentMode})""")
+        record(S, "login and unlock wait for Mutsu's core components (Mutsu's Shell overlay)",
+               isinstance(login, dict) and login.get("waits") is True and login.get("core") is True
+               and login.get("unlock") is True, login)
+        if os.path.exists("/usr/share/gnome-shell/modes/mutsu.json"):
+            record(S, "the Shell runs in Mutsu's session mode",
+                   isinstance(login, dict) and login.get("mode") == "mutsu", login)
         started = js("""({startingUp: Main.layoutManager._startingUp,
             uiOpacity: Main.layoutManager.uiGroup.opacity,
             uiScale: Main.layoutManager.uiGroup.scale_x})""")

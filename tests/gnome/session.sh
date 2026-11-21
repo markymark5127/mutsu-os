@@ -25,7 +25,7 @@ gsettings set org.gnome.shell disable-extension-version-validation false
 echo "enabled-extensions: $uuids" | tee -a "$OUT/versions.txt"
 
 # Like the real session (org.gnome.Shell@.service.d/mutsu-shell-overlay.conf):
-# the login animation waits for extensions.
+# login and unlock wait for Mutsu's core components.
 if [ -d /usr/share/mutsu-os/shell-overlay/ui ]; then
     export G_RESOURCE_OVERLAYS=/org/gnome/shell/ui=/usr/share/mutsu-os/shell-overlay/ui
     echo "shell overlay: on" | tee -a "$OUT/versions.txt"
