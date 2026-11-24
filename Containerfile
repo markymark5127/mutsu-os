@@ -257,6 +257,15 @@ RUN bash /tmp/mutsu-install-terminal-branding.sh && \
     test -s /usr/share/flatpak/preinstall.d/mutsu-os.preinstall && \
     rm -rf /tmp/mutsu-terminal-assets /tmp/mutsu-install-terminal-branding.sh
 
+### MEMORY
+# zram as large as RAM (Bazzite uses half), plus a lower-priority swap file
+# on disk for when zram fills. See packaging/memory/.
+COPY packaging/memory/50-mutsu-zram.conf /usr/lib/systemd/zram-generator.conf.d/50-mutsu-zram.conf
+COPY packaging/memory/ensure-swapfile.sh /usr/libexec/mutsu-os/ensure-swapfile.sh
+COPY packaging/memory/mutsu-swapfile.service /usr/lib/systemd/system/mutsu-swapfile.service
+RUN chmod 0755 /usr/libexec/mutsu-os/ensure-swapfile.sh && \
+    systemctl enable mutsu-swapfile.service
+
 ### MUTSU GNOME SHELL
 COPY --from=shell /out/ /tmp/mutsu-shell-out/
 COPY packaging/shell/mutsu-shell-overlay.conf /usr/lib/systemd/user/org.gnome.Shell@.service.d/mutsu-shell-overlay.conf

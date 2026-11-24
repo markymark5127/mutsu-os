@@ -1,0 +1,14 @@
+[Unit]
+Description=Mutsu backup swap file (used only after compressed RAM swap is full)
+# Not on the live USB: its /var lives in RAM.
+ConditionKernelCommandLine=!tacklebox.live.squashimg
+RequiresMountsFor=/var
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/mutsu-os/ensure-swapfile.sh
+
+[Install]
+WantedBy=multi-user.target
