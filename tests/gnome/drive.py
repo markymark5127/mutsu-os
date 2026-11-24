@@ -152,11 +152,23 @@ def desktop_checks():
     if os.path.isdir("/usr/share/mutsu-os/shell-overlay/ui"):
         login = js("""({waits: typeof Main.layoutManager._mutsuWaitForCore === 'function',
             core: typeof Main.extensionManager.mutsuWaitForCore === 'function',
-            unlock: typeof Main.screenShield?._mutsuFinishDeactivate === 'function',
+            unlock: Main.screenShield ? typeof Main.screenShield._mutsuFinishDeactivate === 'function'
+                : 'no screen shield',
             mode: Main.sessionMode.currentMode})""")
+        # The Shell only makes a screen shield when logind says it can lock,
+        # which a headless container never does; then check the overlay's
+        # screenShield.js carries the unlock wait instead.
+        unlock = isinstance(login, dict) and login.get("unlock")
+        if unlock == "no screen shield":
+            try:
+                with open("/usr/share/mutsu-os/shell-overlay/ui/screenShield.js") as f:
+                    unlock = "_mutsuFinishDeactivate(" in f.read()
+            except OSError:
+                unlock = False
+            login["unlock"] = f"no screen shield; overlay has the unlock wait: {unlock}"
         record(S, "login and unlock wait for Mutsu's core components (Mutsu's Shell overlay)",
                isinstance(login, dict) and login.get("waits") is True and login.get("core") is True
-               and login.get("unlock") is True, login)
+               and unlock is True, login)
         if os.path.exists("/usr/share/gnome-shell/modes/mutsu.json"):
             record(S, "the Shell runs in Mutsu's session mode",
                    isinstance(login, dict) and login.get("mode") == "mutsu", login)
